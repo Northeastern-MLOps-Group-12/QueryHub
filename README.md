@@ -1,2 +1,2 @@
 # QueryHub
-RAG-Based Text to SQL System
+RAG-Based Text to SQL System.
