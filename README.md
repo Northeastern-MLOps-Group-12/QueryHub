@@ -117,7 +117,7 @@ docker-compose up --build
 
 ## ⚙️ Usage
 
-QueryHub is available as a web application with a simple chat-style interface. Users can interact with their connected databases through natural language queries.
+QueryHub will be available as a web application with a simple chat-style interface. Users can interact with their connected databases through natural language queries.
 
 The flow of the application works as follows:
 
@@ -161,7 +161,7 @@ The flow of the application works as follows:
 
 ---
 
-📅 Timeline
+## 📅 Timeline
 
 - **Week 1–2:** Repo setup, frontend + backend scaffolding
 - **Week 3–5:** Data pipeline development and testing
