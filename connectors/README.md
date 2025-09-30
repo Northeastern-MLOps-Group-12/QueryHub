@@ -1,5 +1,6 @@
 ## Connectors Structure
 
+```
 connectors/
 │
 ├── __init__.py
@@ -25,3 +26,4 @@ connectors/
             ├── __init__.py
             ├── aws_rds.py         # AwsRdsMySQLConnector
             └── gcp_cloudsql.py    # GcpCloudSqlMySQLConnector
+```
