@@ -2,27 +2,18 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies needed for psycopg2
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    libpq-dev \
-    python3-dev \
-    musl-dev \
+    build-essential gcc libpq-dev python3-dev musl-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
 COPY connectors/requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Copy your FastAPI code
-COPY connectors/api/ api/
+# Copy everything (since you build from root)
+COPY connectors/ connectors/
+COPY databases/ databases/
 
-# Expose the default Cloud Run port (optional, good practice)
+ENV PYTHONPATH=/app
 EXPOSE 8080
 
-# Use a main.py entrypoint to read PORT dynamically
-COPY connectors/main.py .
-
-# Run the app
-CMD ["python", "main.py"]
+CMD ["python", "connectors/main.py"]
