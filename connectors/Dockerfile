@@ -2,17 +2,18 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies required for psycopg2 and other packages
+# Install all system dependencies needed to compile psycopg2
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
     libpq-dev \
+    python3-dev \
+    musl-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
 COPY api/connectors_api.py .
 
 EXPOSE 8080
