@@ -1,5 +1,7 @@
 import psycopg2
 from abc import abstractmethod
+# from ..base_connector import BaseConnector
+
 from ...base_connector import BaseConnector
 
 class BasePostgresConnector(BaseConnector):

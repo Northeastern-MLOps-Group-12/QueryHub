@@ -6,6 +6,8 @@ from databases.cloudsql.database import get_db
 from databases.cloudsql.models.credentials import Credentials
 
 
+
+
 class GcpCloudSqlPostgresConnector(BasePostgresConnector):
     """
     Specific connector for a PostgreSQL database hosted on GCP Cloud SQL.

@@ -48,8 +48,9 @@ jobs:
       - name: Build and Push Connectors Api Docker Image
         run: |
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
-          docker build -t $IMAGE -f connectors/Dockerfile connectors
+          docker build -t $IMAGE -f connectors/Dockerfile .
           docker push $IMAGE
+# docker build -t $IMAGE -f connectors/Dockerfile connectors
 
       - name: Deploy Connectors to Cloud Run
         run: |
