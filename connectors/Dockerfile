@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies
-COPY requirements.txt .
+COPY connectors/requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy your FastAPI code
-COPY api/ api/
+COPY connectors/api/ api/
 
 # Expose the default Cloud Run port (optional, good practice)
 EXPOSE 8080
