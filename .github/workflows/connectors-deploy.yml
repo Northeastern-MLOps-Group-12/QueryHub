@@ -60,7 +60,8 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }}
-            --timepout=300s
+            --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
+            --timeout=300s \
+            --set-env-vars DATABASE_URL=postgresql+pg8000://user:pass@host:5432/dbname
 
             
