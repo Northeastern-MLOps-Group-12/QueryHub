@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies for tests
         run: |
           python -m pip install --upgrade pip
-          pip install -r order-api/requirements.txt
+          pip install -r connectors/requirements.txt
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
