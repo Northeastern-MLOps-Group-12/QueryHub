@@ -60,5 +60,6 @@ jobs:
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }}
+            --timepout=300s
 
             
