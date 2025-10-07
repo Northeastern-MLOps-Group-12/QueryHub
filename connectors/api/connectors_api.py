@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from connectors.factory import get_connector
-from .models.connector import ConnectorRequest  # import model
+from .models.connector import ConnectorRequest  # import model1
 
 app = FastAPI(title="Connector Service API")
 
