@@ -53,11 +53,12 @@ jobs:
 
       - name: Deploy Connectors to Cloud Run
         run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
           gcloud run deploy connectors \
-            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/connectors:latest \
+            --image=$IMAGE \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }}
 
-      
+            
