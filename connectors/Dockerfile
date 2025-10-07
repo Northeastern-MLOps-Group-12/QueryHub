@@ -22,7 +22,7 @@ COPY api/ api/
 EXPOSE 8080
 
 # Use a main.py entrypoint to read PORT dynamically
-COPY main.py .
+COPY connectors/main.py .
 
 # Run the app
 CMD ["python", "main.py"]
