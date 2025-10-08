@@ -57,11 +57,12 @@ jobs:
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
           gcloud run deploy connectors \
             --image=$IMAGE \
+            --add-cloudsql-instances=queryhub-473901:us-central1:nl-to-sql-db \
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=300s \
-            --set-env-vars DATABASE_URL=postgresql+pg8000://user:pass@host:5432/dbname
+            --set-env-vars DATABASE_URL=postgresql+pg8000://postgres:@/QueryHub@123?unix_sock=/cloudsql/queryhub-473901:us-central1:nl-to-sql-db/.s.PGSQL.5432
 
             
