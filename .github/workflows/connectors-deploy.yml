@@ -63,5 +63,6 @@ jobs:
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=300s \
-            --set-env-vars DATABASE_URL=postgresql+pg8000://postgres:QueryHub%40123@34.28.5.75:5432/queryhub
+            --set-env-vars DATABASE_URL=postgresql+pg8000://postgres:QueryHub%40123@/queryhub?unix_sock=/cloudsql/queryhub-473901:us-central1:nl-to-sql-db/.s.PGSQL.5432
+
             
