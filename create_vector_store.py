@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import os
 import vector_store
-from connector import get_conn_str
+from utils.connector.connector import get_conn_str
 import json
 
 load_dotenv()

@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 import json
 import warnings
 warnings.filterwarnings("ignore")
-from table_summarizer import generate_description
-from dataset_summarizer import generate_dataset_description
+from utils.summarizers.table_summarizer import generate_description
+from utils.summarizers.dataset_summarizer import generate_dataset_description
 load_dotenv()
 
 def generate_data(conn_str):

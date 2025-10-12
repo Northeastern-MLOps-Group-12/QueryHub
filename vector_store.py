@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from langchain.vectorstores import Chroma
 import json
 from generate_table_data import generate_data
-from dataset_summarizer import generate_dataset_description
+from utils.summarizers.dataset_summarizer import generate_dataset_description
 
 load_dotenv()
 
@@ -61,7 +61,7 @@ def form_vector_store(db_name , db_conn_str):
     vector_store.persist()
     print("Vector store created and saved to:", persist_directory)
 
-def search_vector_store(db_name, query, top_k=4):
+def search_vector_store(db_name, query, top_k):
     persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}")
     collection_name = f"chroma_{db_name}_schema"
 

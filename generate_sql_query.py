@@ -1,4 +1,4 @@
-from global_state import AgentState
+from state.global_state import AgentState
 import vector_store
 from langchain_openai import ChatOpenAI
 import json
