@@ -1,0 +1,14 @@
+dotenv
+pandas
+sqlalchemy
+pyodbc
+langgraph
+langchain
+pydantic
+uvicorn
+fastapi
+matplotlib
+seaborn
+chromadb
+langchain-openai
+langchain-community
