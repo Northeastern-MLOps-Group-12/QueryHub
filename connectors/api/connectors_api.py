@@ -11,12 +11,12 @@ def connect(request: ConnectorRequest):
     """
     try:
         connector_instance = get_connector(
-            engine=request.engine,
-            provider=request.provider
+            engine=request.engine
         )
 
         # Optional: test connection if your connector has a connect() method
         connector_instance.connect(request.config)
+        connector_instance.analyze_and_save()
 
         return {"success": True, "message": f"{request.engine}-{request.provider} connector created!"}
 

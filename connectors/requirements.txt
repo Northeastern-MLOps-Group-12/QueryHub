@@ -9,3 +9,5 @@ fastapi==0.118.0
 uvicorn==0.37.0
 pg8000==1.31.5
 dotenv==0.9.9
+google-genai==1.43.0
+pymysql==1.1.2

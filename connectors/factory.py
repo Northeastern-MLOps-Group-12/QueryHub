@@ -1,38 +1,26 @@
 # connectors/factory.py
 
 from .base_connector import BaseConnector
+from .engines.postgres.postgres_connector import PostgresConnector
+# from .engines.mysql.mysql_connector import MySQLConnector
 
-# Import the specific, final connector classes from their provider files
-# from .engines.postgres.providers.aws_rds import AwsRdsPostgresConnector
-from .engines.postgres.providers.gcp_cloudsql import GcpCloudSqlPostgresConnector
-# from .engines.mysql.providers.aws_rds import AwsRdsMySQLConnector
-# from .engines.mysql.providers.gcp_cloudsql import GcpCloudSqlMySQLConnector
 
-def get_connector(provider: str, engine: str) -> BaseConnector:
+def get_connector(engine: str) -> BaseConnector:
     """
     Factory that returns an instance of the correct connector 
-    based on the cloud provider and database engine.
+    based on the database engine (e.g., postgres, mysql).
 
     Args:
-        provider: The cloud provider (e.g., "gcp", "aws").
-        engine: The database engine (e.g., "postgres", "mysql").
+        engine (str): The database engine.
 
     Returns:
-        An instance of a class that inherits from BaseConnector.
+        BaseConnector subclass instance.
     """
-
-    # Sanitize inputs to be lowercase
-    provider = provider.lower()
     engine = engine.lower()
 
-    if provider == "gcp" and engine == "postgres":
-        return GcpCloudSqlPostgresConnector()
-    # elif provider == "aws" and engine == "postgres":
-    #     return AwsRdsPostgresConnector()
-    # elif provider == "gcp" and engine == "mysql":
-    #     return GcpCloudSqlMySQLConnector()
-    # elif provider == "aws" and engine == "mysql":
-    #     return AwsRdsMySQLConnector()
+    if engine == "postgres":
+        return PostgresConnector()
+    # elif engine == "mysql":
+    #     return MySQLConnector()
     else:
-        # If no match is found, raise an error.
-        raise ValueError(f"Unsupported provider/engine combination: {provider}/{engine}")
+        raise ValueError(f"Unsupported engine type: {engine}")
