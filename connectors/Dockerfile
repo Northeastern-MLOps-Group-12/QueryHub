@@ -12,6 +12,8 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Copy everything (since you build from root)
 COPY connectors/ connectors/
 COPY databases/ databases/
+COPY utils/ utils/
+
 
 ENV PYTHONPATH=/app
 EXPOSE 8080
