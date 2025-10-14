@@ -40,7 +40,7 @@ jobs:
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           echo "Building image: $IMAGE"
-          docker build -t "$IMAGE" .
+          docker build -t "$IMAGE" -f frontend/Dockerfile frontend
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
