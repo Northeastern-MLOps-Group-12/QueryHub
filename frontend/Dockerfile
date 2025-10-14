@@ -24,8 +24,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy custom Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80 for Cloud Run
-EXPOSE 80
+# Expose port 8080 for Cloud Run
+EXPOSE 8080
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
