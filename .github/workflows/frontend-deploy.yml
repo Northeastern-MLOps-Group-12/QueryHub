@@ -2,7 +2,7 @@ name: Deploy Frontend to Google Cloud Run
 
 on:
   push:
-    branches: ["frontend-setup"]
+    branches: ["main", "dev"]
     paths: ["frontend/**"]
   workflow_dispatch:
 

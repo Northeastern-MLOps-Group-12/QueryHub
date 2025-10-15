@@ -1,0 +1,14 @@
+import { Route, Routes } from "react-router-dom";
+import SignIn from "./SignIn";
+import SignUp from "./SignUp";
+
+export default function Account() {
+  return (
+    <div className="flex-grow-1 d-flex flex-column">
+      <Routes>
+        <Route path="/SignIn" element={<SignIn />} />
+        <Route path="/SignUp" element={<SignUp />} />
+      </Routes>
+    </div>
+  );
+}

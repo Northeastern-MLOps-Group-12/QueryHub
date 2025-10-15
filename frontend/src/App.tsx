@@ -1,34 +1,50 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
+import {
+  Navigate,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+} from "react-router-dom";
+import useAuth from "./Account/UseAuth";
+import Navbar from "./Navbar";
+import HomePage from "./Home";
+import Account from "./Account";
+import ProtectedRoute from "./Account/ProtectedRoute";
+import ChatInterface from "./ChatInterface";
+import Footer from "./Footer";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is: {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="d-flex flex-column vh-100">
+      <Router>
+        <Navbar />
+        <div className="d-flex flex-column flex-grow-1">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route
+              path="/Account/*"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/ChatInterface" replace />
+                ) : (
+                  <Account />
+                )
+              }
+            />
+            <Route
+              path="/ChatInterface"
+              element={<ProtectedRoute element={<ChatInterface />} />}
+            />
+          </Routes>
+        </div>
+        <Footer />
+      </Router>
+    </div>
   );
 }
 

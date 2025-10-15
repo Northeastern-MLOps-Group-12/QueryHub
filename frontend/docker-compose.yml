@@ -1,17 +1,6 @@
 version: "3"
 
 services:
-  frontend:
-    build: .
-    container_name: queryhub-frontend
-    ports:
-      - "3000:80"
-    stdin_open: true
-    tty: true
-    volumes:
-      - .:/app
-    command: sh -c "npm run build && nginx -g 'daemon off;'"
-
   dev:
     build:
       context: .
