@@ -23,7 +23,10 @@ function App() {
     <div className="d-flex flex-column vh-100">
       <Router>
         <Navbar />
-        <div className="d-flex flex-column flex-grow-1">
+        <div
+          className="d-flex flex-column flex-grow-1"
+          style={{ paddingTop: "60px" }}
+        >
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route

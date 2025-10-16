@@ -27,3 +27,8 @@ export const signIn = (credentials: AuthCredentials) => {
 export const getProfile = () => {
   return axios.get(`${API_URL}/profile`, { withCredentials: true });
 };
+
+// Sign out user
+export const signOut = () => {
+  return axios.post(`${API_URL}/logout`, null, { withCredentials: true });
+};
