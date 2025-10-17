@@ -6,7 +6,6 @@ const API_URL = `${import.meta.env.VITE_API_URL}/chat`;
 export interface ChatSession {
   id: string;
   title: string;
-  createdAt: string;
   lastMessage?: string;
 }
 
@@ -14,45 +13,47 @@ export interface Message {
   id: string;
   sender: "user" | "bot";
   text: string;
-  createdAt: string;
-  chatId: string;
+  timestamp: string;
 }
 
-// Get all chat sessions for the current user
-export const getChatSessions = async (): Promise<ChatSession[]> => {
-  const res = await axios.get(`${API_URL}/sessions`, { withCredentials: true });
-  return res.data;
-};
-
-// Get messages of a specific chat
-export const getChatMessages = async (chatId: string): Promise<Message[]> => {
-  const res = await axios.get(`${API_URL}/messages/${chatId}`, {
+// --- Fetch all chat sessions for current user ---
+export async function getChatSessions(userId: string): Promise<ChatSession[]> {
+  const response = await axios.get(`${API_URL}/chats`, {
+    params: { userId },
     withCredentials: true,
   });
-  return res.data;
-};
+  return response.data;
+}
 
-// Create a new chat session
-export const createChatSession = async (
-  title: string
-): Promise<ChatSession> => {
-  const res = await axios.post(
-    `${API_URL}/sessions`,
-    { title },
+// --- Fetch messages for a specific chat session ---
+export async function getChatMessages(chatId: string): Promise<Message[]> {
+  const response = await axios.get(`${API_URL}/chats/${chatId}/messages`, {
+    withCredentials: true,
+  });
+  return response.data;
+}
+
+// --- Create new chat session ---
+export async function createNewChat(userId: string): Promise<ChatSession> {
+  const response = await axios.post(
+    `${API_URL}/chats`,
+    { userId },
     { withCredentials: true }
   );
-  return res.data;
-};
 
-// Send a new message to a chat
-export const sendMessage = async (
+  return response.data;
+}
+
+// --- Send a message (user → bot) ---
+export async function sendMessage(
   chatId: string,
+  userId: string,
   text: string
-): Promise<Message> => {
-  const res = await axios.post(
-    `${API_URL}/send`,
-    { chatId, text },
+): Promise<Message[]> {
+  const response = await axios.post(
+    `${API_URL}/chats/${chatId}/send`,
+    { userId, text },
     { withCredentials: true }
   );
-  return res.data;
-};
+  return response.data; // returns updated message list or new bot reply
+}

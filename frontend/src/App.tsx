@@ -13,6 +13,7 @@ import ProtectedRoute from "./Account/ProtectedRoute";
 import Footer from "./Footer";
 import SignIn from "./Account/SignIn";
 import SignUp from "./Account/SignUp";
+import DemoInterface from "./ChatInterface/DemoInterface";
 
 function App() {
   const { loading } = useAuth();
@@ -48,11 +49,17 @@ function App() {
               element={<ProtectedRoute element={<ChatInterface />} />}
             />
 
+            {/* Demo interface */}
+            <Route
+              path="/demointerface"
+              element={<ProtectedRoute element={<DemoInterface />} />}
+            />
+
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        <Footer />
+        {/* <Footer /> */}
       </Router>
     </div>
   );
