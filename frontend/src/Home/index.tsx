@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Container, Button, Row, Col, Card } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../Account/UseAuth";
-import { heroContent, steps, features, ctaContent } from "./content";
+import { heroContent, steps, features, ctaContent } from "../data/homeContent";
 
 // Feature Card Component
 interface FeatureCardProps {

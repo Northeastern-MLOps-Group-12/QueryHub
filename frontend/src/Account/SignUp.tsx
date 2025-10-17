@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { register } from "../Services/authService";
+import { register } from "../Services/AuthService";
 
 export default function SignUp() {
   const navigate = useNavigate();
