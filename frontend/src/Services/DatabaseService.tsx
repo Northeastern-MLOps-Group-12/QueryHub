@@ -1,5 +1,7 @@
 import axios from "axios";
 
+axios.defaults.withCredentials = true;
+
 const API_URL = `${import.meta.env.VITE_API_URL}/db`;
 
 // Interface for database connection
@@ -31,7 +33,6 @@ export const addDatabaseConnection = async (
 ) => {
   return axios.post(`${API_URL}/connect`, data, {
     params: { userId },
-    withCredentials: true,
   });
 };
 
@@ -39,7 +40,6 @@ export const addDatabaseConnection = async (
 export const getUserConnections = async (userId: string) => {
   const res = await axios.get(`${API_URL}/getDbConnections`, {
     params: { userId },
-    withCredentials: true,
   });
 
   return res.data as DatabaseConnection[];
@@ -52,6 +52,5 @@ export const deleteConnection = async (
 ) => {
   return axios.delete(`${API_URL}/deleteConnection/${connectionId}`, {
     params: { userId },
-    withCredentials: true,
   });
 };

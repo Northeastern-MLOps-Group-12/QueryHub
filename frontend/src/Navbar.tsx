@@ -1,37 +1,23 @@
 import { Button } from "react-bootstrap";
 import useAuth from "./Account/UseAuth";
-import { signOut, getProfile } from "./Services/AuthService";
+import { signOut } from "./Services/AuthService";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiDatabase, FiLogOut } from "react-icons/fi";
 
 export default function Navbar() {
-  const { userId } = useAuth();
+  const { userId, userData } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsAuthenticated(!!userId);
   }, [userId]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      (async () => {
-        try {
-          const res = await getProfile();
-          if (res.status === 200) setUserData(res.data);
-        } catch (err) {
-          console.error("Failed to fetch user profile:", err);
-        }
-      })();
-    }
-  }, [isAuthenticated]);
 
   // close dropdown when clicking outside
   useEffect(() => {
