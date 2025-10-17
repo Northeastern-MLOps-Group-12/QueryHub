@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
-import { getProfile } from "../Services/authService";
+import { getProfile } from "../Services/AuthService";
 
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await getProfile();
         if (response.status === 200) {
-          setUserEmail(response.data.email);
+          setUserId(response.data.userId);
           setIsAuthenticated(true);
         }
       } catch {
@@ -23,7 +23,7 @@ const useAuth = () => {
     checkAuth();
   }, []);
 
-  return { isAuthenticated, loading, userEmail };
+  return { isAuthenticated, loading, userId };
 };
 
 export default useAuth;

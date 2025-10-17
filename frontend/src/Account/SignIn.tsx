@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { signIn } from "../Services/authService";
+import { signIn } from "../Services/AuthService";
 
 export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
