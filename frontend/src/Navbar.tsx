@@ -97,12 +97,6 @@ export default function Navbar() {
             >
               Features
             </button>
-            <button
-              className="nav-link btn btn-link"
-              onClick={() => handleScrollTo("about")}
-            >
-              About
-            </button>
 
             {isAuthenticated ? (
               <div className="position-relative ms-3" ref={menuRef}>
