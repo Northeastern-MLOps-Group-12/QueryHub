@@ -13,7 +13,7 @@ class BaseConnector(ABC):
         pass
 
     @abstractmethod
-    def get_schema(self) -> dict:
+    def get_inspector(self) -> dict:
         """Fetch the database schema as a structured dictionary."""
         pass
 

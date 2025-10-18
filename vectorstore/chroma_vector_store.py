@@ -1,0 +1,222 @@
+from msilib import text
+import os
+import json
+from dotenv import load_dotenv
+from langchain_openai.embeddings import OpenAIEmbeddings
+from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
+from langchain.vectorstores import Chroma
+from connectors.connector import Connector
+from agents.base_agent import Agent
+# from generate_table_data import generate_data
+# from utils.summarizers.dataset_summarizer import generate_dataset_description
+
+load_dotenv()
+
+DIR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VectorStores")
+
+class ChromaVectorStore:
+    def __init__(self, db_name: str, embedding_model: str = "text-embedding-3-large", model='gpt'):
+        self.db_name = db_name
+        self.persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}")
+        self.collection_name = f"chroma_{db_name}_schema"
+        self.embedding_function = OpenAIEmbeddings(model=embedding_model) if model == "gpt" else GoogleGenerativeAIEmbeddings(model=embedding_model)
+        self.vector_store = None
+        self.model = model
+
+    def exists(self) -> bool:
+        return os.path.exists(self.persist_directory)
+
+    def build(self, connector: Connector):
+        if self.exists():
+            print("Vector Store already exists")
+            return
+
+        self.vector_store = Chroma(
+            collection_name=self.collection_name,
+            embedding_function=self.embedding_function,
+            persist_directory=self.persist_directory
+        )
+
+        tables_metadata, table_descriptions, dataset_desc = self.generate_data(connector=connector)
+
+        for table_meta, table_desc in zip(tables_metadata, table_descriptions):
+            self.vector_store.add_texts(
+                texts=[f"{table_meta['Table']}\n\n{table_desc['Description']}"],
+                metadatas=[{
+                    "table_name": table_meta["Table"],
+                    "columns": json.dumps(table_meta["Columns"]),
+                    "primary_key": json.dumps(table_meta["PrimaryKey"]),
+                    "foreign_keys": json.dumps(table_meta["ForeignKeys"]),
+                    "indexes": json.dumps(table_meta["Indexes"]),
+                    "total_rows": table_meta["TotalRows"]
+                }],
+                ids=[table_meta["Table"]]
+            )
+
+        self.vector_store.add_texts(
+            texts=[f"**Dataset Details**:\n\n{dataset_desc}"],
+            metadatas=[{"Dataset Summary": dataset_desc}],
+            ids=[f"{self.db_name} Summary"]
+        )
+
+        self.vector_store.persist()
+        print("✅ Vector store created and saved to:", self.persist_directory)
+
+    def load(self):
+        """Load the vector store from disk."""
+        self.vector_store = Chroma(
+            collection_name=self.collection_name,
+            embedding_function=self.embedding_function,
+            persist_directory=self.persist_directory
+        )
+
+    def search(self, query: str, top_k: int = 5):
+        if self.vector_store is None:
+            self.load()
+
+        candidate_docs = self.vector_store.similarity_search(query, k=top_k)
+
+        # Filter table-level docs
+        table_docs = [doc for doc in candidate_docs if len(doc.metadata.keys()) > 1]
+
+        return table_docs[:top_k]
+
+    def get_store(self):
+        """Return the Chroma vector store object."""
+        if self.vector_store is None:
+            self.load()
+        return self.vector_store
+    
+    def generate_data(self, connector: Connector):
+        conn = connector.connect()
+        inspector = connector.get_inspector()
+
+        tables_metadata = []
+
+        try:
+            for table in inspector.get_table_names():
+                print(table)
+
+                table_info = {"Table": table}
+
+                # Columns
+                columns_info = [
+                    {
+                        "name": col["name"],
+                        "type": str(col["type"]),
+                        "nullable": col["nullable"],
+                        "default": col.get("default"),
+                        "autoincrement": col.get("autoincrement")
+                    }
+                    for col in inspector.get_columns(table)
+                ]
+                table_info["Columns"] = columns_info
+
+                # Primary Keys
+                pk = inspector.get_pk_constraint(table)
+                table_info["PrimaryKey"] = pk.get("constrained_columns")
+
+                # Foreign Keys
+                fks = inspector.get_foreign_keys(table)
+                table_info["ForeignKeys"] = [
+                    {
+                        "columns": fk["constrained_columns"],
+                        "referred_table": fk["referred_table"],
+                        "referred_columns": fk["referred_columns"]
+                    }
+                    for fk in fks
+                ]
+
+                # Indexes
+                indexes = inspector.get_indexes(table)
+                table_info["Indexes"] = [
+                    {
+                        "name": idx["name"],
+                        "columns": idx["column_names"],
+                        "unique": idx["unique"]
+                    }
+                    for idx in indexes
+                ]
+
+
+                count_result = conn.execute_query(text(f'SELECT COUNT(*) AS total_rows FROM "{table}"'))
+                row_count = count_result.fetchone()[0]
+
+                # Total Rows
+                table_info["TotalRows"] = row_count
+
+                tables_metadata.append(table_info)
+
+        except Exception as e:
+            print("Error:", e)
+
+
+        table_descriptions = []
+        for table_meta in tables_metadata:
+            table_name = table_meta["Table"]
+            description = self.generate_description(table_meta)
+            table_descriptions.append({"Table": table_name, "Description": description})
+
+        with open("table_descriptions.json","w+") as f:
+            json.dump(table_descriptions,f)
+        f.close()
+
+        dataset_desc = self.generate_description(tables_metadata)
+
+        return tables_metadata , table_descriptions , dataset_desc
+    
+    def generate_description(self, table_metadata):
+        agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
+        prompt = """
+        You are a data analyst who summarizes SQL table structures clearly and concisely.
+
+        Given the following table metadata (in JSON format), write a short but detailed description of the table. 
+        The description should include:
+        - The purpose or meaning of the table (inferred from its name and columns)
+        - A quick overview of what data it stores
+        - A mention of each column with its type, whether nullable, and its general role
+        - The primary key(s) and what they uniquely identify
+        - Any foreign key relationships (and what tables they connect to)
+        - Notable indexes or unique constraints
+        - The total number of rows, if relevant
+
+        Be objective and precise — 3–6 sentences maximum.
+
+        Example format:
+        "**Table: Orders** — This table stores customer order records. It includes fields such as `OrderID` (primary key), `CustomerID` (foreign key to Customers), and `OrderDate`. Each row represents one placed order. The table contains X rows."
+
+        Now here is the table data:
+        {table_metadata}
+        """
+
+        prompt_placeholders = {
+            "table_metadata": table_metadata
+        }
+
+        return agent.generate(prompt, prompt_placeholders)
+    
+
+    def generate_description(self, tables_metadata):
+        agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
+        prompt = """
+       You are a data analyst who describes database schemas clearly and professionally.
+
+        Given the following list of table metadata (in JSON format), write a concise and insightful **dataset-level description**.  
+        Your response should summarize:
+        - The overall purpose of the database (what kind of data it manages)
+        - The key entities (tables) and their relationships
+        - Any notable structure (e.g., star schema, transactional, reference data)
+        - The general scale or richness (based on row counts)
+        - Example use cases or what this database might support
+
+        Be clear and concise — write **1–2 paragraphs**.
+
+        Now here is the full table data:
+        {tables_metadata}
+        """
+
+        prompt_placeholders = {
+            "tables_metadata": tables_metadata
+        }
+
+        return agent.generate(prompt, prompt_placeholders)

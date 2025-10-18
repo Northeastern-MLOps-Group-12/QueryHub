@@ -1,11 +1,11 @@
 import os
 import pymysql
-from ...base_connector import BaseConnector
+from ...connector import BaseConnector
 from databases.cloudsql.crud import create_record
 from databases.cloudsql.database import get_db
 from databases.cloudsql.models.credentials import Credentials
-from utils.gemini_llm import GeminiClient
-from utils.prompt_builder import PromptBuilder
+# from utils.gemini_llm import GeminiClient
+# from utils.prompt_builder import PromptBuilder
 
 
 class MySQLConnector(BaseConnector):
