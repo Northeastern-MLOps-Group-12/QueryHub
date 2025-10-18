@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Container, Button, Row, Col, Card } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
-import useAuth from "../Account/UseAuth";
+import useAuth from "../hooks/useAuth";
 import { heroContent, steps, features, ctaContent } from "../data/homeContent";
 
 // Feature Card Component
@@ -40,9 +40,9 @@ export default function HomePage() {
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
-      navigate("/ChatInterface");
+      navigate("/chatinterface");
     } else {
-      navigate("/Account/SignIn");
+      navigate("/account/signin");
     }
   };
 

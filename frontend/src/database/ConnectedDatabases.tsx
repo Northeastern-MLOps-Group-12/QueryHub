@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Card, Button, Modal } from "react-bootstrap";
 import { FiTrash2, FiDatabase } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import useAuth from "../Account/UseAuth";
+import useAuth from "../hooks/useAuth";
 import {
   getUserConnections,
   deleteConnection,
   type DatabaseConnection,
-} from "../Services/DatabaseService";
+} from "../services/DatabaseService";
 
 export default function ConnectedDatabases() {
   const navigate = useNavigate();
@@ -131,13 +131,25 @@ export default function ConnectedDatabases() {
                 <strong>User:</strong> {selectedConnection.dbUser}
               </p>
               <p>
-                <strong>Created At:</strong>{" "}
-                {new Date(selectedConnection.createdAt).toLocaleString()}
+                <strong>Connected On:</strong>{" "}
+                {new Date(selectedConnection.connectedOn).toLocaleString()}
               </p>
             </>
           )}
         </Modal.Body>
         <Modal.Footer>
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (selectedConnection) {
+                navigate(
+                  `/database/databasedescription/${selectedConnection.id}`
+                );
+              }
+            }}
+          >
+            See Table Descriptions
+          </Button>
           <Button
             variant="danger"
             onClick={() =>

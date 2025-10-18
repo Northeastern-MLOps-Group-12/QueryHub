@@ -1,15 +1,15 @@
 import { Navigate, useLocation } from "react-router-dom";
-import useAuth from "./UseAuth";
+import useAuth from "../hooks/useAuth";
 import { type ReactElement } from "react";
 
 interface ProtectedRouteProps {
   element: ReactElement;
-  publicRoutes?: string[]; // Routes that don't need auth
+  publicRoutes?: string[];
 }
 
 const ProtectedRoute = ({
   element,
-  publicRoutes = ["/", "/account/signin", "/account/signup", "/demointerface"],
+  publicRoutes = ["/", "/account/signin", "/account/signup"],
 }: ProtectedRouteProps) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
@@ -29,7 +29,7 @@ const ProtectedRoute = ({
   if (isAuthenticated) return element;
 
   // Not logged in → redirect to SignIn
-  return <Navigate to="/Account/SignIn" state={{ from: location }} replace />;
+  return <Navigate to="/account/signin" state={{ from: location }} replace />;
 };
 
 export default ProtectedRoute;
