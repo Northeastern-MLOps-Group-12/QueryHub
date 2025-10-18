@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { signIn } from "../Services/AuthService";
+import { signIn } from "../services/AuthService";
+import { getUserConnections } from "../services/DatabaseService";
 
 export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
@@ -28,9 +29,20 @@ export default function SignIn() {
     try {
       const response = await signIn({ email, password });
       if (response.status === 200) {
-        navigate("/ChatInterface", {
-          state: { successMessage: "You are signed in successfully!" },
-        });
+        const userId = response.data.user.id;
+
+        // Check if user has any database connections
+        const connections = await getUserConnections(userId);
+
+        if (connections && connections.length > 0) {
+          navigate("/chatinterface", {
+            state: { successMessage: "You are signed in successfully!" },
+          });
+        } else {
+          navigate("/account/databaseconnection", {
+            state: { successMessage: "You are signed in successfully!" },
+          });
+        }
       }
     } catch (error: any) {
       if (error.response) {
@@ -133,7 +145,7 @@ export default function SignIn() {
                   <p className="text-center">
                     Don't have an account?{" "}
                     <a
-                      href="/Account/SignUp"
+                      href="/account/signup"
                       className="text-primary text-decoration-none fw-semibold"
                     >
                       Sign Up

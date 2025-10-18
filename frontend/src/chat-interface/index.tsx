@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, type JSX } from "react";
 import botLogo from "../../public/logo.png";
-import useAuth from "../Account/UseAuth";
+import useAuth from "../hooks/useAuth";
 import {
   getChatSessions,
   getChatMessages,
@@ -8,7 +8,7 @@ import {
   sendMessage,
   type ChatSession,
   type Message,
-} from "../Services/ChatService";
+} from "../services/ChatService";
 
 // --- ICONS ---
 const SendIcon = () => <i className="bi bi-send-fill"></i>;

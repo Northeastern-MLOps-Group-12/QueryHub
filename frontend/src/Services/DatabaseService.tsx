@@ -13,7 +13,7 @@ export interface DatabaseConnection {
   dbName: string;
   dbUser: string;
   dbPassword?: string;
-  createdAt: string;
+  connectedOn: string;
 }
 
 // Payload for adding a database connection
@@ -24,6 +24,17 @@ export interface DatabaseConnectionPayload {
   dbName: string;
   dbUser: string;
   dbPassword: string;
+}
+
+export interface Column {
+  name: string;
+  description: string;
+}
+
+export interface Table {
+  name: string;
+  description: string;
+  columns: Column[];
 }
 
 // Add a new database connection
@@ -53,4 +64,19 @@ export const deleteConnection = async (
   return axios.delete(`${API_URL}/deleteConnection/${connectionId}`, {
     params: { userId },
   });
+};
+
+// Fetch tables for a database connection
+export const getDatabaseTables = async (connectionId: string) => {
+  const res = await axios.get(`${API_URL}/${connectionId}`);
+  return res.data as Table[];
+};
+
+// Update tables for a database connection
+export const updateDatabaseTables = async (
+  connectionId: string,
+  tables: Table[]
+) => {
+  const res = await axios.put(`${API_URL}/${connectionId}`, { tables });
+  return res.data;
 };

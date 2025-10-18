@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Form, Button } from "react-bootstrap";
-import { addDatabaseConnection } from "../Services/DatabaseService";
+import { addDatabaseConnection } from "../services/DatabaseService";
 import { providerOptions, dbTypeOptions } from "../data/dbOptions";
-import useAuth from "./UseAuth";
+import useAuth from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom"; // import useNavigate
 
 export default function DatabaseConnection() {
   const { userId } = useAuth();
+  const navigate = useNavigate(); // initialize navigate
 
   const [formData, setFormData] = useState({
     provider: "",
@@ -30,9 +32,17 @@ export default function DatabaseConnection() {
     try {
       setLoading(true);
       const res = await addDatabaseConnection(formData, userId);
+
+      // Assuming your backend returns the new connection ID in res.data.id
+      const connectionId = res.data.id;
+
       setSuccess("Database connected successfully!");
       setError("");
-      console.log(res.data);
+
+      // Redirect to the database description page
+      navigate(`/database/databasedescription/${connectionId}`, {
+        state: { fromNewConnection: true },
+      });
     } catch (err: any) {
       setError(err.response?.data || "Failed to connect database");
       setSuccess("");
@@ -45,6 +55,7 @@ export default function DatabaseConnection() {
     <div className="container my-4">
       <h3>Connect a Database</h3>
       <Form onSubmit={handleSubmit}>
+        {/* Provider */}
         <Form.Group className="mb-3">
           <Form.Label>DB Provider</Form.Label>
           <Form.Select
@@ -62,6 +73,7 @@ export default function DatabaseConnection() {
           </Form.Select>
         </Form.Group>
 
+        {/* Database Type */}
         <Form.Group className="mb-3">
           <Form.Label>Database Type</Form.Label>
           <Form.Select
@@ -81,6 +93,7 @@ export default function DatabaseConnection() {
           </Form.Select>
         </Form.Group>
 
+        {/* Instance Name */}
         <Form.Group className="mb-3">
           <Form.Label>Database Instance Name</Form.Label>
           <Form.Control
@@ -93,6 +106,7 @@ export default function DatabaseConnection() {
           />
         </Form.Group>
 
+        {/* Database Name */}
         <Form.Group className="mb-3">
           <Form.Label>Database Name</Form.Label>
           <Form.Control
@@ -105,6 +119,7 @@ export default function DatabaseConnection() {
           />
         </Form.Group>
 
+        {/* DB User */}
         <Form.Group className="mb-3">
           <Form.Label>Database User</Form.Label>
           <Form.Control
@@ -117,6 +132,7 @@ export default function DatabaseConnection() {
           />
         </Form.Group>
 
+        {/* DB Password */}
         <Form.Group className="mb-3">
           <Form.Label>Database Password</Form.Label>
           <Form.Control

@@ -4,16 +4,16 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import useAuth from "./Account/UseAuth";
+import useAuth from "./hooks/useAuth";
 import Navbar from "./Navbar";
-import HomePage from "./Home";
-import Account from "./Account";
-import ChatInterface from "./ChatInterface";
-import ProtectedRoute from "./Account/ProtectedRoute";
+import HomePage from "./home";
+import Account from "./account";
+import ChatInterface from "./chat-interface";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Footer from "./Footer";
-import SignIn from "./Account/SignIn";
-import SignUp from "./Account/SignUp";
-import DemoInterface from "./ChatInterface/DemoInterface";
+import SignIn from "./account/SignIn";
+import SignUp from "./account/SignUp";
+import Database from "./database";
 
 function App() {
   const { loading } = useAuth();
@@ -49,17 +49,17 @@ function App() {
               element={<ProtectedRoute element={<ChatInterface />} />}
             />
 
-            {/* Demo interface */}
+            {/* Chat interface */}
             <Route
-              path="/demointerface"
-              element={<ProtectedRoute element={<DemoInterface />} />}
+              path="/database/*"
+              element={<ProtectedRoute element={<Database />} />}
             />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-        {/* <Footer /> */}
+        <Footer />
       </Router>
     </div>
   );

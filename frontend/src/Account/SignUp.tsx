@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { register } from "../Services/AuthService";
+import { register } from "../services/AuthService";
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -35,8 +35,8 @@ export default function SignUp() {
     try {
       const response = await register(formData);
       if (response.status === 201) {
-        navigate("/ChatInterface", {
-          state: { successMessage: "You are signed in successfully!" },
+        navigate("/account/databaseconnection", {
+          state: { successMessage: "You are signed up successfully!" },
         });
       }
     } catch (error: any) {
@@ -214,7 +214,7 @@ export default function SignUp() {
                   <p className="text-center mb-0">
                     Already have an account?{" "}
                     <a
-                      href="/Account/SignIn"
+                      href="/account/signin"
                       className="text-primary text-decoration-none fw-semibold"
                     >
                       Sign In
