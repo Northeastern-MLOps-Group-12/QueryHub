@@ -14,7 +14,7 @@ COPY agents/ agents/
 COPY backend/ backend/
 COPY connectors/ connectors/
 COPY databases/ databases/
-COPY vectorestore/ vectorestore/
+COPY vectorstore/ vectorstore/
 
 
 ENV PYTHONPATH=/app
