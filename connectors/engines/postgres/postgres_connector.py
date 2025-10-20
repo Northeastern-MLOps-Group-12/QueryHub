@@ -271,7 +271,7 @@ class PostgresConnector(BaseConnector):
 
         try:
             with self.engine.begin() as connection:  # auto-handles commit/rollback
-                result = connection.execute(text(query))
+                result = connection.execute(query)
                 if result.returns_rows:
                     return result
                 return None  # non-SELECT queries (INSERT/UPDATE/DELETE)

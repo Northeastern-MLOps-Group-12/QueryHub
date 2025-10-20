@@ -24,6 +24,7 @@ def build_vector_store(state):
     engine = state.engine or "postgres"
 
     connector = Connector.get_connector(engine=engine, config=config)
+    # print("✅", type(connector))
     # embedding_fn = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
 
     vector_store = ChromaVectorStore(
@@ -32,7 +33,7 @@ def build_vector_store(state):
         model='gemini'
     )
     vector_store.build(connector=connector)
-    print(vector_store.get_store())
+    # print(vector_store.search("Find total sales per artist, including album titles, customer names, and the employee who supports each customer.", 7))
 
     print(f"✅ Vector store built for {config['db_name']}")
     # state.description = f"Vector store for {config['db_name']} built successfully."

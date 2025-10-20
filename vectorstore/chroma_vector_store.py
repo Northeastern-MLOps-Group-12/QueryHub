@@ -1,12 +1,14 @@
-from msilib import text
+# from msilib import text
 import os
 import json
+from sqlalchemy import text
 from dotenv import load_dotenv
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from langchain.vectorstores import Chroma
 from connectors.connector import Connector
 from agents.base_agent import Agent
+# from connectors.engines.mysql.mysql_connector import MySQLConnector
 # from generate_table_data import generate_data
 # from utils.summarizers.dataset_summarizer import generate_dataset_description
 
@@ -14,12 +16,14 @@ load_dotenv()
 
 DIR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VectorStores")
 
+LLM_API_KEY=os.environ["LLM_API_KEY"]
+
 class ChromaVectorStore:
     def __init__(self, db_name: str, embedding_model: str = "text-embedding-3-large", model='gpt'):
         self.db_name = db_name
         self.persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}")
         self.collection_name = f"chroma_{db_name}_schema"
-        self.embedding_function = OpenAIEmbeddings(model=embedding_model) if model == "gpt" else GoogleGenerativeAIEmbeddings(model=embedding_model)
+        self.embedding_function = OpenAIEmbeddings(model=embedding_model) if model == "gpt" else GoogleGenerativeAIEmbeddings(model=embedding_model, google_api_key=LLM_API_KEY)
         self.vector_store = None
         self.model = model
 
@@ -38,7 +42,10 @@ class ChromaVectorStore:
         )
 
         tables_metadata, table_descriptions, dataset_desc = self.generate_data(connector=connector)
-
+        print("tables_metadata:", tables_metadata)
+        print("✅table_descriptions:", table_descriptions)
+        print("✅dataset_desc:", dataset_desc)
+        
         for table_meta, table_desc in zip(tables_metadata, table_descriptions):
             self.vector_store.add_texts(
                 texts=[f"{table_meta['Table']}\n\n{table_desc['Description']}"],
@@ -92,66 +99,63 @@ class ChromaVectorStore:
         inspector = connector.get_inspector()
 
         tables_metadata = []
-
-        try:
-            for table in inspector.get_table_names():
-                print(table)
-
-                table_info = {"Table": table}
-
-                # Columns
-                columns_info = [
-                    {
-                        "name": col["name"],
-                        "type": str(col["type"]),
-                        "nullable": col["nullable"],
-                        "default": col.get("default"),
-                        "autoincrement": col.get("autoincrement")
-                    }
-                    for col in inspector.get_columns(table)
-                ]
-                table_info["Columns"] = columns_info
-
-                # Primary Keys
-                pk = inspector.get_pk_constraint(table)
-                table_info["PrimaryKey"] = pk.get("constrained_columns")
-
-                # Foreign Keys
-                fks = inspector.get_foreign_keys(table)
-                table_info["ForeignKeys"] = [
-                    {
-                        "columns": fk["constrained_columns"],
-                        "referred_table": fk["referred_table"],
-                        "referred_columns": fk["referred_columns"]
-                    }
-                    for fk in fks
-                ]
-
-                # Indexes
-                indexes = inspector.get_indexes(table)
-                table_info["Indexes"] = [
-                    {
-                        "name": idx["name"],
-                        "columns": idx["column_names"],
-                        "unique": idx["unique"]
-                    }
-                    for idx in indexes
-                ]
+        tables = inspector.get_table_names()
+        # print("✅Fetching table metadata...", tables)
+        for table in tables:
 
 
-                count_result = conn.execute_query(text(f'SELECT COUNT(*) AS total_rows FROM "{table}"'))
-                row_count = count_result.fetchone()[0]
+            table_info = {"Table": table}
 
-                # Total Rows
-                table_info["TotalRows"] = row_count
+            # Columns
+            columns_info = [
+                {
+                    "name": col["name"],
+                    "type": str(col["type"]),
+                    "nullable": col["nullable"],
+                    "default": col.get("default"),
+                    "autoincrement": col.get("autoincrement")
+                }
+                for col in inspector.get_columns(table)
+            ]
+            table_info["Columns"] = columns_info
 
-                tables_metadata.append(table_info)
+            # Primary Keys
+            pk = inspector.get_pk_constraint(table)
+            table_info["PrimaryKey"] = pk.get("constrained_columns")
 
-        except Exception as e:
-            print("Error:", e)
+            # Foreign Keys
+            fks = inspector.get_foreign_keys(table)
+            table_info["ForeignKeys"] = [
+                {
+                    "columns": fk["constrained_columns"],
+                    "referred_table": fk["referred_table"],
+                    "referred_columns": fk["referred_columns"]
+                }
+                for fk in fks
+            ]
 
+            # Indexes
+            indexes = inspector.get_indexes(table)
+            table_info["Indexes"] = [
+                {
+                    "name": idx["name"],
+                    "columns": idx["column_names"],
+                    "unique": idx["unique"]
+                }
+                for idx in indexes
+            ]
+
+
+            count_result = connector.execute_query(text(f'SELECT COUNT(*) AS total_rows FROM "{table}"'))
+            row_count = count_result.fetchone()[0]
+
+            # Total Rows
+            table_info["TotalRows"] = row_count
+
+            tables_metadata.append(table_info)
 
         table_descriptions = []
+        # print("✅stables_metadata:", tables_metadata)
         for table_meta in tables_metadata:
             table_name = table_meta["Table"]
             description = self.generate_description(table_meta)
