@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
 from connectors.connector import Connector
 from .models.connector_request import ConnectorRequest 
-from ..agents.load_data_to_vector.graph import build_graph
-from ..agents.load_data_to_vector.state import AgentState
+from agents.load_data_to_vector.graph import build_graph
+from agents.load_data_to_vector.state import AgentState
 
 
 
