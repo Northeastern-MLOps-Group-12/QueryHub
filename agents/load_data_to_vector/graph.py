@@ -21,29 +21,29 @@ def build_graph():
     return graph.compile(checkpointer=memory)
 
 
-if __name__ == "__main__":
-    # Example config (replace with actual DB credentials)
-    config = {
-        "user_id": "111",
-        "connection_name": "chinook",
-        "db_host": "34.139.44.104",
-        "provider": "gcp",
-        "db_type": "postgres",
-        "db_user": "postgres",
-        "db_password": "Ved@Chinook123",
-        "db_name": "postgres"
-    }
+# if __name__ == "__main__":
+#     # Example config (replace with actual DB credentials)
+#     config = {
+#         "user_id": "111",
+#         "connection_name": "chinook",
+#         "db_host": "34.139.44.104",
+#         "provider": "gcp",
+#         "db_type": "postgres",
+#         "db_user": "postgres",
+#         "db_password": "Ved@Chinook123",
+#         "db_name": "postgres"
+#     }
 
-    initial_state = AgentState(engine="postgres", creds=config)
-    graph = build_graph()
+#     initial_state = AgentState(engine="postgres", creds=config)
+#     graph = build_graph()
 
-    # final_state = graph.invoke(initial_state)
-    final_state = graph.invoke(
-        initial_state,
-        config={"configurable":{"thread_id":1}}
-    )
+#     # final_state = graph.invoke(initial_state)
+#     final_state = graph.invoke(
+#         initial_state,
+#         config={"configurable":{"thread_id":1}}
+#     )
 
-    print()
+#     print()
 
-    # print("\n🚀 Pipeline finished successfully.")
-    # print(f"Final state: {final_state.model_dump_json(indent=2)}")
+#     # print("\n🚀 Pipeline finished successfully.")
+#     # print(f"Final state: {final_state.model_dump_json(indent=2)}")

@@ -3,15 +3,16 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: ["connectors"]
-    paths: ["connectors/**"]
+    paths: ["backend/**"]
   workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
   REGION: ${{ secrets.REGION }}
   REPOSITORY: ${{ secrets.REPOSITORY }}
-  IMAGE_NAME: connectors-service
-  SERVICE: connectors-service
+  IMAGE_NAME: backend
+  SERVICE: backend
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 jobs:
   deploy:
@@ -45,17 +46,17 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build and Push Connectors Api Docker Image
+      - name: Build and Push Backend Api Docker Image
         run: |
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
-          docker build -t $IMAGE -f connectors/Dockerfile .
+          docker build -t $IMAGE -f ${{ env.SERVICE }}/Dockerfile .
           docker push $IMAGE
 # docker build -t $IMAGE -f connectors/Dockerfile connectors
 
-      - name: Deploy Connectors to Cloud Run
+      - name: Deploy Backend to Cloud Run
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
-          gcloud run deploy connectors \
+          gcloud run deploy ${{ env.SERVICE }} \
             --image=$IMAGE \
             --add-cloudsql-instances=queryhub-473901:us-central1:nl-to-sql-db \
             --region=${{ env.REGION }} \
@@ -63,6 +64,6 @@ jobs:
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=postgresql+pg8000://postgres:QueryHub%40123@/queryhub?unix_sock=/cloudsql/queryhub-473901:us-central1:nl-to-sql-db/.s.PGSQL.5432
+            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }}
 
             
