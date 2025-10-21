@@ -1,6 +1,5 @@
 from connectors.connector import Connector
 from vectorstore.chroma_vector_store import ChromaVectorStore
-# from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 import os
 
@@ -24,17 +23,11 @@ def build_vector_store(state):
     engine = state.engine or "postgres"
 
     connector = Connector.get_connector(engine=engine, config=config)
-    # print("✅", type(connector))
-    # embedding_fn = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
-
     vector_store = ChromaVectorStore(
         db_name=config['db_name'],
         embedding_model=EMBEDDING_MODEL,
         model='gemini'
     )
     vector_store.build(connector=connector)
-    # print(vector_store.search("Find total sales per artist, including album titles, customer names, and the employee who supports each customer.", 7))
-
     print(f"✅ Vector store built for {config['db_name']}")
-    # state.description = f"Vector store for {config['db_name']} built successfully."
     return state
