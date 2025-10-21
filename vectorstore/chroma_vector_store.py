@@ -8,9 +8,6 @@ from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from langchain.vectorstores import Chroma
 from connectors.connector import Connector
 from agents.base_agent import Agent
-# from connectors.engines.mysql.mysql_connector import MySQLConnector
-# from generate_table_data import generate_data
-# from utils.summarizers.dataset_summarizer import generate_dataset_description
 
 load_dotenv()
 
@@ -163,7 +160,6 @@ class ChromaVectorStore:
 
         with open("table_descriptions.json","w+") as f:
             json.dump(table_descriptions,f)
-        f.close()
 
         dataset_desc = self.generate_description(tables_metadata)
 
@@ -200,27 +196,27 @@ class ChromaVectorStore:
         return agent.generate(prompt, prompt_placeholders)
     
 
-    def generate_description(self, tables_metadata):
-        agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
-        prompt = """
-       You are a data analyst who describes database schemas clearly and professionally.
+    # def generate_description(self, tables_metadata):
+    #     agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
+    #     prompt = """
+    #    You are a data analyst who describes database schemas clearly and professionally.
 
-        Given the following list of table metadata (in JSON format), write a concise and insightful **dataset-level description**.  
-        Your response should summarize:
-        - The overall purpose of the database (what kind of data it manages)
-        - The key entities (tables) and their relationships
-        - Any notable structure (e.g., star schema, transactional, reference data)
-        - The general scale or richness (based on row counts)
-        - Example use cases or what this database might support
+    #     Given the following list of table metadata (in JSON format), write a concise and insightful **dataset-level description**.  
+    #     Your response should summarize:
+    #     - The overall purpose of the database (what kind of data it manages)
+    #     - The key entities (tables) and their relationships
+    #     - Any notable structure (e.g., star schema, transactional, reference data)
+    #     - The general scale or richness (based on row counts)
+    #     - Example use cases or what this database might support
 
-        Be clear and concise — write **1–2 paragraphs**.
+    #     Be clear and concise — write **1–2 paragraphs**.
 
-        Now here is the full table data:
-        {tables_metadata}
-        """
+    #     Now here is the full table data:
+    #     {tables_metadata}
+    #     """
 
-        prompt_placeholders = {
-            "tables_metadata": tables_metadata
-        }
+    #     prompt_placeholders = {
+    #         "tables_metadata": tables_metadata
+    #     }
 
-        return agent.generate(prompt, prompt_placeholders)
+    #     return agent.generate(prompt, prompt_placeholders)
