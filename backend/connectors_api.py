@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from connectors.connector import Connector
 from .models.connector_request import ConnectorRequest 
 from agents.load_data_to_vector.graph import build_graph
@@ -40,3 +41,8 @@ def connect(request: ConnectorRequest):
         return {"success": True, "message": f"{request.engine}-{request.provider} connector created!"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+# Handle preflight OPTIONS requests globally
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str, request: Request):
+    return JSONResponse(status_code=200, content={"message": "OK"})
