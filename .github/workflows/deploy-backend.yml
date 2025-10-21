@@ -17,6 +17,7 @@ env:
   MODEL: gemini
   MODEL_NAME: gemini-2.5-flash
   EMBEDDING_MODEL: text-embedding-004
+  FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
 
 
 jobs:
@@ -69,6 +70,6 @@ jobs:
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }}
+            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }}
 
             
