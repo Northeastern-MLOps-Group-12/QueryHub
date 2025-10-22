@@ -8,7 +8,7 @@ export default function Database() {
     <div className="flex-grow-1 d-flex flex-column">
       <Routes>
         <Route path="/connecteddatabases" element={<ConnectedDatabases />} />
-        <Route path="/databaseconnections" element={<DatabaseConnection />} />
+        <Route path="/databaseconnection" element={<DatabaseConnection />} />
         <Route
           path="/databasedescription/*"
           element={<DatabaseDescription />}
