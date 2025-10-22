@@ -1,0 +1,32 @@
+# Node & dependency folders
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# Build artifacts
+dist
+build
+
+# Local development files
+.env
+.env.local
+.env.*
+
+# Docker-related files (avoid recursive copies)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Editor and system files
+.vscode
+.idea
+.DS_Store
+Thumbs.db

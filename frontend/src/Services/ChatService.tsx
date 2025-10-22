@@ -1,7 +1,9 @@
 // src/Services/ChatService.ts
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/chat`;
+axios.defaults.withCredentials = true;
+
+const API_URL = `${import.meta.env.VITE_BACKEND_URL}/chat`;
 
 export interface ChatSession {
   id: string;
@@ -16,31 +18,23 @@ export interface Message {
   timestamp: string;
 }
 
-// --- Fetch all chat sessions for current user ---
+// --- Fetch all chat sessions for a user ---
 export async function getChatSessions(userId: string): Promise<ChatSession[]> {
   const response = await axios.get(`${API_URL}/chats`, {
     params: { userId },
-    withCredentials: true,
   });
   return response.data;
 }
 
 // --- Fetch messages for a specific chat session ---
 export async function getChatMessages(chatId: string): Promise<Message[]> {
-  const response = await axios.get(`${API_URL}/chats/${chatId}/messages`, {
-    withCredentials: true,
-  });
+  const response = await axios.get(`${API_URL}/chats/${chatId}/messages`);
   return response.data;
 }
 
 // --- Create new chat session ---
 export async function createNewChat(userId: string): Promise<ChatSession> {
-  const response = await axios.post(
-    `${API_URL}/chats`,
-    { userId },
-    { withCredentials: true }
-  );
-
+  const response = await axios.post(`${API_URL}/chats`, { userId });
   return response.data;
 }
 
@@ -50,10 +44,9 @@ export async function sendMessage(
   userId: string,
   text: string
 ): Promise<Message[]> {
-  const response = await axios.post(
-    `${API_URL}/chats/${chatId}/send`,
-    { userId, text },
-    { withCredentials: true }
-  );
+  const response = await axios.post(`${API_URL}/chats/${chatId}/send`, {
+    userId,
+    text,
+  });
   return response.data; // returns updated message list or new bot reply
 }

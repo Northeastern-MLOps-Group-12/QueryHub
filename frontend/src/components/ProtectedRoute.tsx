@@ -9,7 +9,11 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({
   element,
-  publicRoutes = ["/", "/account/signin", "/account/signup"],
+  publicRoutes = [
+    "/",
+    "/account/signin",
+    "/account/signup",
+  ],
 }: ProtectedRouteProps) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();

@@ -2,7 +2,7 @@ import axios from "axios";
 
 axios.defaults.withCredentials = true;
 
-const API_URL = `${import.meta.env.VITE_API_URL}/user`;
+const API_URL = `${import.meta.env.VITE_BACKEND_URL}/user`;
 
 export interface AuthCredentials {
   firstName?: string;

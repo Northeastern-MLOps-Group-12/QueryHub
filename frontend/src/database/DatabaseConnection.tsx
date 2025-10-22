@@ -3,16 +3,18 @@ import { Form, Button } from "react-bootstrap";
 import { addDatabaseConnection } from "../services/DatabaseService";
 import { providerOptions, dbTypeOptions } from "../data/dbOptions";
 import useAuth from "../hooks/useAuth";
-import { useNavigate } from "react-router-dom"; // import useNavigate
+import { useNavigate } from "react-router-dom";
 
 export default function DatabaseConnection() {
   const { userId } = useAuth();
-  const navigate = useNavigate(); // initialize navigate
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    engine: "",
     provider: "",
     dbType: "",
-    instanceName: "",
+    host: "",
+    connectionName: "",
     dbName: "",
     dbUser: "",
     dbPassword: "",
@@ -29,23 +31,42 @@ export default function DatabaseConnection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setLoading(true);
-      const res = await addDatabaseConnection(formData, userId);
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
-      // Assuming your backend returns the new connection ID in res.data.id
+    try {
+      // Construct payload in backend-expected format
+
+      const payload = {
+        engine: formData.engine,
+        provider: formData.provider,
+        config: {
+          user_id: "111",
+          connection_name: formData.connectionName,
+          db_host: formData.host,
+          provider: formData.provider,
+          db_type: formData.dbType,
+          db_user: formData.dbUser,
+          db_password: formData.dbPassword,
+          db_name: formData.dbName,
+        },
+      };
+
+      const res = await addDatabaseConnection(payload);
+      console.log("Add Connection Response:", res);
+
       const connectionId = res.data.id;
 
       setSuccess("Database connected successfully!");
-      setError("");
 
-      // Redirect to the database description page
+      // Redirect to description page
       navigate(`/database/databasedescription/${connectionId}`, {
         state: { fromNewConnection: true },
       });
     } catch (err: any) {
-      setError(err.response?.data || "Failed to connect database");
-      setSuccess("");
+      console.error("Error adding connection:", err);
+      setError(err.response?.data || "Failed to connect to database");
     } finally {
       setLoading(false);
     }
@@ -55,6 +76,7 @@ export default function DatabaseConnection() {
     <div className="container my-4">
       <h3>Connect a Database</h3>
       <Form onSubmit={handleSubmit}>
+
         {/* Provider */}
         <Form.Group className="mb-3">
           <Form.Label>DB Provider</Form.Label>
@@ -70,6 +92,27 @@ export default function DatabaseConnection() {
                 {p}
               </option>
             ))}
+          </Form.Select>
+        </Form.Group>
+
+        {/* Engine */}
+        <Form.Group className="mb-3">
+          <Form.Label>DB Engine</Form.Label>
+          <Form.Select
+            name="engine"
+            value={formData.engine}
+            onChange={handleChange}
+            required
+            disabled={!formData.provider}
+          >
+
+            <option value="">Select Engine</option>
+            {formData.provider &&
+              dbTypeOptions[formData.provider].map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
           </Form.Select>
         </Form.Group>
 
@@ -93,15 +136,28 @@ export default function DatabaseConnection() {
           </Form.Select>
         </Form.Group>
 
-        {/* Instance Name */}
+        {/* Host */}
         <Form.Group className="mb-3">
-          <Form.Label>Database Instance Name</Form.Label>
+          <Form.Label>Database Host</Form.Label>
           <Form.Control
             type="text"
-            name="instanceName"
-            value={formData.instanceName}
+            name="host"
+            value={formData.host}
             onChange={handleChange}
-            placeholder="Enter instance name"
+            placeholder="Enter database host"
+            required
+          />
+        </Form.Group>
+
+        {/* Connection Name */}
+        <Form.Group className="mb-3">
+          <Form.Label>Database Connection Name</Form.Label>
+          <Form.Control
+            type="text"
+            name="connectionName"
+            value={formData.connectionName}
+            onChange={handleChange}
+            placeholder="Enter connection name"
             required
           />
         </Form.Group>

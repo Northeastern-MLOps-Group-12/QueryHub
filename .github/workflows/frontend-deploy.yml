@@ -12,6 +12,7 @@ env:
   REPOSITORY: ${{ secrets.REPOSITORY }}
   IMAGE_NAME: queryhub-frontend-image
   SERVICE: queryhub-frontend-service
+  BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
 jobs:
   deploy:
@@ -35,6 +36,10 @@ jobs:
 
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Create frontend .env file
+        run: |
+          echo "VITE_BACKEND_URL=${{ env.BACKEND_URL }}" > frontend/.env
 
       - name: Build & Push Docker Image
         run: |

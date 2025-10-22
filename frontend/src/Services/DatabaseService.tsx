@@ -2,14 +2,14 @@ import axios from "axios";
 
 axios.defaults.withCredentials = true;
 
-const API_URL = `${import.meta.env.VITE_API_URL}/db`;
+const API_URL = `${import.meta.env.VITE_BACKEND_URL}/connect`;
 
 // Interface for database connection
 export interface DatabaseConnection {
   id: string;
   provider: string;
   dbType: string;
-  instanceName: string;
+  connectionName: string;
   dbName: string;
   dbUser: string;
   dbPassword?: string;
@@ -18,12 +18,18 @@ export interface DatabaseConnection {
 
 // Payload for adding a database connection
 export interface DatabaseConnectionPayload {
+  engine: string;
   provider: string;
-  dbType: string;
-  instanceName: string;
-  dbName: string;
-  dbUser: string;
-  dbPassword: string;
+  config: {
+    user_id: string;
+    connection_name: string;
+    db_host: string;
+    provider: string;
+    db_type: string;
+    db_user: string;
+    db_password: string;
+    db_name: string;
+  };
 }
 
 export interface Column {
@@ -39,12 +45,9 @@ export interface Table {
 
 // Add a new database connection
 export const addDatabaseConnection = async (
-  data: DatabaseConnectionPayload,
-  userId: string
+  data: DatabaseConnectionPayload
 ) => {
-  return axios.post(`${API_URL}/connect`, data, {
-    params: { userId },
-  });
+  return axios.post(`${API_URL}/addConnection`, data);
 };
 
 // Get all connections for current user

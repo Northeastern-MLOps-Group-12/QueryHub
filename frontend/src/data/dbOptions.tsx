@@ -1,16 +1,16 @@
-export const providerOptions = ["GCP", "AWS", "Azure"];
+export const providerOptions = ["gcp", "aws", "azure"];
 
 export const dbTypeOptions: Record<string, string[]> = {
-  GCP: ["PostgreSQL", "MySQL", "SQL Server"],
-  AWS: [
+  gcp: ["postgres", "MySQL", "SQL Server"],
+  aws: [
     "MySQL",
-    "PostgreSQL",
+    "postgres",
     "MariaDB",
     "Microsoft SQL Server",
     "Oracle",
     "Amazon Aurora",
   ],
-  Azure: [
+  azure: [
     "Azure SQL Database",
     "Azure SQL Managed Instance",
     "SQL Server on Azure Virtual Machines",

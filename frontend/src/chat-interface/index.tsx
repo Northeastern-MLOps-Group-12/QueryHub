@@ -9,6 +9,7 @@ import {
   type ChatSession,
   type Message,
 } from "../services/ChatService";
+import NewChatModal from "./NewChatModal";
 
 // --- ICONS ---
 const SendIcon = () => <i className="bi bi-send-fill"></i>;
@@ -22,21 +23,59 @@ export default function ChatInterface(): JSX.Element {
   const [newMessage, setNewMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // modal state
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const leftListRef = useRef<HTMLDivElement | null>(null);
 
+  // --- Helper functions for cache ---
+  const cacheKeySessions = `chat_sessions_${userData?.userId}`;
+  const cacheKeyMessages = (chatId: string) => `chat_messages_${chatId}`;
+
+  const loadCachedSessions = (): ChatSession[] | null => {
+    const cached = localStorage.getItem(cacheKeySessions);
+    return cached ? JSON.parse(cached) : null;
+  };
+
+  const saveCachedSessions = (sessions: ChatSession[]) => {
+    localStorage.setItem(cacheKeySessions, JSON.stringify(sessions));
+  };
+
+  const loadCachedMessages = (chatId: string): Message[] | null => {
+    const cached = localStorage.getItem(cacheKeyMessages(chatId));
+    return cached ? JSON.parse(cached) : null;
+  };
+
+  const saveCachedMessages = (chatId: string, messages: Message[]) => {
+    localStorage.setItem(cacheKeyMessages(chatId), JSON.stringify(messages));
+  };
+
   // --- Load chat sessions on mount ---
   useEffect(() => {
     if (!userData?.userId) return;
+    const cachedSessions = loadCachedSessions();
+    if (cachedSessions) {
+      setSessions(cachedSessions);
+      if (cachedSessions.length > 0) {
+        setSelectedChat(cachedSessions[0]);
+        const cachedMsgs = loadCachedMessages(cachedSessions[0].id);
+        if (cachedMsgs) setMessages(cachedMsgs);
+      }
+    }
+
+    // --- Fetch from server ---
     (async () => {
       try {
         const chats = await getChatSessions(userData.userId);
         setSessions(chats);
+        saveCachedSessions(chats);
         if (chats.length > 0) {
           setSelectedChat(chats[0]);
           const msgs = await getChatMessages(chats[0].id);
           setMessages(msgs);
+          saveCachedMessages(chats[0].id, msgs);
         }
       } catch (err) {
         console.error("Error loading chats:", err);
@@ -48,24 +87,50 @@ export default function ChatInterface(): JSX.Element {
   const handleSelectChat = async (chat: ChatSession) => {
     try {
       setSelectedChat(chat);
-      const msgs = await getChatMessages(chat.id);
-      setMessages(msgs);
+      const cachedMsgs = loadCachedMessages(chat.id);
+      if (cachedMsgs) {
+        setMessages(cachedMsgs);
+      } else {
+        const msgs = await getChatMessages(chat.id);
+        setMessages(msgs);
+        saveCachedMessages(chat.id, msgs);
+      }
     } catch (err) {
       console.error("Error loading messages:", err);
     }
   };
 
-  // --- Create new chat ---
-  const handleNewChat = async () => {
+  // open modal
+  const handleNewChat = () => {
+    setShowNewChatModal(true);
+  };
+
+  // confirm create chat from modal (backend returns no title)
+  const handleConfirmCreateChat = async (titleFromUser: string) => {
+    setShowNewChatModal(false);
     if (!userData?.userId) return;
     try {
       const newChat = await createNewChat(userData.userId);
-      setSessions((prev) => [newChat, ...prev]);
-      setSelectedChat(newChat);
+      const fallbackTitle =
+        titleFromUser?.trim() || `Untitled Chat ${sessions.length + 1}`;
+      const chatWithTitle: ChatSession = {
+        ...newChat,
+        title: fallbackTitle,
+      };
+      const updatedSessions = [chatWithTitle, ...sessions];
+      setSessions(updatedSessions);
+      setSelectedChat(chatWithTitle);
       setMessages([]);
+      saveCachedSessions(updatedSessions);
+      // close sidebar on small screens so user sees the new chat
+      setSidebarOpen(false);
     } catch (err) {
       console.error("Error creating new chat:", err);
     }
+  };
+
+  const handleCancelCreateChat = () => {
+    setShowNewChatModal(false);
   };
 
   // --- Send message ---
@@ -78,7 +143,15 @@ export default function ChatInterface(): JSX.Element {
         newMessage.trim()
       );
       setMessages(updatedMessages);
+      saveCachedMessages(selectedChat.id, updatedMessages);
       setNewMessage("");
+
+      // Update sessions cache as well (for latest message preview)
+      const updatedSessions = sessions.map((s) =>
+        s.id === selectedChat.id ? { ...s, lastMessage: newMessage.trim() } : s
+      );
+      setSessions(updatedSessions);
+      saveCachedSessions(updatedSessions);
     } catch (err) {
       console.error("Error sending message:", err);
     }
@@ -114,6 +187,12 @@ export default function ChatInterface(): JSX.Element {
 
   return (
     <div className="d-flex mt-2" style={{ height: "100vh", minHeight: 600 }}>
+      <NewChatModal
+        show={showNewChatModal}
+        onCancel={handleCancelCreateChat}
+        onConfirm={handleConfirmCreateChat}
+      />
+
       {/* LEFT SIDEBAR */}
       <aside
         className="d-none d-md-flex flex-column bg-body-tertiary border-end position-sticky"
@@ -308,7 +387,7 @@ export default function ChatInterface(): JSX.Element {
             </button>
           )}
           <h2 className="h6 mb-0 fw-semibold">
-            {selectedChat?.title || "Select a chat"}
+            {selectedChat?.title || "New Chat"}
           </h2>
         </div>
 
