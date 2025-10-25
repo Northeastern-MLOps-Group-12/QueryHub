@@ -4,9 +4,9 @@
 Gretel Text-to-SQL dataset processing for QueryHub project.
 
 ## Notebooks
-1. **1_data_exploration.ipynb** - Initial EDA on 100K samples
-2. **2_data_validation.ipynb** - SQL validation & T5 preprocessing  
-3. **3_data_preprocessing.ipynb** - Train/val/test splits
+1. **Load&Explore.ipynb** - Data loading and initial EDA on 100K samples
+2. **Validate&Prep.ipynb** - SQL validation and T5 preprocessing
+3. **Split&Save.ipynb** - Train/val/test splits and JSON export
 
 ## Results
 - Processed: 100,000 training samples
