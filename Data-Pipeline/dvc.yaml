@@ -1,0 +1,20 @@
+stages:
+  load:
+    cmd: python scripts/gretel_processor.py
+    deps:
+      - scripts/gretel_processor.py
+    outs:
+      - data/raw/
+    metrics:
+      - data/metrics/load_metrics.json:
+          cache: false
+  
+  process:
+    cmd: python scripts/gretel_processor.py
+    deps:
+      - scripts/gretel_processor.py
+    outs:
+      - data/processed/
+    metrics:
+      - data/metrics/process_metrics.json:
+          cache: false
