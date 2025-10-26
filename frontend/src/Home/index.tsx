@@ -11,6 +11,7 @@ interface FeatureCardProps {
   description: string;
 }
 
+// Individual Feature Card
 const FeatureCard: React.FC<FeatureCardProps> = ({
   icon,
   title,
@@ -34,10 +35,13 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   </Col>
 );
 
+// Home Page Component
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
 
+  // Handle Get Started button click
   const handleGetStarted = () => {
     if (isAuthenticated) {
       navigate("/chatinterface");
@@ -46,8 +50,7 @@ export default function HomePage() {
     }
   };
 
-  const location = useLocation();
-
+  // Scroll to section if URL has a hash
   useEffect(() => {
     if (location.hash) {
       const el = document.getElementById(location.hash.slice(1));

@@ -1,63 +1,63 @@
-import { useState } from "react";
-import DatabaseEditor from "./DatabaseEditor"; // make sure the path is correct
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import DatabaseEditor from "./DatabaseEditor";
 import { Container } from "react-bootstrap";
+import {
+  getDatabaseTables,
+  updateDatabaseTables,
+  type Table,
+} from "../services/DatabaseService";
 
-interface Column {
-  name: string;
-  description: string;
-}
-
-interface Table {
-  name: string;
-  description: string;
-  columns: Column[];
-}
-
+// Component to display and edit database description
 export default function DatabaseDescription() {
-  // Initial database and tables structure
-  const initialTables: Table[] = [
-    {
-      name: "Users",
-      description: "Stores user information",
-      columns: [
-        { name: "id", description: "Primary key" },
-        { name: "name", description: "User full name" },
-        { name: "email", description: "User email address" },
-      ],
-    },
-    {
-      name: "Orders",
-      description: "Stores orders made by users",
-      columns: [
-        { name: "id", description: "Primary key" },
-        { name: "user_id", description: "ID of the user who made the order" },
-        { name: "amount", description: "Total order amount" },
-      ],
-    },
-    {
-      name: "Products",
-      description: "Stores product information",
-      columns: [
-        { name: "id", description: "Primary key" },
-        { name: "name", description: "Product name" },
-        { name: "price", description: "Product price" },
-      ],
-    },
-  ];
+  const { connectionId } = useParams<{ connectionId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fromNewConnection = location.state?.fromNewConnection ?? false;
 
-  const [tables, setTables] = useState<Table[]>(initialTables);
+  // State to hold database tables and loading status
+  const [tables, setTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Handle saving updates from DatabaseEditor
-  const handleSave = (updatedTables: Table[]) => {
-    setTables(updatedTables);
-    console.log("Updated tables:", updatedTables);
-    // TODO: make API call here to save to backend
+  // Fetch database tables on component mount
+  useEffect(() => {
+    if (connectionId) {
+      setLoading(true);
+      getDatabaseTables(connectionId)
+        .then((data) => setTables(data))
+        .finally(() => setLoading(false));
+    }
+  }, [connectionId]);
+
+  // Handle saving updated tables
+  const handleSave = async (updatedTables: Table[]) => {
+    if (!connectionId) return;
+    try {
+      await updateDatabaseTables(connectionId, updatedTables);
+      setTables(updatedTables);
+      alert("Tables updated successfully!");
+
+      // Redirect based on how user came here
+      if (fromNewConnection) {
+        navigate("/chatinterface");
+      } else {
+        navigate("/database/connecteddatabases");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update tables.");
+    }
   };
 
+  if (loading)
+    return <Container className="my-4">Loading database schema...</Container>;
+
   return (
-    <Container>
+    <Container className="my-4">
+
+      {/* Database Editor Component */}
       <DatabaseEditor
-        databaseName="MyDatabase"
+        databaseName={`Database: ${connectionId}`}
         tables={tables}
         onSave={handleSave}
       />

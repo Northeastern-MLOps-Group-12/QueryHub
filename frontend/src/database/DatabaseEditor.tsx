@@ -1,23 +1,27 @@
 import { useState } from "react";
 import { Accordion, Card, Button, Form, Container } from "react-bootstrap";
 
+// Column type definition
 interface Column {
   name: string;
   description: string;
 }
 
+// Table type definition
 interface Table {
   name: string;
   description: string;
   columns: Column[];
 }
 
+// Props for DatabaseEditor component
 interface DatabaseProps {
   databaseName: string;
   tables: Table[];
   onSave: (tables: Table[]) => void;
 }
 
+// Component to edit database tables and their descriptions
 export default function DatabaseEditor({
   databaseName,
   tables: initialTables,
@@ -28,6 +32,7 @@ export default function DatabaseEditor({
   const [editing, setEditing] = useState(false);
   const [originalTables, setOriginalTables] = useState<Table[]>(initialTables);
 
+  // Toggle accordion item open/close
   const handleToggle = (index: number) => {
     setOpenTableIndexes((prevIndexes) =>
       prevIndexes.includes(index)
@@ -36,6 +41,7 @@ export default function DatabaseEditor({
     );
   };
 
+  // Handle changes to column descriptions
   const handleColumnChange = (
     tableIndex: number,
     columnIndex: number,
@@ -46,15 +52,16 @@ export default function DatabaseEditor({
     setTables(updatedTables);
   };
 
+  // Handle changes to table descriptions
   const handleTableDescriptionChange = (tableIndex: number, value: string) => {
     const updatedTables = [...tables];
     updatedTables[tableIndex].description = value;
     setTables(updatedTables);
   };
 
+  // Toggle editing mode
   const toggleEditing = () => {
     if (!editing) {
-      // Start editing → save current state
       setOriginalTables(
         tables.map((t) => ({
           ...t,
@@ -63,7 +70,6 @@ export default function DatabaseEditor({
       );
       setEditing(true);
     } else {
-      // Cancel editing → revert state
       setTables(originalTables);
       setEditing(false);
     }
@@ -71,6 +77,7 @@ export default function DatabaseEditor({
 
   return (
     <Container className="my-4">
+      {/* Header with database name and edit button */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 className="mb-0">Database Schema: {databaseName}</h3>
         <Button
@@ -81,6 +88,7 @@ export default function DatabaseEditor({
         </Button>
       </div>
 
+      {/* Accordion for tables and their columns */}
       <Accordion
         alwaysOpen
         activeKey={openTableIndexes.map((index) => index.toString())}
@@ -88,9 +96,13 @@ export default function DatabaseEditor({
         {tables.map((table, tIndex) => (
           <Card key={table.name} className="mb-3 shadow-sm">
             <Accordion.Item eventKey={tIndex.toString()}>
+
+              {/* Accordion header and body for each table */}
               <Accordion.Header onClick={() => handleToggle(tIndex)}>
                 {table.name}
               </Accordion.Header>
+
+              {/* Accordion body with table and column descriptions */}
               <Accordion.Body>
                 <Form.Group className="mb-3">
                   <Form.Label>Table Description</Form.Label>
@@ -106,6 +118,7 @@ export default function DatabaseEditor({
                   />
                 </Form.Group>
 
+                {/* Column descriptions */}
                 <div>
                   <h5 className="fs-6 mb-3">Columns</h5>
                   {table.columns.map((col, cIndex) => (
@@ -135,6 +148,7 @@ export default function DatabaseEditor({
         ))}
       </Accordion>
 
+      {/* Save button */}
       {editing && (
         <div className="mt-3 text-end">
           <Button onClick={() => onSave(tables)} variant="primary">

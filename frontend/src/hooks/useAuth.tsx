@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getProfile } from "../services/AuthService";
 
+// User profile type definition
 interface UserProfile {
   userId: string;
   email: string;
@@ -9,12 +10,14 @@ interface UserProfile {
   avatarUrl?: string;
 }
 
+// Custom hook to manage authentication state
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>("");
   const [userData, setUserData] = useState<UserProfile | null>(null);
 
+  // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {

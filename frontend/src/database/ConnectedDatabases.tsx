@@ -9,15 +9,16 @@ import {
   type DatabaseConnection,
 } from "../services/DatabaseService";
 
+// Component to display and manage connected databases
 export default function ConnectedDatabases() {
   const navigate = useNavigate();
   const { userId, isAuthenticated, loading } = useAuth();
-
   const [connections, setConnections] = useState<DatabaseConnection[]>([]);
   const [selectedConnection, setSelectedConnection] =
     useState<DatabaseConnection | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  // Fetch user connections from the backend
   const fetchConnections = async () => {
     if (!userId) return;
     try {
@@ -28,17 +29,20 @@ export default function ConnectedDatabases() {
     }
   };
 
+  // Fetch connections on component mount and when userId changes
   useEffect(() => {
     if (isAuthenticated) {
       fetchConnections();
     }
   }, [userId, isAuthenticated]);
 
+  // Handle card click to show modal with details
   const handleCardClick = (connection: DatabaseConnection) => {
     setSelectedConnection(connection);
     setShowModal(true);
   };
 
+  // Handle deletion of a connection
   const handleDelete = async (connectionId: string) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this connection?"
@@ -60,10 +64,12 @@ export default function ConnectedDatabases() {
     <div className="container my-4">
       <h3 className="mb-4">Your Database Connections</h3>
 
+      {/* Display a message if no connections are found */}
       {connections.length === 0 && (
         <p>No connections found. Connect a database to get started.</p>
       )}
 
+      {/* Display connected database cards */}
       <div className="d-flex flex-wrap gap-3">
         {connections.map((conn) => (
           <Card
@@ -72,8 +78,10 @@ export default function ConnectedDatabases() {
             className="shadow-sm"
           >
             <Card.Body onClick={() => handleCardClick(conn)}>
+
+              {/* Card title with delete icon */}
               <Card.Title className="d-flex justify-content-between align-items-center">
-                <span>{conn.instanceName}</span>
+                <span>{conn.connectionName}</span>
                 <FiTrash2
                   color="red"
                   onClick={(e) => {
@@ -83,6 +91,8 @@ export default function ConnectedDatabases() {
                   style={{ cursor: "pointer" }}
                 />
               </Card.Title>
+
+              {/* Card subtitle and text */}
               <Card.Subtitle className="mb-2 text-muted">
                 {conn.provider} - {conn.dbType}
               </Card.Subtitle>
@@ -96,6 +106,7 @@ export default function ConnectedDatabases() {
         ))}
       </div>
 
+      {/* Button to navigate to database connection page */}
       <div className="mt-4">
         <Button
           variant="primary"
@@ -106,7 +117,7 @@ export default function ConnectedDatabases() {
         </Button>
       </div>
 
-      {/* Modal */}
+      {/* Modal to show connection details */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Database Connection Details</Modal.Title>
@@ -121,8 +132,8 @@ export default function ConnectedDatabases() {
                 <strong>Database Type:</strong> {selectedConnection.dbType}
               </p>
               <p>
-                <strong>Instance Name:</strong>{" "}
-                {selectedConnection.instanceName}
+                <strong>Connection Name:</strong>{" "}
+                {selectedConnection.connectionName}
               </p>
               <p>
                 <strong>Database Name:</strong> {selectedConnection.dbName}
@@ -137,6 +148,8 @@ export default function ConnectedDatabases() {
             </>
           )}
         </Modal.Body>
+
+        {/* Modal footer with action buttons */}
         <Modal.Footer>
           <Button
             variant="primary"
@@ -150,6 +163,8 @@ export default function ConnectedDatabases() {
           >
             See Table Descriptions
           </Button>
+
+          {/* Delete button */}
           <Button
             variant="danger"
             onClick={() =>
@@ -158,6 +173,8 @@ export default function ConnectedDatabases() {
           >
             Delete
           </Button>
+
+          {/* Close button */}
           <Button variant="secondary" onClick={() => setShowModal(false)}>
             Close
           </Button>
