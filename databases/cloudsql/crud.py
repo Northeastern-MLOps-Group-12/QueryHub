@@ -20,20 +20,3 @@ def create_record(db: Session, model_class, data: dict):
     db.refresh(new_record)
     return new_record
 
-# if __name__ == "__main__":
-#     db = next(get_db())
-
-#     # Add a credential
-#     credential_data = {
-#         "user_id": 435,
-#         "name": "sdfs",
-#         "provider": "rtrs",
-#         "db_type": "dgd",
-#         "db_user": "dre",
-#         "db_password": "xyz",
-#         "dbname": "rtet",
-#         "user": "dfg",
-#     }
-#     credential = create_record(db, Credentials, credential_data)
-
-#     db.close()
