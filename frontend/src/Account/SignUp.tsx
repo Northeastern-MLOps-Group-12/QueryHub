@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { register } from "../services/AuthService";
+import { register } from "../services/authService";
 
 // SignUp Component
 export default function SignUp() {

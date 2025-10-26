@@ -59,7 +59,6 @@ export const getUserConnections = async (userId: string) => {
   const res = await axios.get(`${API_URL}/getDbConnections`, {
     params: { userId },
   });
-
   return res.data as DatabaseConnection[];
 };
 

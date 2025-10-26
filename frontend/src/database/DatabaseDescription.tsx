@@ -6,7 +6,7 @@ import {
   getDatabaseTables,
   updateDatabaseTables,
   type Table,
-} from "../services/DatabaseService";
+} from "../services/databaseService";
 
 // Component to display and edit database description
 export default function DatabaseDescription() {

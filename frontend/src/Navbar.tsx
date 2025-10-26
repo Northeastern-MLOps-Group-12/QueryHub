@@ -1,6 +1,6 @@
 import { Button, Modal } from "react-bootstrap";
 import useAuth from "./hooks/useAuth";
-import { signOut } from "./services/AuthService";
+import { signOut } from "./services/authService";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";

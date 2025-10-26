@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Form, Button } from "react-bootstrap";
-import { addDatabaseConnection } from "../services/DatabaseService";
+import { addDatabaseConnection } from "../services/databaseService";
 import { providerOptions, dbTypeOptions } from "../data/dbOptions";
 import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";

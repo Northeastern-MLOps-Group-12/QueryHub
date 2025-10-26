@@ -8,7 +8,7 @@ import {
   sendMessage,
   type ChatSession,
   type Message,
-} from "../services/ChatService";
+} from "../services/chatService";
 import NewChatModal from "./NewChatModal";
 
 export default function ChatInterface(): JSX.Element {
