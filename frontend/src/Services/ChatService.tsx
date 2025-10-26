@@ -42,7 +42,7 @@ export async function createNewChat(userId: string): Promise<ChatSession> {
   return response.data;
 }
 
-// Send a message (user → bot)
+// Send a message from user to bot in a specific chat session
 export async function sendMessage(
   chatId: string,
   userId: string,

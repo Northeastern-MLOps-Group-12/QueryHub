@@ -18,6 +18,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   description,
 }) => (
   <Col md={4} className="mb-4 d-flex">
+
+    {/* Card for each feature with icon, title, and description */}
     <Card className="text-center shadow-sm w-100 border-0">
       <Card.Body className="d-flex flex-column align-items-center">
         <div

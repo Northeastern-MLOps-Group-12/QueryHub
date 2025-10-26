@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getProfile } from "../services/AuthService";
+import { getProfile } from "../services/authService";
 
 // User profile type definition
 interface UserProfile {

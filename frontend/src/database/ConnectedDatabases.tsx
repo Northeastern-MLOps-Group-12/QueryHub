@@ -7,7 +7,7 @@ import {
   getUserConnections,
   deleteConnection,
   type DatabaseConnection,
-} from "../services/DatabaseService";
+} from "../services/databaseService";
 
 // Component to display and manage connected databases
 export default function ConnectedDatabases() {

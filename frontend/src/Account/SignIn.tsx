@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { signIn } from "../services/AuthService";
-import { getUserConnections } from "../services/DatabaseService";
+import { signIn } from "../services/authService";
+import { getUserConnections } from "../services/databaseService";
 
 // SignIn component that handles user sign-in functionality
 export default function SignIn() {
