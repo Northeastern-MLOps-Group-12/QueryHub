@@ -2,6 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from utils.EmailContentGenerator import send_email_notification , notify_task_failure
+from utils.SQLValidator import _validate_single_sql
 import logging
 
 # ============================================================================
@@ -14,30 +15,6 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
     'on_failure_callback': notify_task_failure,  # Send email on any task failure
 }
-
-def _validate_single_sql(args):
-    """
-    Validate a single SQL query - must be at module level for pickling
-    
-    Args:
-        args: tuple of (idx, sql, source)
-        
-    Returns:
-        tuple: (idx, is_valid, error_msg, error_type)
-    """
-    idx, sql, source = args
-    try:
-        import sqlglot
-        parsed = sqlglot.parse_one(sql)
-        if parsed is not None:
-            return (idx, True, None, None)
-        else:
-            return (idx, False, "Parsing returned None", "ParseError")
-    except Exception as e:
-        error_msg = str(e)[:200]
-        error_type = type(e).__name__
-        return (idx, False, error_msg, error_type)
-
 
 def load_data():
     from datasets import load_dataset
