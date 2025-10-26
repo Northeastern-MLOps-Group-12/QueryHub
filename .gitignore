@@ -1,0 +1,9 @@
+/config
+/data
+/logs
+/plugins
+.env
+/gcs_creds.json
+/dvc.lock
+/.dvc/tmp
+/.dvc/cache

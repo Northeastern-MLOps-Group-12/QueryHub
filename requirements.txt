@@ -2,3 +2,4 @@ datasets
 pandas
 scikit-learn
 sqlglot
+dvc[gs]
