@@ -5,10 +5,15 @@ import { providerOptions, dbTypeOptions } from "../data/dbOptions";
 import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
+// Component for connecting to a database
 export default function DatabaseConnection() {
   const { userId } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
+  // Form state
   const [formData, setFormData] = useState({
     engine: "",
     provider: "",
@@ -20,15 +25,13 @@ export default function DatabaseConnection() {
     dbPassword: "",
   });
 
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
-
+  // Handle form input changes
   const handleChange: React.ChangeEventHandler<any> = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -37,12 +40,11 @@ export default function DatabaseConnection() {
 
     try {
       // Construct payload in backend-expected format
-
       const payload = {
         engine: formData.engine,
         provider: formData.provider,
         config: {
-          user_id: "111",
+          user_id: userId || "",
           connection_name: formData.connectionName,
           db_host: formData.host,
           provider: formData.provider,
@@ -53,11 +55,9 @@ export default function DatabaseConnection() {
         },
       };
 
+      // Call service to add database connection
       const res = await addDatabaseConnection(payload);
-      console.log("Add Connection Response:", res);
-
       const connectionId = res.data.id;
-
       setSuccess("Database connected successfully!");
 
       // Redirect to description page
@@ -201,9 +201,11 @@ export default function DatabaseConnection() {
           />
         </Form.Group>
 
+        {/* Success and Error Messages */}
         {success && <p className="text-success">{success}</p>}
         {error && <p className="text-danger">{error}</p>}
 
+        {/* Submit Button */}
         <Button type="submit" disabled={loading}>
           {loading ? "Connecting..." : "Connect Database"}
         </Button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import "./NewChatModal.css";
 
+// New chat modal component
 interface Props {
   show: boolean;
   initialTitle?: string;
@@ -8,6 +9,7 @@ interface Props {
   onConfirm: (title: string) => void;
 }
 
+// Modal for creating a new chat
 export default function NewChatModal({
   show,
   initialTitle = "",
@@ -16,6 +18,7 @@ export default function NewChatModal({
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Focus input on open
   useEffect(() => {
     if (show) {
       const t = setTimeout(() => inputRef.current?.focus(), 80);
@@ -23,6 +26,7 @@ export default function NewChatModal({
     }
   }, [show]);
 
+  // Don't render if not shown
   if (!show) return null;
 
   return (
@@ -40,6 +44,7 @@ export default function NewChatModal({
         >
           <h5 className="mb-3">Create new chat</h5>
 
+          {/* Input for chat title */}
           <div className="mb-3">
             <label
               htmlFor="new-chat-title"
@@ -63,6 +68,7 @@ export default function NewChatModal({
             />
           </div>
 
+          {/* Buttons */}
           <div className="d-flex justify-content-end gap-2">
             <button className="btn btn-outline-secondary" onClick={onCancel}>
               Cancel

@@ -11,10 +11,6 @@ import {
 } from "../services/ChatService";
 import NewChatModal from "./NewChatModal";
 
-// --- ICONS ---
-const SendIcon = () => <i className="bi bi-send-fill"></i>;
-const MenuIcon = () => <i className="bi bi-list"></i>;
-
 export default function ChatInterface(): JSX.Element {
   const { userData } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -23,36 +19,45 @@ export default function ChatInterface(): JSX.Element {
   const [newMessage, setNewMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // modal state
+  // ICONS
+  const SendIcon = () => <i className="bi bi-send-fill"></i>;
+  const MenuIcon = () => <i className="bi bi-list"></i>;
+
+  // New Chat Modal state
   const [showNewChatModal, setShowNewChatModal] = useState(false);
 
+  // Refs
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const leftListRef = useRef<HTMLDivElement | null>(null);
 
-  // --- Helper functions for cache ---
+  // Caching helper functions
   const cacheKeySessions = `chat_sessions_${userData?.userId}`;
   const cacheKeyMessages = (chatId: string) => `chat_messages_${chatId}`;
 
+  // Load cached data from localStorage
   const loadCachedSessions = (): ChatSession[] | null => {
     const cached = localStorage.getItem(cacheKeySessions);
     return cached ? JSON.parse(cached) : null;
   };
 
+  // Save data to localStorage
   const saveCachedSessions = (sessions: ChatSession[]) => {
     localStorage.setItem(cacheKeySessions, JSON.stringify(sessions));
   };
 
+  // Load cached messages for a specific chat
   const loadCachedMessages = (chatId: string): Message[] | null => {
     const cached = localStorage.getItem(cacheKeyMessages(chatId));
     return cached ? JSON.parse(cached) : null;
   };
 
+  // Save messages for a specific chat
   const saveCachedMessages = (chatId: string, messages: Message[]) => {
     localStorage.setItem(cacheKeyMessages(chatId), JSON.stringify(messages));
   };
 
-  // --- Load chat sessions on mount ---
+  // Load chat sessions on mount
   useEffect(() => {
     if (!userData?.userId) return;
     const cachedSessions = loadCachedSessions();
@@ -65,7 +70,7 @@ export default function ChatInterface(): JSX.Element {
       }
     }
 
-    // --- Fetch from server ---
+    // Fetch from backend
     (async () => {
       try {
         const chats = await getChatSessions(userData.userId);
@@ -83,7 +88,7 @@ export default function ChatInterface(): JSX.Element {
     })();
   }, [userData]);
 
-  // --- Load messages when a chat is selected ---
+  // Load messages when a chat is selected
   const handleSelectChat = async (chat: ChatSession) => {
     try {
       setSelectedChat(chat);
@@ -100,12 +105,12 @@ export default function ChatInterface(): JSX.Element {
     }
   };
 
-  // open modal
+  // Open modal
   const handleNewChat = () => {
     setShowNewChatModal(true);
   };
 
-  // confirm create chat from modal (backend returns no title)
+  // Confirm create chat from modal (backend returns no title)
   const handleConfirmCreateChat = async (titleFromUser: string) => {
     setShowNewChatModal(false);
     if (!userData?.userId) return;
@@ -122,6 +127,7 @@ export default function ChatInterface(): JSX.Element {
       setSelectedChat(chatWithTitle);
       setMessages([]);
       saveCachedSessions(updatedSessions);
+
       // close sidebar on small screens so user sees the new chat
       setSidebarOpen(false);
     } catch (err) {
@@ -129,11 +135,12 @@ export default function ChatInterface(): JSX.Element {
     }
   };
 
+  // Cancel create chat
   const handleCancelCreateChat = () => {
     setShowNewChatModal(false);
   };
 
-  // --- Send message ---
+  // Send message
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || !userData?.userId) return;
     try {
@@ -157,6 +164,7 @@ export default function ChatInterface(): JSX.Element {
     }
   };
 
+  // Handle Enter key press in input
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -164,7 +172,7 @@ export default function ChatInterface(): JSX.Element {
     }
   };
 
-  // --- Scroll to bottom on messages update ---
+  // Scroll to bottom on messages update
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -175,7 +183,7 @@ export default function ChatInterface(): JSX.Element {
     }
   }, [messages]);
 
-  // --- Mobile-first sidebar handling ---
+  // Mobile sidebar handling
   useEffect(() => {
     if (window.innerWidth <= 768) setSidebarOpen(false);
     const handleResize = () => {
@@ -187,6 +195,7 @@ export default function ChatInterface(): JSX.Element {
 
   return (
     <div className="d-flex mt-2" style={{ height: "100vh", minHeight: 600 }}>
+      {/* NEW CHAT MODAL */}
       <NewChatModal
         show={showNewChatModal}
         onCancel={handleCancelCreateChat}
@@ -237,7 +246,8 @@ export default function ChatInterface(): JSX.Element {
             ></i>
           </button>
         </div>
-
+        
+        {/* Chat sessions list */}
         <div ref={leftListRef} className="flex-grow-1 overflow-auto">
           {sessions.length === 0 ? (
             <p className="text-muted small p-3">No Previous Chats</p>
@@ -319,6 +329,7 @@ export default function ChatInterface(): JSX.Element {
           </button>
         </div>
 
+        {/* Chat sessions list */}
         <div ref={leftListRef} className="flex-grow-1 overflow-auto p-2">
           {sessions.length === 0 ? (
             <p className="text-muted small p-3">No Previous Chats</p>
@@ -362,7 +373,7 @@ export default function ChatInterface(): JSX.Element {
         />
       )}
 
-      {/* CHAT PANEL */}
+      {/* Chat panel */}
       <main
         className="d-flex flex-column flex-grow-1"
         style={{ minWidth: 0, minHeight: 0 }}
@@ -371,6 +382,8 @@ export default function ChatInterface(): JSX.Element {
           className="p-3 pb-md-4 border-bottom d-flex align-items-center bg-body-tertiary"
           style={{ position: "sticky", top: "66px", zIndex: 5 }}
         >
+
+          {/* Mobile menu button */}
           {!sidebarOpen && (
             <button
               className="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center shadow-sm me-2"
@@ -391,6 +404,7 @@ export default function ChatInterface(): JSX.Element {
           </h2>
         </div>
 
+        {/* Messages container */}
         {selectedChat ? (
           <>
             <div
@@ -478,6 +492,7 @@ export default function ChatInterface(): JSX.Element {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Message input area */}
             <div
               className="p-3 bg-body-tertiary border-top position-sticky"
               style={{ bottom: 0, zIndex: 20 }}

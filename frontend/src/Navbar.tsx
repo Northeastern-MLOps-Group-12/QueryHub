@@ -5,11 +5,13 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 
+// Navigation Bar Component
 export default function Navbar() {
   const { userId, userData } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // State management
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -24,11 +26,12 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Update authentication status
   useEffect(() => {
     setIsAuthenticated(!!userId);
   }, [userId]);
 
-  // close dropdown when clicking outside (desktop only)
+  // Close dropdown when clicking outside (desktop only)
   useEffect(() => {
     if (isMobile) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -40,6 +43,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMobile]);
 
+  // Handle user sign out
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -50,6 +54,7 @@ export default function Navbar() {
     }
   };
 
+  // Scroll to section or navigate to home with hash
   const handleScrollTo = (sectionId: string) => {
     if (location.pathname !== "/") navigate(`/#${sectionId}`);
     else {
@@ -59,6 +64,7 @@ export default function Navbar() {
     }
   };
 
+  // Determine avatar URL
   const avatarUrl =
     userData?.avatarUrl ||
     (userData?.firstName
@@ -67,8 +73,10 @@ export default function Navbar() {
         )}&background=random`
       : "/src/assets/default-avatar.png");
 
+  // Profile content inside dropdown or modal
   const ProfileContent = () => (
     <div className="text-center">
+      {/* User Avatar and Info */}
       <img
         src={avatarUrl}
         alt="User Avatar"
@@ -76,9 +84,11 @@ export default function Navbar() {
         style={{ width: "90px", height: "90px", objectFit: "cover" }}
       />
       <h5 className="fw-bold mb-1">
-        {userData?.firstName} {userData?.lastName} Hello here
+        {userData?.firstName} {userData?.lastName}
       </h5>
-      <p className="text-muted mb-3">{userData?.email}email</p>
+      <p className="text-muted mb-3">{userData?.email}</p>
+
+      {/* Sign Out Button */}
       <Button
         variant="outline-danger"
         className="w-100"
@@ -101,6 +111,7 @@ export default function Navbar() {
           QueryHub
         </a>
 
+        {/* Toggler for mobile view */}
         <button
           className="navbar-toggler"
           type="button"
@@ -114,6 +125,7 @@ export default function Navbar() {
           <div className="navbar-nav ms-auto align-items-center">
             {!isAuthenticated ? (
               <>
+              {/* Navigation buttons for unauthenticated users */}
                 <button
                   className="nav-link btn btn-link"
                   onClick={() => handleScrollTo("how-it-works")}
@@ -136,6 +148,7 @@ export default function Navbar() {
               </>
             ) : (
               <>
+              {/* Navigation buttons for authenticated users */}
                 <button
                   className="nav-link btn btn-link"
                   onClick={() => navigate("/chatinterface")}
@@ -149,6 +162,7 @@ export default function Navbar() {
                   Database Connections
                 </button>
 
+                {/* Profile Dropdown / Modal */}
                 {isMobile ? (
                   <>
                     <Button
@@ -200,7 +214,8 @@ export default function Navbar() {
                             }}
                           ></i>
                         </button>
-
+                        
+                        {/* Modal Body with Profile Content */}
                         <Modal.Body className="pt-5">
                           <ProfileContent />
                         </Modal.Body>
@@ -209,6 +224,7 @@ export default function Navbar() {
                   </>
                 ) : (
                   <div className="position-relative ms-3" ref={menuRef}>
+                    {/* Desktop Profile Dropdown */}
                     <img
                       src={avatarUrl}
                       alt="User Avatar"
@@ -221,6 +237,8 @@ export default function Navbar() {
                       }}
                       onClick={() => setShowProfile((prev) => !prev)}
                     />
+
+                    {/* Profile Dropdown Content */}
                     {showProfile && (
                       <div
                         className="position-absolute end-0 mt-2 bg-white shadow-lg rounded-4 p-3"

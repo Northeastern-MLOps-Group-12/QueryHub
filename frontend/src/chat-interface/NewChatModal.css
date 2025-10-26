@@ -1,3 +1,5 @@
+/* NewChatModal.css */
+/* overlay styles */
 .nc-overlay {
   backdrop-filter: blur(3px);
   background: rgba(8, 15, 30, 0.32);
@@ -5,6 +7,7 @@
   animation: overlayFadeIn 220ms ease-out both;
 }
 
+/* panel styles */
 .nc-panel {
   border-radius: 12px;
   box-shadow: 0 14px 30px rgba(16, 24, 40, 0.18);

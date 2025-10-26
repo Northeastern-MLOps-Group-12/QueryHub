@@ -1,3 +1,4 @@
+// Footer component
 export default function Footer() {
   return (
     <footer className="py-3 bg-white border-top text-center text-muted">

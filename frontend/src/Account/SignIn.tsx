@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { signIn } from "../services/AuthService";
 import { getUserConnections } from "../services/DatabaseService";
 
+// SignIn component that handles user sign-in functionality
 export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -11,11 +12,11 @@ export default function SignIn() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // Effect to automatically hide error messages after 3 seconds
   useEffect(() => {
     if (error) {
-      // Set a timer to hide the error after 3 seconds (3000ms)
       const timer = setTimeout(() => {
-        setError(""); // Clear the error after 3 seconds
+        setError("");
       }, 2000);
 
       // Clean up the timer when the component unmounts or the error changes
@@ -23,6 +24,7 @@ export default function SignIn() {
     }
   }, [error]);
 
+  // Handle form submission for sign-in
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -34,6 +36,7 @@ export default function SignIn() {
         // Check if user has any database connections
         const connections = await getUserConnections(userId);
 
+        // Navigate based on the presence of database connections
         if (connections && connections.length > 0) {
           navigate("/chatinterface", {
             state: { successMessage: "You are signed in successfully!" },
@@ -57,6 +60,7 @@ export default function SignIn() {
 
   return (
     <div className="flex-grow-1 d-flex align-items-center justify-content-center">
+      {/* Display error message if present */}
       {error && (
         <div
           className={`alert alert-danger fade position-fixed top-0 start-50 translate-middle-x mt-4 ${
@@ -78,6 +82,8 @@ export default function SignIn() {
           </div>
         </div>
       )}
+
+      {/* Sign-in form */}
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-12 col-md-8 col-lg-5">
@@ -91,6 +97,7 @@ export default function SignIn() {
 
               <div className="card-body p-4 p-md-5">
                 <form onSubmit={handleSubmit}>
+                  {/* Email input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">Email</label>
                     <div className="input-group">
@@ -108,6 +115,7 @@ export default function SignIn() {
                     </div>
                   </div>
 
+                  {/* Password input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">Password</label>
                     <div className="input-group">
@@ -135,6 +143,7 @@ export default function SignIn() {
                     </div>
                   </div>
 
+                  {/* Submit button */}
                   <button
                     type="submit"
                     className="btn btn-primary w-100 py-2 mb-4 fw-semibold"

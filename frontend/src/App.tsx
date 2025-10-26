@@ -15,14 +15,15 @@ import SignIn from "./account/SignIn";
 import SignUp from "./account/SignUp";
 import Database from "./database";
 
+// Main Application Component
 function App() {
   const { loading } = useAuth();
-
   if (loading) return <div>Loading...</div>;
 
   return (
     <div className="d-flex flex-column vh-100">
       <Router>
+        {/* Navigation Bar */}
         <Navbar />
         <div
           className="d-flex flex-column flex-grow-1"
@@ -37,7 +38,7 @@ function App() {
             {/* SignUp page */}
             <Route path="/account/signup" element={<SignUp />} />
 
-            {/* Other account pages */}
+            {/* Account pages */}
             <Route
               path="/account/*"
               element={<ProtectedRoute element={<Account />} />}
@@ -49,7 +50,7 @@ function App() {
               element={<ProtectedRoute element={<ChatInterface />} />}
             />
 
-            {/* Chat interface */}
+            {/* Database Routes */}
             <Route
               path="/database/*"
               element={<ProtectedRoute element={<Database />} />}
@@ -59,6 +60,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
+
+        {/* Footer */}
         <Footer />
       </Router>
     </div>

@@ -2,11 +2,13 @@ import { Navigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { type ReactElement } from "react";
 
+// Props for the ProtectedRoute component
 interface ProtectedRouteProps {
   element: ReactElement;
   publicRoutes?: string[];
 }
 
+// A component that protects routes based on authentication status
 const ProtectedRoute = ({
   element,
   publicRoutes = [
@@ -29,10 +31,10 @@ const ProtectedRoute = ({
     return element;
   }
 
-  // If logged in, allow the route
+  // If logged in then allow the route
   if (isAuthenticated) return element;
 
-  // Not logged in → redirect to SignIn
+  // Not logged in then redirect to SignIn
   return <Navigate to="/account/signin" state={{ from: location }} replace />;
 };
 

@@ -1,7 +1,9 @@
 import axios from "axios";
 
+// Enable sending cookies with requests
 axios.defaults.withCredentials = true;
 
+// Base API URL for database connection endpoints
 const API_URL = `${import.meta.env.VITE_BACKEND_URL}/connect`;
 
 // Interface for database connection
@@ -32,11 +34,13 @@ export interface DatabaseConnectionPayload {
   };
 }
 
+// Column type definition
 export interface Column {
   name: string;
   description: string;
 }
 
+// Table type definition
 export interface Table {
   name: string;
   description: string;

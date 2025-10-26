@@ -3,6 +3,7 @@ import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { register } from "../services/AuthService";
 
+// SignUp Component
 export default function SignUp() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -14,11 +15,13 @@ export default function SignUp() {
     password: "",
   });
 
+  // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Clear error message after 3 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
@@ -29,6 +32,7 @@ export default function SignUp() {
     }
   }, [error]);
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -59,6 +63,7 @@ export default function SignUp() {
     }
   };
 
+  // Manage focus state for password criteria display
   const [isFocused, setIsFocused] = useState(false);
   const handleFocus = () => {
     setIsFocused(true);
@@ -70,6 +75,7 @@ export default function SignUp() {
 
   return (
     <div className="flex-grow-1 d-flex align-items-center justify-content-center py-4">
+      {/* Error Alert */}
       {error && (
         <div
           className={`alert alert-danger fade position-fixed top-0 start-50 translate-middle-x mt-4 ${
@@ -91,6 +97,8 @@ export default function SignUp() {
           </div>
         </div>
       )}
+
+      {/* Sign-up form */}
       <div className="container-fluid">
         <div className="row justify-content-center">
           <div className="col-12 col-md-6 col-lg-4">
@@ -104,6 +112,8 @@ export default function SignUp() {
 
               <div className="card-body p-4 p-md-5">
                 <form onSubmit={handleSubmit}>
+
+                  {/* First Name input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">First Name</label>
                     <div className="input-group">
@@ -122,6 +132,7 @@ export default function SignUp() {
                     </div>
                   </div>
 
+                  {/* Last Name input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">Last Name</label>
                     <div className="input-group">
@@ -140,6 +151,7 @@ export default function SignUp() {
                     </div>
                   </div>
 
+                  {/* Email input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">Email</label>
                     <div className="input-group">
@@ -161,6 +173,7 @@ export default function SignUp() {
                     </div>
                   </div>
 
+                  {/* Password input */}
                   <div className="mb-4">
                     <label className="form-label fw-semibold">Password</label>
                     <div className="input-group">
@@ -190,6 +203,7 @@ export default function SignUp() {
                         )}
                       </span>
                     </div>
+                    {/* Password criteria */}
                     {isFocused && (
                       <div className="mt-2 text-muted">
                         <p>Password must meet the following criteria:</p>
@@ -204,6 +218,7 @@ export default function SignUp() {
                     )}
                   </div>
 
+                  {/* Submit button and Sign In link */}
                   <button
                     type="submit"
                     className="btn btn-primary w-100 py-2 mb-4 fw-semibold"

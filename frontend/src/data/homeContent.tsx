@@ -1,3 +1,4 @@
+// Hero Section Content
 export const heroContent = {
   title: "Ask Questions, Get Insights.",
   subtitle:
@@ -5,6 +6,7 @@ export const heroContent = {
   cta: "Learn How It Works",
 };
 
+// How It Works Section Content
 export const steps = [
   {
     icon: "bi-plug-fill",
@@ -26,6 +28,7 @@ export const steps = [
   },
 ];
 
+// Features Section Content
 export const features = [
   {
     icon: "bi-chat-text",
@@ -64,6 +67,7 @@ export const features = [
   },
 ];
 
+// Call to Action Section Content
 export const ctaContent = {
   title: "Ready to Unlock Your Data’s Potential?",
   subtitle:
