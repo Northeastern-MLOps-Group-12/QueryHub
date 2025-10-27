@@ -30,7 +30,6 @@ class PostgresConnector(BaseConnector):
             db_name = self.config['db_name']
 
             connection_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db_name}"
-            # connection_url = "postgresql+psycopg2://postgres:QueryHub%40123@34.28.5.75:5432/queryhub"
 
             self.engine = create_engine(connection_url)
             self.conn = self.engine.connect()
