@@ -99,7 +99,7 @@ This project implements a **production-grade MLOps data pipeline** for the Query
 ### System Requirements
 
 - **Operating System**: Linux, macOS, or Windows with WSL2
-- **Python**: 3.8 or higher
+- **Python**: 3.10
 - **RAM**: Minimum 8GB (16GB recommended for parallel processing)
 - **CPU**: Multi-core processor (pipeline uses 75% of cores)
 - **Disk Space**: ~5GB for dataset and generated files
@@ -107,7 +107,7 @@ This project implements a **production-grade MLOps data pipeline** for the Query
 ### Required Software
 
 ```bash
-# Python 3.10+
+# Python 3.10
 python --version
 
 # Docker (optional, for containerized Airflow)
@@ -148,25 +148,63 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure Airflow
+### 3.  Data Versioning with DVC
 
+### Setup DVC
+
+#### 3.1. Initialize DVC
 ```bash
-# Initialize Airflow database
-export AIRFLOW_HOME=$(pwd)
-airflow db init
-
-# Create admin user
-airflow users create \
-    --username admin \
-    --firstname Admin \
-    --lastname User \
-    --role Admin \
-    --email admin@example.com
+cd Data-Pipeline
+dvc init
 ```
 
-### 4. Configure SMTP for Email Alerts
+#### 3.2. Configure Remote Storage
 
-Edit `docker-compose.yaml` or `airflow.cfg`:
+**Google Cloud Storage (GCS)**:
+```bash
+dvc remote add -d myremote gs://my-bucket/data-pipeline
+dvc remote modify myremote credentialpath ~/.config/gcloud/credentials.json
+```
+
+**AWS S3**:
+```bash
+dvc remote add -d myremote s3://my-bucket/data-pipeline
+dvc remote modify myremote access_key_id YOUR_ACCESS_KEY
+dvc remote modify myremote secret_access_key YOUR_SECRET_KEY
+```
+
+#### 3.4. Track Data Directory
+```bash
+dvc add data/
+git add data.dvc .gitignore
+git commit -m "Track data with DVC"
+```
+
+#### 3.5. Push Data to Remote
+```bash
+dvc push
+```
+---
+
+### 4. Configure Airflow
+
+```bash
+# ADD necessary folders
+mkdir ./logs , ./plugins , ./config
+
+# Initialize Airflow
+docker compose run airflow-cli airflow config list
+
+# Initialize Airflow DB
+docker compose up airflow-init
+
+# Start Docker Services
+docker compose up -d
+```
+
+### 5. Configure SMTP for Email Alerts
+
+Edit `docker-compose.yaml`:
 
 ```yaml
 environment:
@@ -179,7 +217,7 @@ environment:
 
 **Note**: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833).
 
-### 5. Start Airflow
+### 6. Start Airflow
 
 #### Option A: Docker Compose (Recommended)
 
@@ -191,17 +229,7 @@ docker-compose up -d
 docker-compose ps
 ```
 
-#### Option B: Standalone Mode
-
-```bash
-# Start Airflow webserver
-airflow webserver --port 8080 &
-
-# Start Airflow scheduler
-airflow scheduler &
-```
-
-### 6. Access Airflow UI
+### 7. Access Airflow UI
 
 Open your browser and navigate to:
 ```
@@ -209,26 +237,46 @@ http://localhost:8080
 ```
 
 Login with:
-- **Username**: admin
-- **Password**: (password you set during user creation)
+- **Username**: airflow
+- **Password**: airflow
 
-### 7. Run the Pipeline
+### 8. Run the Pipeline
 
 1. In the Airflow UI, find the DAG: `data_pipeline_with_synthetic_v1_schema_validation`
 2. Toggle the DAG to **ON**
 3. Click **Trigger DAG** to start execution
 4. Monitor progress in the **Graph View** or **Gantt Chart**
 
-### 8. Pull Data Using DVC
+### 9. DVC Workflow (After Pipeline Execution)
 
+#### 9.1. After Pipeline Execution
 ```bash
-# Pull versioned data from remote storage
-dvc pull
+# Track new data files
+dvc add data/
 
-# Check data status
-dvc status
+# Commit DVC files
+git add data.dvc
+git commit -m "Update dataset after pipeline run"
+
+# Push data to remote
+dvc push
+
+# Push metadata to Git
+git push
 ```
 
+### 10. To Reproduce on Another Machine
+```bash
+# Clone repository
+git clone https://github.com/yourusername/queryhub-pipeline.git
+cd queryhub-pipeline/Data-Pipeline
+
+# Pull data from DVC remote
+dvc pull
+
+# Data is now available in data/
+ls data/
+```
 ---
 
 ## 📁 Project Structure
@@ -454,7 +502,7 @@ Total Combinations ≈ 10^15+
 
 **Output**: `/opt/airflow/data/synthetic_data.csv` (40,000-80,000 samples)
 
-**Performance**: ~100 samples/second, ~7 minutes for 40K samples
+**Performance**: ~6000 samples/second, ~40 seconds for 240K samples
 
 **DVC Tracked**: Yes
 
@@ -470,9 +518,9 @@ Total Combinations ≈ 10^15+
 3. Stratified 90/10 train/val split (random_state=42)
 
 **Output Files**:
-- `/opt/airflow/data/train.csv`: Training set (~140K samples)
-- `/opt/airflow/data/val.csv`: Validation set (~15K samples)
-- `/opt/airflow/data/test.csv`: Test set (~10K samples, unchanged)
+- `/opt/airflow/data/train.csv`: Training set (~285K samples)
+- `/opt/airflow/data/val.csv`: Validation set (~32K samples)
+- `/opt/airflow/data/test.csv`: Test set (~6K samples, unchanged)
 
 **DVC Tracked**: Yes
 
@@ -586,76 +634,6 @@ SQL complexity classes in the original dataset are severely imbalanced:
 
 ---
 
-## 💾 Data Versioning with DVC
-
-### Setup DVC
-
-#### 1. Initialize DVC
-```bash
-cd Data-Pipeline
-dvc init
-```
-
-#### 2. Configure Remote Storage
-
-**Google Cloud Storage (GCS)**:
-```bash
-dvc remote add -d myremote gs://my-bucket/data-pipeline
-dvc remote modify myremote credentialpath ~/.config/gcloud/credentials.json
-```
-
-**AWS S3**:
-```bash
-dvc remote add -d myremote s3://my-bucket/data-pipeline
-dvc remote modify myremote access_key_id YOUR_ACCESS_KEY
-dvc remote modify myremote secret_access_key YOUR_SECRET_KEY
-```
-
-#### 3. Track Data Directory
-```bash
-dvc add data/
-git add data.dvc .gitignore
-git commit -m "Track data with DVC"
-```
-
-#### 4. Push Data to Remote
-```bash
-dvc push
-```
-
-### DVC Workflow
-
-#### After Pipeline Execution
-```bash
-# Track new data files
-dvc add data/
-
-# Commit DVC files
-git add data.dvc
-git commit -m "Update dataset after pipeline run"
-
-# Push data to remote
-dvc push
-
-# Push metadata to Git
-git push
-```
-
-#### To Reproduce on Another Machine
-```bash
-# Clone repository
-git clone https://github.com/yourusername/queryhub-pipeline.git
-cd queryhub-pipeline/Data-Pipeline
-
-# Pull data from DVC remote
-dvc pull
-
-# Data is now available in data/
-ls data/
-```
-
----
-
 ## 📊 Schema Validation & Statistics
 
 ### Dual-Stage Validation
@@ -700,11 +678,14 @@ ls data/
 8. Leakage Removal: 7 tests
 9. Success Notification: 3 tests
 
-### Running Tests
+### Running Tests (Runs as part of DAG)
+
+**Important**: Local test execution will show 4 failures due to hardcoded Airflow paths in the pipeline code. The complete test suite (45/45 tests) passes successfully when executed within the Airflow container/DAG runtime environment.
+```
 
 ```bash
-# Run all tests
-pytest tests/test.py -v
+# Run all tests (Will Fail 4 test cases if run locally due to airflow paths set in code but passes all test cases when run inside airflow DAG)
+pytest tests/test.py -v 
 
 # With coverage
 pytest tests/test.py --cov=dags --cov-report=html
@@ -741,7 +722,7 @@ AIRFLOW__SMTP__SMTP_PASSWORD: your-app-password
 
 ### Logging
 
-**Location**: `/opt/airflow/logs/`
+**Location**: `/opt/airflow/logs/` or 'logs' (in local machine)
 
 **Custom Logging**:
 ```python
@@ -757,20 +738,22 @@ logging.error("❌ Schema validation failed")
 
 ### Current Performance
 
-**Total Pipeline Duration**: ~15-20 minutes
+**Total Pipeline Duration**: 3 minutes
 
 **Breakdown**:
-1. Pre-pipeline tests: 10-20s
-2. Data loading: 30-60s
-3. SQL validation: 2-3 min ⏱️
-4. Preprocessing: 10s
-5. Raw schema validation: 30s
-6. Bias detection: 10s
-7. Synthetic generation: 5-7 min ⏱️
-8. Merge and split: 1-2 min
-9. Leakage removal: 30-60s
-10. Engineered schema validation: 1-2 min
-11. Success notification: 5s
+1. Pre-pipeline tests: 11s
+2. Data loading: 12s
+3. SQL validation: 40s (runs parallely)
+4. Preprocessing: 1.5s
+5. Raw schema validation: 1.1s
+6. Bias detection: 4s
+7. Synthetic generation: 40s
+8. Merge and split: 25s
+9. Leakage removal: 29s
+10. Engineered schema validation: 10s
+11. Success notification: 2s
+
+
 
 ### Optimization Techniques
 
