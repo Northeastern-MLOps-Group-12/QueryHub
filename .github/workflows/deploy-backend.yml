@@ -5,6 +5,10 @@ on:
     branches: ["connectors"]
     paths: ["backend/**"]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Run Unit Tests"]
+    types:
+      - completed
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
@@ -22,6 +26,7 @@ env:
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
