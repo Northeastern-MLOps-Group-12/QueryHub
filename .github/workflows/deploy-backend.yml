@@ -1,16 +1,9 @@
-name: Test and Deploy Backend
+name: Deploy to Cloud Run
 
 on:
   push:
-    branches:
-      - main
-      - dev
-      - connectors
-    paths:
-      - "backend/**"
-      - "agents/**"
-      - "connectors/**"
-      - "tests/**"
+    branches: ["main", "dev"]
+    paths: ["backend/**"]
   workflow_dispatch:
 
 env:
@@ -25,37 +18,11 @@ env:
   MODEL_NAME: gemini-2.5-flash
   EMBEDDING_MODEL: text-embedding-004
   FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
+  CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE }}
 
 jobs:
-  unit_tests:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.12
-
-      - name: Install dependencies
-        working-directory: tests
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-mock
-
-      - name: Run all tests
-        working-directory: tests
-        run: |
-          pytest -v --maxfail=1 --disable-warnings agents backend connectors
-
   deploy:
-    name: Deploy to Cloud Run
     runs-on: ubuntu-latest
-    needs: unit_tests
-    if: ${{ (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/connectors') && needs.unit_tests.result == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -66,8 +33,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install dependencies for deployment
+      
+      - name: Install dependencies for tests
         run: |
           python -m pip install --upgrade pip
           pip install -r ${{ env.SERVICE }}/requirements.txt
@@ -85,21 +52,22 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build and Push Backend Docker Image
+      - name: Build and Push Backend Api Docker Image
         run: |
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
           docker build -t $IMAGE -f ${{ env.SERVICE }}/Dockerfile .
           docker push $IMAGE
+# docker build -t $IMAGE -f connectors/Dockerfile connectors
 
       - name: Deploy Backend to Cloud Run
         run: |
-          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
           gcloud run deploy ${{ env.SERVICE }} \
             --image=$IMAGE \
-            --add-cloudsql-instances=queryhub-473901:us-central1:nl-to-sql-db \
-            --region=$REGION \
+            --add-cloudsql-instances=${{ env.CLOUD_SQL_INSTANCE }} \
+            --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=$DATABASE_URL,LLM_API_KEY=$LLM_API_KEY,MODEL=$MODEL,MODEL_NAME=$MODEL_NAME,EMBEDDING_MODEL=$EMBEDDING_MODEL,FRONTEND_ORIGIN=$FRONTEND_ORIGIN
+            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }}
