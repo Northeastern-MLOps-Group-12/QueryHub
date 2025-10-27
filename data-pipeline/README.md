@@ -112,205 +112,53 @@ dvc version
 
 ---
 
-## 🚀 Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/queryhub-pipeline.git
-cd queryhub-pipeline/data-pipeline
-```
-
-### 2. Set Up Python Environment
-
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3.  Data Versioning with DVC
-
-### Setup DVC
-
-#### 3.1. Initialize DVC
-```bash
-cd data-pipeline
-dvc init
-```
-
-#### 3.2. Configure Remote Storage
-
-**Google Cloud Storage (GCS)**:
-```bash
-dvc remote add -d myremote gs://my-bucket/data-pipeline
-dvc remote modify myremote credentialpath ~/.config/gcloud/credentials.json
-```
-
-**AWS S3**:
-```bash
-dvc remote add -d myremote s3://my-bucket/data-pipeline
-dvc remote modify myremote access_key_id YOUR_ACCESS_KEY
-dvc remote modify myremote secret_access_key YOUR_SECRET_KEY
-```
-
-#### 3.4. Track Data Directory
-```bash
-dvc add data/
-git add data.dvc .gitignore
-git commit -m "Track data with DVC"
-```
-
-#### 3.5. Push Data to Remote
-```bash
-dvc push
-```
----
-
-### 4. Configure Airflow
-
-```bash
-# ADD necessary folders
-mkdir ./logs , ./plugins , ./config
-
-# Initialize Airflow
-docker compose run airflow-cli airflow config list
-
-# Initialize Airflow DB
-docker compose up airflow-init
-
-# Start Docker Services
-docker compose up -d
-```
-
-### 5. Configure SMTP for Email Alerts
-
-Edit `docker-compose.yaml`:
-
-```yaml
-environment:
-  AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
-  AIRFLOW__SMTP__SMTP_PORT: 587
-  AIRFLOW__SMTP__SMTP_USER: your-email@gmail.com
-  AIRFLOW__SMTP__SMTP_PASSWORD: your-app-password
-  AIRFLOW__SMTP__SMTP_MAIL_FROM: your-email@gmail.com
-```
-
-**Note**: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833).
-
-### 6. Check Airflow Status
-
-```bash
-# Check status
-docker-compose ps
-```
-
-### 7. Access Airflow UI
-
-Open your browser and navigate to:
-```
-http://localhost:8080
-```
-
-Login with:
-- **Username**: airflow
-- **Password**: airflow
-
-### 8. Run the Pipeline
-
-1. In the Airflow UI, find the DAG: `data_pipeline_with_synthetic_v1_schema_validation`
-2. Toggle the DAG to **ON**
-3. Click **Trigger DAG** to start execution
-4. Monitor progress in the **Graph View** or **Gantt Chart**
-
-### 9. DVC Workflow (After Pipeline Execution)
-
-#### 9.1. After Pipeline Execution
-```bash
-# Track new data files
-dvc add data/
-
-# Commit DVC files
-git add data.dvc
-git commit -m "Update dataset after pipeline run"
-
-# Push data to remote
-dvc push
-
-# Push metadata to Git
-git push
-```
-
-### 10. To Reproduce on Another Machine
-```bash
-# Clone repository
-git clone https://github.com/yourusername/queryhub-pipeline.git
-cd queryhub-pipeline/data-pipeline
-
-# Pull data from DVC remote
-dvc pull
-
-# Data is now available in data/
-ls data/
-```
----
-
 ## 📁 Project Structure
 
 ```
 data-pipeline/
 │
 ├── dags/
-│   ├── data_pipeline_dag.py              # Main Airflow DAG
+│   ├── data_pipeline_dag.py                    # Main Airflow DAG
 │   │
 │   └── utils/
-│       ├── EmailContentGenerator.py      # Email notification utilities
-│       ├── SQLValidator.py               # SQL validation with sqlglot
-│       ├── DataGenerator.py              # Synthetic data generation engine
+│       ├── EmailContentGenerator.py            # Email notification utilities
+│       ├── SQLValidator.py                     # SQL validation with sqlglot
+│       ├── DataGenerator.py                    # Synthetic data generation engine
 │       │
 │       ├── DataGenData/
 │       │   ├── Templates/
-│       │   │   ├── CTETemplates.py       # 15 CTE query templates
-│       │   │   ├── SETTemplates.py       # 15 set operation templates
-│       │   │   ├── MultipleJoinsTemplates.py  # 15 join templates
-│       │   │   ├── SubQueryTemplates.py  # 15 subquery templates
-│       │   │   └── WindowFunctionTemplates.py # 15 window function templates
+│       │   │   ├── CTETemplates.py             # 15 CTE query templates
+│       │   │   ├── SETTemplates.py             # 15 set operation templates
+│       │   │   ├── MultipleJoinsTemplates.py   # 15 join templates
+│       │   │   ├── SubQueryTemplates.py        # 15 subquery templates
+│       │   │   └── WindowFunctionTemplates.py  # 15 window function templates
 │       │   │
 │       │   └── DomainData/
-│       │       ├── Ecommerce.py          # E-commerce domain data
-│       │       ├── Healthcare.py         # Healthcare domain data
-│       │       ├── Finance.py            # Finance domain data
-│       │       ├── Education.py          # Education domain data
-│       │       ├── Logistics.py          # Logistics domain data
-│       │       ├── Manufacturing.py      # Manufacturing domain data
-│       │       ├── RealEstate.py         # Real estate domain data
-│       │       ├── Hospitality.py        # Hospitality domain data
-│       │       ├── SocialMedia.py        # Social media domain data
-│       │       ├── Gaming.py             # Gaming domain data
-│       │       └── Retail.py             # Retail domain data
+│       │       ├── Ecommerce.py                # E-commerce domain data
+│       │       ├── Healthcare.py               # Healthcare domain data
+│       │       ├── Finance.py                  # Finance domain data
+│       │       ├── Education.py                # Education domain data
+│       │       ├── Logistics.py                # Logistics domain data
+│       │       ├── Manufacturing.py            # Manufacturing domain data
+│       │       ├── RealEstate.py               # Real estate domain data
+│       │       ├── Hospitality.py              # Hospitality domain data
+│       │       ├── SocialMedia.py              # Social media domain data
+│       │       ├── Gaming.py                   # Gaming domain data
+│       │       └── Retail.py                   # Retail domain data
 │       │
 │       └── __init__.py
 │
 ├── data/
-│   ├── train.csv                         # Final training data
-│   ├── val.csv                           # Final validation data
-│   ├── test.csv                          # Final test data
-│   ├── synthetic_data.csv                # Generated synthetic samples
-│   ├── sql_validation_anomalies.csv      # Invalid SQL queries report
-│   ├── raw_schema_and_stats.json         # Raw data statistics
-│   └── engineered_schema_and_stats.json  # Final data statistics
+│   ├── train.csv                               # Final training data
+│   ├── val.csv                                 # Final validation data
+│   ├── test.csv                                # Final test data
+│   ├── synthetic_data.csv                      # Generated synthetic samples
+│   ├── sql_validation_anomalies.csv            # Invalid SQL queries report
+│   ├── raw_schema_and_stats.json               # Raw data statistics
+│   └── engineered_schema_and_stats.json        # Final data statistics
 │
 ├── tests/
-│   └── test.py                           # Comprehensive pytest suite (45 tests)
+│   └── test.py                                 # Comprehensive pytest suite (45 tests)
 │
 ├── logs/
 │   └── (Airflow logs - auto-generated)
@@ -319,16 +167,16 @@ data-pipeline/
 │   └── (Airflow plugins - if any)
 │
 ├── .dvc/
-│   └── config                            # DVC configuration
+│   └── config                                  # DVC configuration
 │
-├── .dvcignore                            # DVC ignore patterns
-├── data.dvc                              # DVC tracking file for data/
-├── .gitignore                            # Git ignore patterns
-├── .env                                  # Environment variables (not tracked)
-├── requirements.txt                      # Python dependencies
-├── docker-compose.yaml                   # Docker Compose configuration
-├── Dockerfile                            # Docker image definition
-└── README.md                             # This file
+├── .dvcignore                                  # DVC ignore patterns
+├── data.dvc                                    # DVC tracking file for data/
+├── .gitignore                                  # Git ignore patterns
+├── .env                                        # Environment variables (not tracked)
+├── requirements.txt                            # Python dependencies
+├── docker-compose.yaml                         # Docker Compose configuration
+├── Dockerfile                                  # Docker image definition
+└── README.md                                   # This file
 ```
 
 ---

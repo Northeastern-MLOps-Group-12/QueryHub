@@ -1,35 +1,9 @@
-Data-Pipeline/.pytest_cache
-Data-Pipeline/config
-Data-Pipeline/data
-Data-Pipeline/logs
-Data-Pipeline/plugins
-Data-Pipeline/.env
-Data-Pipeline/gcs_creds.json
-Data-Pipeline/dvc.lock
-Data-Pipeline/.dvc/tmp
-Data-Pipeline/.dvc/cache
-Data-Pipeline/__pycache__/
 # Environment variables
 .env
 *.env
 
 # Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual environment
-env/
-vectorestore/VectorStores
-
-
-# Environment variables
-.env
-*.env
-
-# Python cache
-**/__pycache__/
+**/_pycache_/
 *.pyc
 *.pyo
 *.pyd
@@ -43,6 +17,15 @@ gcs_creds.json
 **/venv/
 vectorestore/VectorStores
 
+# macOS specific
+.DS_STORE
+
+# VS Code workspace
+.vscode/*
+
+# Commit specific team-wide settings
+!.vscode/settings.json
+
 # Data Pipeline specific files/folders
 data-pipeline/config/
 data-pipeline/data/
@@ -51,4 +34,3 @@ data-pipeline/plugins/
 data-pipeline/dvc.lock
 data-pipeline/.dvc/tmp/
 data-pipeline/.dvc/cache/
-
