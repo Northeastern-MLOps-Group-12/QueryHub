@@ -21,7 +21,6 @@ import os
 # - Routes should raise HTTPException for client errors; unexpected exceptions are caught in the route.
 # - If more fine-grained error handling is needed, add custom exception classes in connectors/agents.
 
-# Frontend origin for CORS
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
 
 app = FastAPI(title="Connector Service API")
