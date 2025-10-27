@@ -15,6 +15,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # EMBEDDING_MODEL: "text-embedding-004"
+      # FRONTEND_ORIGIN: "https://myfrontend.example.com"
+      # LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
     steps:
       # 1️⃣ Checkout code
       - name: Checkout code
