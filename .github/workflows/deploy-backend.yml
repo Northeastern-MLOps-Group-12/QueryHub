@@ -2,7 +2,7 @@ name: Deploy to Cloud Run
 
 on:
   workflow_run:
-    workflows: ["Run Tests"]
+    workflows: ["Run Unit Tests"]
     types:
       - completed
 
