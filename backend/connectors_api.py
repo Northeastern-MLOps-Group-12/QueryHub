@@ -28,10 +28,10 @@ app = FastAPI(title="Connector Service API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],  # or ["*"] to allow all (not recommended for prod)
+    allow_origins=[FRONTEND_ORIGIN],  
     allow_credentials=True,
-    allow_methods=["*"],         # GET, POST, PUT, DELETE, OPTIONS
-    allow_headers=["*"],         # allow all headers
+    allow_methods=["*"],        
+    allow_headers=["*"],         
 )
 
 @app.post("/connect/addConnection")
