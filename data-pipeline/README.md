@@ -37,16 +37,6 @@ This project implements a **production-grade MLOps data pipeline** for the Query
 7. **Creates train/val/test splits** with stratified sampling
 8. **Sends email alerts** for pipeline failures and success with detailed statistics
 9. **Tracks data versions** using DVC for reproducibility
-
-### Business Value
-
-- ✅ **Data Quality**: Ensures high-quality training data through multi-stage validation
-- ✅ **Bias Mitigation**: Balances minority SQL complexity classes (CTEs, window functions, etc.)
-- ✅ **Reproducibility**: Full data versioning and schema tracking
-- ✅ **Monitoring**: Automated alerts for anomalies and failures
-- ✅ **Scalability**: Parallel SQL validation using 75% of available CPU cores
-- ✅ **Documentation**: Comprehensive statistics and schema files for ML model training
-
 ---
 
 ## 🚀 Key Features
@@ -778,12 +768,11 @@ logging.error("❌ Schema validation failed")
 
 1. Clone repository
 2. Set up Python environment
-3. Pull data from DVC
-4. Configure environment variables
-5. Run tests
-6. Start Airflow
-7. Trigger DAG
-8. Verify results
+3. Configure environment variables
+4. Start Airflow
+5. Trigger DAG
+6. Verify results
+7. Push Generated Data and Logs to DVC
 
 ---
 
@@ -810,35 +799,3 @@ logging.error("❌ Schema validation failed")
 **Solution**: Check mock configuration, run with verbose output
 
 ---
-
-## 📚 Additional Resources
-
-### Documentation
-- [Apache Airflow Docs](https://airflow.apache.org/docs/)
-- [DVC User Guide](https://dvc.org/doc)
-- [Pytest Documentation](https://docs.pytest.org/)
-- [SQLGlot Documentation](https://sqlglot.com/)
-
-### Contact
-- **Author**: Jay Vipin Jajoo
-- **Email**: jajoo.j@northeastern.edu
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## 🙏 Acknowledgments
-
-- **Dataset**: gretelai/synthetic_text_to_sql from Hugging Face
-- **MLOps Course**: Northeastern University
-- **Tools**: Apache Airflow, DVC, pytest, SQLGlot
-
----
-
-**Last Updated**: January 2025  
-**Version**: 1.0.0  
-**Pipeline Status**: ✅ Production Ready
