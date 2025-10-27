@@ -1,0 +1,11 @@
+Data-Pipeline/.pytest_cache
+Data-Pipeline/config
+Data-Pipeline/data
+Data-Pipeline/logs
+Data-Pipeline/plugins
+Data-Pipeline/.env
+Data-Pipeline/gcs_creds.json
+Data-Pipeline/dvc.lock
+Data-Pipeline/.dvc/tmp
+Data-Pipeline/.dvc/cache
+Data-Pipeline/__pycache__/
