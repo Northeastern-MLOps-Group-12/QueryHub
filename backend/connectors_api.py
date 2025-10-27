@@ -26,7 +26,6 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
 
 app = FastAPI(title="Connector Service API")
 
-# Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_ORIGIN],  
