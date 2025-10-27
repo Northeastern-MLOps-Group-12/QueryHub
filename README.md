@@ -382,6 +382,7 @@ QueryHub/
 ├── .github/                                        # GitHub Actions workflows
 │   └── workflows/
 │       └── deploy-backend.yml                      # CI/CD workflow to deploy backend
+│       └── run_tests.yml                           # CI/CD workflow to run tests
 │
 ├── agents/                                         # LLM agent logic
 │   ├── load_data_to_vector/

@@ -427,6 +427,11 @@ expected_schema = {
 
 ---
 
+## Pipeline Gantt Chart
+![Gantt Chart](https://lucid.app/publicSegments/view/92fbd187-0444-4e76-9500-548e5bdb3c0f/image.png)
+
+---
+
 ## 🎯 Bias Detection & Mitigation
 
 ### Problem Statement
