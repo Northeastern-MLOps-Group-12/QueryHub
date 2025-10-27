@@ -22,3 +22,4 @@ __pycache__/
 # Virtual environment
 env/
 vectorestore/VectorStores
+

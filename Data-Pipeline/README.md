@@ -128,7 +128,7 @@ dvc version
 
 ```bash
 git clone https://github.com/yourusername/queryhub-pipeline.git
-cd queryhub-pipeline/Data-Pipeline
+cd queryhub-pipeline/data-pipeline
 ```
 
 ### 2. Set Up Python Environment
@@ -154,7 +154,7 @@ pip install -r requirements.txt
 
 #### 3.1. Initialize DVC
 ```bash
-cd Data-Pipeline
+cd data-pipeline
 dvc init
 ```
 
@@ -269,7 +269,7 @@ git push
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/queryhub-pipeline.git
-cd queryhub-pipeline/Data-Pipeline
+cd queryhub-pipeline/data-pipeline
 
 # Pull data from DVC remote
 dvc pull
@@ -282,7 +282,7 @@ ls data/
 ## 📁 Project Structure
 
 ```
-Data-Pipeline/
+data-pipeline/
 │
 ├── dags/
 │   ├── data_pipeline_dag.py              # Main Airflow DAG
