@@ -1674,7 +1674,4 @@ t7 = PythonOperator(
     dag=dag
 )
 
-# Pipeline flow with separate leakage removal step
-# t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t7
-
 t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t7
