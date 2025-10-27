@@ -207,14 +207,9 @@ environment:
 
 **Note**: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833).
 
-### 6. Start Airflow
-
-#### Option A: Docker Compose (Recommended)
+### 6. Check Airflow Status
 
 ```bash
-# Start Airflow services
-docker-compose up -d
-
 # Check status
 docker-compose ps
 ```
