@@ -1,19 +1,61 @@
-name: Deploy to Cloud Run
+name: Test and Deploy Backend
 
 on:
-  workflow_run:
-    workflows: ["Run Unit Tests"]
-    types:
-      - completed
+  push:
+    branches:
+      - main
+      - dev
+      - connectors
+    paths:
+      - "backend/**"
+      - "agents/**"
+      - "connectors/**"
+      - "tests/**"
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  REGION: ${{ secrets.REGION }}
+  REPOSITORY: ${{ secrets.REPOSITORY }}
+  IMAGE_NAME: backend
+  SERVICE: backend
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+  MODEL: gemini
+  MODEL_NAME: gemini-2.5-flash
+  EMBEDDING_MODEL: text-embedding-004
+  FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
 
 jobs:
-  deploy:
-    if: >
-      ${{ github.event.workflow_run.conclusion == 'success' &&
-          (github.event.workflow_run.head_branch == 'main' ||
-           github.event.workflow_run.head_branch == 'dev') }}
+  unit_tests:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install dependencies
+        working-directory: tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-mock
+
+      - name: Run all tests
+        working-directory: tests
+        run: |
+          pytest -v --maxfail=1 --disable-warnings agents backend connectors tests
+
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') && needs.unit_tests.result == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,10 +67,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies for tests
+      - name: Install dependencies for deployment
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r ${{ env.SERVICE }}/requirements.txt
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -38,26 +80,26 @@ jobs:
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-          project_id: ${{ secrets.PROJECT_ID }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ secrets.REGION }}-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build and Push Backend API Docker Image
+      - name: Build and Push Backend Docker Image
         run: |
-          IMAGE="${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.REPOSITORY }}/backend"
-          docker build -t $IMAGE -f backend/Dockerfile .
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
+          docker build -t $IMAGE -f ${{ env.SERVICE }}/Dockerfile .
           docker push $IMAGE
 
       - name: Deploy Backend to Cloud Run
         run: |
-          IMAGE="${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.REPOSITORY }}/backend"
-          gcloud run deploy backend \
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
+          gcloud run deploy ${{ env.SERVICE }} \
             --image=$IMAGE \
             --add-cloudsql-instances=queryhub-473901:us-central1:nl-to-sql-db \
-            --region=${{ secrets.REGION }} \
+            --region=$REGION \
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=${{ secrets.DATABASE_URL }},LLM_API_KEY=${{ secrets.LLM_API_KEY }},MODEL=gemini,MODEL_NAME=gemini-2.5-flash,EMBEDDING_MODEL=text-embedding-004,FRONTEND_ORIGIN=${{ secrets.FRONTEND_ORIGIN }}
+            --set-env-vars DATABASE_URL=$DATABASE_URL,LLM_API_KEY=$LLM_API_KEY,MODEL=$MODEL,MODEL_NAME=$MODEL_NAME,EMBEDDING_MODEL=$EMBEDDING_MODEL,FRONTEND_ORIGIN=$FRONTEND_ORIGIN
