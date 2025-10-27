@@ -1,33 +1,19 @@
 name: Deploy to Cloud Run
 
 on:
-  # push:
-  #   branches: ["connectors"]
-  #   paths: ["backend/**"]
-  workflow_dispatch:
   workflow_run:
-    workflows: ["Run Unit Tests"]
+    workflows: ["Run Tests"]
     types:
       - completed
 
-env:
-  PROJECT_ID: ${{ secrets.PROJECT_ID }}
-  REGION: ${{ secrets.REGION }}
-  REPOSITORY: ${{ secrets.REPOSITORY }}
-  IMAGE_NAME: backend
-  SERVICE: backend
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-  MODEL: gemini
-  MODEL_NAME: gemini-2.5-flash
-  EMBEDDING_MODEL: text-embedding-004
-  FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
-
-
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          (github.event.workflow_run.head_branch == 'main' ||
+           github.event.workflow_run.head_branch == 'dev') }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -38,11 +24,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies for tests
         run: |
           python -m pip install --upgrade pip
-          pip install -r ${{ env.SERVICE }}/requirements.txt
+          pip install -r backend/requirements.txt
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -52,29 +38,26 @@ jobs:
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-          project_id: ${{ env.PROJECT_ID }}
+          project_id: ${{ secrets.PROJECT_ID }}
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ secrets.REGION }}-docker.pkg.dev
 
-      - name: Build and Push Backend Api Docker Image
+      - name: Build and Push Backend API Docker Image
         run: |
-          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME"
-          docker build -t $IMAGE -f ${{ env.SERVICE }}/Dockerfile .
+          IMAGE="${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.REPOSITORY }}/backend"
+          docker build -t $IMAGE -f backend/Dockerfile .
           docker push $IMAGE
-# docker build -t $IMAGE -f connectors/Dockerfile connectors
 
       - name: Deploy Backend to Cloud Run
         run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
-          gcloud run deploy ${{ env.SERVICE }} \
+          IMAGE="${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}/${{ secrets.REPOSITORY }}/backend"
+          gcloud run deploy backend \
             --image=$IMAGE \
             --add-cloudsql-instances=queryhub-473901:us-central1:nl-to-sql-db \
-            --region=${{ env.REGION }} \
+            --region=${{ secrets.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }}
-
-            
+            --set-env-vars DATABASE_URL=${{ secrets.DATABASE_URL }},LLM_API_KEY=${{ secrets.LLM_API_KEY }},MODEL=gemini,MODEL_NAME=gemini-2.5-flash,EMBEDDING_MODEL=text-embedding-004,FRONTEND_ORIGIN=${{ secrets.FRONTEND_ORIGIN }}
