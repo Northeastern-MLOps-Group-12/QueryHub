@@ -16,6 +16,37 @@ default_args = {
     'on_failure_callback': notify_task_failure,  # Send email on any task failure
 }
 
+def run_pytest_tests(**context):
+    """Run pytest tests before starting the pipeline"""
+    import subprocess
+    import logging
+    import sys
+    
+    logging.info("🧪 RUNNING PRE-PIPELINE TESTS")
+    
+    test_file = '/opt/airflow/tests/test.py'
+    
+    try:
+        result = subprocess.run(
+            [sys.executable, '-m', 'pytest', test_file, '-v'],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        logging.info(result.stdout)
+        
+        if result.returncode == 0:
+            logging.info("✅ ALL TESTS PASSED")
+            return {'status': 'success'}
+        else:
+            logging.error("❌ TESTS FAILED")
+            raise Exception("Pre-pipeline tests failed!")
+            
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")
+        raise
+
 def load_data():
     from datasets import load_dataset
     import pandas as pd
@@ -1577,6 +1608,12 @@ dag = DAG(
     tags=['data-pipeline', 'synthetic-generation', 'bias-detection', 'schema-validation'],
 )
 
+t0_tests = PythonOperator(
+    task_id='run_pytest_tests',
+    python_callable=run_pytest_tests,
+    dag=dag
+)
+
 t1 = PythonOperator(
     task_id='load_data',
     python_callable=load_data,
@@ -1638,4 +1675,6 @@ t7 = PythonOperator(
 )
 
 # Pipeline flow with separate leakage removal step
-t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t7
+# t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t7
+
+t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t7

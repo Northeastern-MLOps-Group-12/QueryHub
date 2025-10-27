@@ -7,3 +7,5 @@
 /dvc.lock
 /.dvc/tmp
 /.dvc/cache
+__pycache__/
+.pytest_cache
