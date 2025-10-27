@@ -107,7 +107,7 @@ This project implements a **production-grade MLOps data pipeline** for the Query
 ### Required Software
 
 ```bash
-# Python 3.8+
+# Python 3.10+
 python --version
 
 # Docker (optional, for containerized Airflow)
