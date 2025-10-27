@@ -1,9 +1,9 @@
 name: Deploy to Cloud Run
 
 on:
-  push:
-    branches: ["connectors"]
-    paths: ["backend/**"]
+  # push:
+  #   branches: ["connectors"]
+  #   paths: ["backend/**"]
   workflow_dispatch:
   workflow_run:
     workflows: ["Run Unit Tests"]
