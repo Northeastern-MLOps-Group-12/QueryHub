@@ -479,3 +479,17 @@ QueryHub/
 - <15s average response time per query
 - GDPR/CCPA compliant data storage and user control
 - High user satisfaction scores from feedback surveys
+
+---
+
+## 📄 Documentation
+
+- ### [Scoping Document](https://docs.google.com/document/d/1Iblflv-p4wUgzQoSpWiBj2JXwwROFsZgEVZwYK-Z9Hs/edit?usp=sharing)
+- ### [Data Pipeline Document](https://drive.google.com/file/d/16-PMufGVTTjZV_wD82Gt67hwiSHLNgZb/view?usp=sharing)
+- ### [Errors + Graceful Failures](https://drive.google.com/file/d/19lTvv-opQvoHg_TPCLMkKkeQnZggVjZA/view?usp=sharing)
+- ### [User Needs + Defining Success](https://drive.google.com/file/d/1QPuquIgZYNhsXJazj4CHYTqXD0pHxyRW/view?usp=sharing)
+
+---
+
+## 🖼️ Deployment Screenshot
+![Cloud Run Deployment](https://lucid.app/publicSegments/view/95fe0342-ac1b-4005-b9b1-e1c2c9c49907/image.png)
