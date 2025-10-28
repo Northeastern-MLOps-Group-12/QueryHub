@@ -6,6 +6,8 @@ from ...base_connector import BaseConnector
 from databases.cloudsql.crud import create_record
 from databases.cloudsql.database import get_db
 from databases.cloudsql.models.credentials import Credentials
+from langsmith import traceable
+from langsmith.run_helpers import trace
 
 
 class PostgresConnector(BaseConnector):
@@ -18,8 +20,10 @@ class PostgresConnector(BaseConnector):
         self.conn = None
         self.engine = None
 
+    @traceable(name="connect_postgres_sqlalchemy")
     def connect(self):
         print("Attempting to connect to PostgreSQL via SQLAlchemy...")
+        trace("Attempting to connect to PostgreSQL via SQLAlchemy...")
 
         try:
             # URL-encode username and password to handle special characters
@@ -33,13 +37,14 @@ class PostgresConnector(BaseConnector):
 
             self.engine = create_engine(connection_url)
             self.conn = self.engine.connect()
-            print("✅ Connected successfully using SQLAlchemy!")
+            trace("✅ Connected successfully using SQLAlchemy!")
             return self.conn
 
         except SQLAlchemyError as e:
-            print(f"❌ Failed to connect to PostgreSQL: {e}")
+            trace(f"❌ Failed to connect to PostgreSQL: {e}")
             raise
 
+    @traceable(name="get_postgres_inspector")
     def get_inspector(self) -> dict:
         """Fetch detailed schema info (columns, PKs, FKs) using SQLAlchemy inspector."""
         if not hasattr(self, "engine") or self.engine is None:
@@ -48,6 +53,7 @@ class PostgresConnector(BaseConnector):
         inspector = inspect(self.engine)
         return inspector
 
+    @traceable(name="execute_postgres_query")
     def execute_query(self, query: str) -> any:
         """
         Execute a raw SQL query (SELECT/INSERT/UPDATE/DELETE) using SQLAlchemy.
@@ -64,10 +70,10 @@ class PostgresConnector(BaseConnector):
                     return result
                 return None  # non-SELECT queries (INSERT/UPDATE/DELETE)
         except SQLAlchemyError as e:
-            print(f"❌ Query execution failed: {e}")
+            trace(f"❌ Query execution failed: {e}")
             raise
 
-
+    @traceable(name="query_postgres")
     def query(self, sql: str):
         """Convenience method for SELECT queries returning DataFrame-like results."""
         if not hasattr(self, "engine") or self.engine is None:
@@ -78,17 +84,14 @@ class PostgresConnector(BaseConnector):
                 result = connection.execute(text(sql))
                 return [dict(row) for row in result.mappings()]
         except SQLAlchemyError as e:
-            print(f"❌ Query failed: {e}")
+            trace(f"❌ Query failed: {e}")
             raise
 
+    @traceable(name="analyze_and_save_postgres_metadata")
     def analyze_and_save(self):
         """Describe schema, generate optional Gemini summary, and save metadata."""
-        # db_schema = self.get_schema()
-        print("✅ Schema fetched successfully!")
-
+        
         schema_description = "Schema description generation disabled."
-
-        # print(db_schema)
 
         # --- Save credentials to DB
         db = next(get_db())
@@ -105,4 +108,4 @@ class PostgresConnector(BaseConnector):
             "description": schema_description,
         })
 
-        print("✅ Connection metadata saved successfully!")
+        trace("✅ Connection metadata saved successfully!")
