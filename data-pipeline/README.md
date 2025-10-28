@@ -439,14 +439,18 @@ expected_schema = {
 SQL complexity classes in the original dataset are severely imbalanced:
 
 | Complexity Class | Original Count | Percentage | Status |
-|-----------------|---------------|------------|--------|
-| **basic** | 55,000 | 55% | Majority |
-| **aggregation** | 30,000 | 30% | Adequate |
-| **multiple_joins** | 12,000 | 12% | Adequate |
-| **CTEs** | 2,500 | 2.5% | **Minority** |
-| **window functions** | 500 | 0.5% | **Minority** |
+|------------------|----------------|-------------|---------|
+| **basic** | 48,459 | **47.1%** | **Majority** |
+| **aggregation** | 22,009 | **21.4%** | **Adequate** |
+| **multiple_joins** | 2,941 | **2.9%** | **Minority** |
+| **CTEs** | 273 | **0.3%** | **Minority** |
+| **window functions** | 3,596 | **3.5%** | **Minority** |
+| **set operations** | 1,050 | **1.0%** | **Minority** |
+| **single join** | 14,905 | **14.5%** | **Adequate** |
+| **subqueries** | 6,703 | **6.5%** | **Adequate** |
 
-**Imbalance Ratio**: 55,000 / 500 = **110x** (SEVERE)
+
+**Imbalance Ratio**: 48,459 / 273 = **178x** (SEVERE)
 
 ### Mitigation Strategy
 
@@ -460,15 +464,18 @@ SQL complexity classes in the original dataset are severely imbalanced:
 
 ### Post-Mitigation Results
 
-| Complexity Class | After Balancing | Percentage | Status |
-|-----------------|----------------|------------|--------|
-| **basic** | 55,000 | 25.8% | Balanced |
-| **aggregation** | 52,000 | 24.4% | Balanced |
-| **multiple_joins** | 51,000 | 23.9% | Balanced |
-| **CTEs** | 54,500 | 25.5% | **Balanced** ✅ |
-| **window functions** | 54,500 | 25.5% | **Balanced** ✅ |
+| Complexity Class | Original Count | Percentage | Status |
+|------------------|----------------|------------|---------|
+| **basic** | 48,459 | **17.3%** | **Balanced** |
+| **aggregation** | 22,009 | **7.9%** | **Imbalanced** |
+| **multiple_joins** | 48,459 | **17.3%** | **Balanced** |
+| **CTEs** | 48,459 | **17.3%** | **Balanced** |
+| **window functions** | 48,459 | **17.3%** | **Balanced** |
+| **set operations** | 48,459 | **17.3%** | **Balanced** |
+| **single join** | 14,905 | **5.3%** | **Imbalanced** |
+| **subqueries** | 48,459 | **17.3%** | **Balanced** |
 
-**New Imbalance Ratio**: 1.08x (NONE) ✅
+**New Imbalance Ratio**: 3.25x (Low) ✅
 
 ---
 
