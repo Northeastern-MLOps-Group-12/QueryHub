@@ -8,6 +8,8 @@ from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from langchain.vectorstores import Chroma
 from connectors.connector import Connector
 from agents.base_agent import Agent
+from langsmith import traceable
+from langsmith.run_helpers import trace
 
 load_dotenv()
 
@@ -27,9 +29,10 @@ class ChromaVectorStore:
     def exists(self) -> bool:
         return os.path.exists(self.persist_directory)
 
+    @traceable(name="build_vector_store")
     def build(self, connector: Connector):
         if self.exists():
-            print("Vector Store already exists")
+            trace("Vector Store already exists")
             return
 
         self.vector_store = Chroma(
@@ -39,10 +42,10 @@ class ChromaVectorStore:
         )
 
         tables_metadata, table_descriptions, dataset_desc = self.generate_data(connector=connector)
-        print("tables_metadata:", tables_metadata)
-        print("✅table_descriptions:", table_descriptions)
-        print("✅dataset_desc:", dataset_desc)
-        
+        trace("tables_metadata:", tables_metadata)
+        trace("✅table_descriptions:", table_descriptions)
+        trace("✅dataset_desc:", dataset_desc)
+
         for table_meta, table_desc in zip(tables_metadata, table_descriptions):
             self.vector_store.add_texts(
                 texts=[f"{table_meta['Table']}\n\n{table_desc['Description']}"],
@@ -64,7 +67,7 @@ class ChromaVectorStore:
         )
 
         self.vector_store.persist()
-        print("✅ Vector store created and saved to:", self.persist_directory)
+        trace("✅ Vector store created and saved to:", self.persist_directory)
 
     def load(self):
         """Load the vector store from disk."""
@@ -91,16 +94,16 @@ class ChromaVectorStore:
             self.load()
         return self.vector_store
     
+    @traceable(name="generate_data")
     def generate_data(self, connector: Connector):
         conn = connector.connect()
         inspector = connector.get_inspector()
 
         tables_metadata = []
         tables = inspector.get_table_names()
-        # print("✅Fetching table metadata...", tables)
+        trace("✅Fetching table metadata...", tables)
+
         for table in tables:
-
-
             table_info = {"Table": table}
 
             # Columns
@@ -158,8 +161,8 @@ class ChromaVectorStore:
             description = self.generate_description(table_meta)
             table_descriptions.append({"Table": table_name, "Description": description})
 
-        with open("table_descriptions.json","w+") as f:
-            json.dump(table_descriptions,f)
+        # with open("table_descriptions.json","w+") as f:
+        #     json.dump(table_descriptions,f)
 
         dataset_desc = self.generate_description(tables_metadata)
 
@@ -194,29 +197,3 @@ class ChromaVectorStore:
         }
 
         return agent.generate(prompt, prompt_placeholders)
-    
-
-    # def generate_description(self, tables_metadata):
-    #     agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
-    #     prompt = """
-    #    You are a data analyst who describes database schemas clearly and professionally.
-
-    #     Given the following list of table metadata (in JSON format), write a concise and insightful **dataset-level description**.  
-    #     Your response should summarize:
-    #     - The overall purpose of the database (what kind of data it manages)
-    #     - The key entities (tables) and their relationships
-    #     - Any notable structure (e.g., star schema, transactional, reference data)
-    #     - The general scale or richness (based on row counts)
-    #     - Example use cases or what this database might support
-
-    #     Be clear and concise — write **1–2 paragraphs**.
-
-    #     Now here is the full table data:
-    #     {tables_metadata}
-    #     """
-
-    #     prompt_placeholders = {
-    #         "tables_metadata": tables_metadata
-    #     }
-
-    #     return agent.generate(prompt, prompt_placeholders)
