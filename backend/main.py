@@ -1,6 +1,8 @@
-import os               # To access environment variables
-import uvicorn           # ASGI server to run FastAPI applications
-from backend.connectors_api import app  # Import the FastAPI app from your project
+import os              
+import uvicorn          
+from backend.connectors_api import app
+from dotenv import load_dotenv
+load_dotenv()
 
 if __name__ == "__main__":
     # Get the port from environment variable, default to 8080 if not set
