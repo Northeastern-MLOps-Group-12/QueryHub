@@ -3,11 +3,34 @@
 *.env
 
 # Python cache
-__pycache__/
+**/_pycache_/
 *.pyc
 *.pyo
 *.pyd
+**/.pytest_cache/
 
-# Virtual environment
-env/
+# Sensitive files
+gcs_creds.json
+
+# Virtual environments
+**/env/
+**/venv/
 vectorestore/VectorStores
+
+# macOS specific
+.DS_STORE
+
+# VS Code workspace
+.vscode/*
+
+# Commit specific team-wide settings
+!.vscode/settings.json
+
+# Data Pipeline specific files/folders
+data-pipeline/config/
+data-pipeline/data/
+data-pipeline/logs/
+data-pipeline/plugins/
+data-pipeline/dvc.lock
+data-pipeline/.dvc/tmp/
+data-pipeline/.dvc/cache/
