@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  backend:
+      build:
+        context: ../
+        dockerfile: backend/Dockerfile
+      container_name: queryhub-backend
+      ports:
+        - "8080:8080"
+      environment:
+        DATABASE_URL: "${DATABASE_URL}"
+        LLM_API_KEY: "${LLM_API_KEY}"
+        MODEL: "${MODEL}"
+        MODEL_NAME: "${MODEL_NAME}"
+        EMBEDDING_MODEL: "${EMBEDDING_MODEL}"
+        FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
+      volumes:
+        - ../:/app
+      command: >
+        sh -c "cd /app && uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app"
