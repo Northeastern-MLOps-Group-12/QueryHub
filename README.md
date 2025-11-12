@@ -303,13 +303,7 @@ git clone https://github.com/Northeastern-MLOps-Group-12/QueryHub.git
 cd queryhub
 ```
 
-### 2. Build Docker Image
-
-```bash
-docker build -f ./backend/Dockerfile -t backend:latest .
-```
-
-### 3. Configure Network Access (GCP Cloud SQL)
+### 2. Configure Network Access (GCP Cloud SQL)
 
 To allow your application to connect to Cloud SQL, whitelist your IP address:
 
@@ -321,21 +315,23 @@ To allow your application to connect to Cloud SQL, whitelist your IP address:
    - **Note**: For testing purposes, you can use `0.0.0.0/0` _(not recommended for production)_
 4. **Click Save** to apply the changes
 
-### 4. Run Docker Container
+### 3. Create .env in backend
+```bash
+# LLM Configuration
+DATABASE_URL=YOUR_DATABASE_URL
+LLM_API_KEY=YOUR_LLM_API_KEY
+MODEL=gemini
+MODEL_NAME=gemini-2.5-flash
+EMBEDDING_MODEL=text-embedding-004
+
+# Frontend Configuration
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+### 4. Run Docker Compose
 
 ```bash
-docker run -p 8080:8080 -it \
-  -e DATABASE_URL="$DATABASE_URL" \
-  -e LLM_API_KEY="$LLM_API_KEY" \
-  -e MODEL="$MODEL" \
-  -e MODEL_NAME="$MODEL_NAME" \
-  -e EMBEDDING_MODEL="$EMBEDDING_MODEL" \
-  -e FRONTEND_ORIGIN="$FRONTEND_ORIGIN" \
-  -e LANGSMITH_API_KEY="$LANGSMITH_API_KEY" \
-  -e LANGSMITH_ENDPOINT="$LANGSMITH_ENDPOINT" \
-  -e LANGSMITH_TRACING="$LANGSMITH_TRACING" \
-  -e LANGSMITH_PROJECT="$LANGSMITH_PROJECT" \
-  backend:latest
+docker compose up --build
 ```
 
 ### 5. Test the Connection
