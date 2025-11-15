@@ -216,7 +216,39 @@ environment:
 
 **Note**: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833).
 
-### 6. Start Airflow
+### 6. Configure GCP Cloud SQL & Airflow Variables
+
+1. **Create a Service Account**  
+   - Navigate to [GCP Console → IAM & Admin → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts).  
+   - Create a new service account with **Storage Admin** and **Cloud SQL Client** roles.  
+   - Download the JSON key file.
+
+2. **Prepare GCP Bucket**  
+   - Create a bucket named:  
+     ```
+     text-to-sql-dataset
+     ```
+
+3. **Set up Airflow Connection**  
+   - Open Airflow UI → **Admin → Connections**.  
+   - Locate or create the connection: `google_cloud_default`.  
+   - Set the **Key Path** to:  
+     ```
+     /opt/airflow/keys/gcp_sa.json
+     ```  
+   - Set the **Project ID** to your GCP project ID.
+
+4. **Add Airflow Environment Variables**  
+   - Go to Airflow → **Admin → Variables** and add:  
+     ```python
+     bucket_name = Variable.get("GCS_BUCKET_NAME", default_var="text-to-sql-dataset")
+     project_id  = Variable.get("GCP_PROJECT_ID")
+     ```
+
+> This ensures that your Airflow DAGs can securely access Cloud SQL and GCS for dataset processing.
+
+
+### 7. Start Airflow
 
 #### Option A: Docker Compose (Recommended)
 
