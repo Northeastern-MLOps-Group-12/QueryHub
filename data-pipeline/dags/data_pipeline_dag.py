@@ -1679,7 +1679,7 @@ def upload_to_gcp(**context):
     logging.info(f"Bucket: {bucket_name}, Project: {project_id}")
 
     # Use the Airflow Connection (with key_path mounted)
-    hook = GCSHook(gcp_conn_id="gcpconndetails")
+    hook = GCSHook(gcp_conn_id="google_cloud_default")
 
     # This automatically loads the key file:
     # extra__google_cloud_platform__key_path=/opt/airflow/keys/gcp_sa.json
@@ -1882,7 +1882,5 @@ t7 = PythonOperator(
     python_callable=send_pipeline_success_notification,
     dag=dag
 )
-
-# t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> t6d >> t7
 
 t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> t6d >> t7
