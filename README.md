@@ -241,8 +241,8 @@ environment:
 4. **Add Airflow Environment Variables**  
    - Go to Airflow → **Admin → Variables** and add:  
      ```python
-     bucket_name = Variable.get("GCS_BUCKET_NAME", default_var="text-to-sql-dataset")
-     project_id  = Variable.get("GCP_PROJECT_ID")
+      GCS_BUCKET_NAME = YOUR-BUCKET-NAME
+      GCP_PROJECT_ID = YOUR-PROJECT-ID
      ```
 
 > This ensures that your Airflow DAGs can securely access Cloud SQL and GCS for dataset processing.
