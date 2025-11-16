@@ -5,6 +5,7 @@ x-airflow-common:
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.0}
   build: .
+  entrypoint: /opt/airflow/scripts/docker-entrypoint.sh
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -33,6 +34,7 @@ x-airflow-common:
     AIRFLOW__SMTP__SMTP_PASSWORD: ${GMAIL_APP_PASSWORD}
     AIRFLOW__SMTP__SMTP_PORT: 587
     AIRFLOW__SMTP__SMTP_MAIL_FROM: ${GMAIL_USER}
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/service-account-key.json
 
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
@@ -41,7 +43,14 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
     - ${AIRFLOW_PROJ_DIR:-.}/tests:/opt/airflow/tests
-
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /Users/ashwin/.config/gcloud/application_default_credentials.json:/home/airflow/.config/gcloud/application_default_credentials.json:ro
+    - ./keys/service-account-key.json:/opt/airflow/keys/service-account-key.json:ro
+    # This passes your gcloud credentials
+    - ~/.config/gcloud:/home/.config/gcloud:ro
+    # This passes your Docker config (which gcloud just configured)
+    # - ~/.docker/config.json:/home/.docker/config.json:ro
+    # - ~/.docker:/home/airflow/.docker:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

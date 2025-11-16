@@ -5,3 +5,7 @@ sqlglot
 dvc[gs]
 pytest
 pytest-mock
+transformers
+peft
+torch
+google-cloud-artifact-registry
