@@ -2,8 +2,6 @@ import os
 import re
 import subprocess
 from airflow.exceptions import AirflowException
-from google.cloud import storage
-from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from model_scripts.train_utils import download_from_gcs_if_needed, submit_vertex_training_job
 from airflow.models import Variable
 from datetime import datetime
@@ -13,6 +11,9 @@ def fetch_latest_model_and_image(project_id, region, **kwargs):
     Fetch the latest Artifact Registry Docker image and latest GCS model folder dynamically.
     Push them to XCom for downstream tasks.
     """
+    from google.cloud import storage
+    from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
+
     ti = kwargs["ti"]
 
     # 1️⃣ Fetch latest GCS model folder by creation time
