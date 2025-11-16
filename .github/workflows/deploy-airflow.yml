@@ -2,6 +2,8 @@ name: Trigger Airflow DAG
 
 on:
   push:
+    branches:
+      - airflow-deploy 
     paths:
       - 'data-pipeline/dags/**'
 
