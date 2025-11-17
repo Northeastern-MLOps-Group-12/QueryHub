@@ -22,7 +22,7 @@ jobs:
       - name: Request Airflow Bearer Token
         id: get_token
         run: |
-          TOKEN_RESPONSE=$(curl -s -X POST "http://35.231.222.150:8080/auth/token" \
+          TOKEN_RESPONSE=$(curl -s -X POST "${{ secrets.AIRFLOW_VM_URL }}/auth/token" \
             -H "Content-Type: application/json" \
             -d "{
                   \"username\": \"${{ secrets.AIRFLOW_USERNAME }}\",
@@ -35,7 +35,7 @@ jobs:
       - name: Trigger DAG run
         run: |
           CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          curl -X POST "http://35.231.222.150:8080/api/v2/dags/test_logging/dagRuns" \
+          curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/vertex_ai_model_training_pipeline/dagRuns" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
