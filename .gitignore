@@ -29,11 +29,13 @@ gcs_creds.json
 data-pipeline/config/
 data-pipeline/data/
 data-pipeline/logs/
+data-pipeline/keys/
 data-pipeline/plugins/
 data-pipeline/dvc.lock
 data-pipeline/.dvc/tmp/
 data-pipeline/.dvc/cache/
+data-pipeline/postgres_db_volume/
 vectorstore/VectorStores/
 
 # Frontend specific files/folders
-frontend/node_modules/
+frontend/node_modules/  

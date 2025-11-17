@@ -331,6 +331,7 @@ FRONTEND_ORIGIN=http://localhost:5173
 ### 4. Run Docker Compose
 
 ```bash
+cd backend
 docker compose up --build
 ```
 

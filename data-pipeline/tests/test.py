@@ -4,14 +4,38 @@ import pytest
 import pandas as pd
 from pathlib import Path
 
-# Mock Airflow before imports
+# Mock ALL Airflow modules before imports
 sys.modules['airflow'] = MagicMock()
 sys.modules['airflow.models'] = MagicMock()
+sys.modules['airflow.models.Variable'] = MagicMock()
 sys.modules['airflow.settings'] = MagicMock()
 sys.modules['airflow.operators'] = MagicMock()
 sys.modules['airflow.operators.python'] = MagicMock()
 sys.modules['airflow.utils'] = MagicMock()
 sys.modules['airflow.utils.email'] = MagicMock()
+sys.modules['airflow.providers'] = MagicMock()
+sys.modules['airflow.providers.google'] = MagicMock()
+sys.modules['airflow.providers.google.cloud'] = MagicMock()
+sys.modules['airflow.providers.google.cloud.hooks'] = MagicMock()
+sys.modules['airflow.providers.google.cloud.hooks.gcs'] = MagicMock()
+sys.modules['airflow.providers.standard'] = MagicMock()
+sys.modules['airflow.providers.standard.operators'] = MagicMock()
+sys.modules['airflow.providers.standard.operators.python'] = MagicMock()
+sys.modules['airflow.sdk'] = MagicMock()
+sys.modules['airflow.sdk.execution_time'] = MagicMock()
+sys.modules['airflow.sdk.execution_time.task_runner'] = MagicMock()
+sys.modules['airflow.sdk.execution_time.callback_runner'] = MagicMock()
+sys.modules['airflow.sdk.bases'] = MagicMock()
+sys.modules['airflow.sdk.bases.operator'] = MagicMock()
+
+
+# Mock the specific classes
+GCSHook = MagicMock()
+Variable = MagicMock()
+
+# Set up the mock structure
+sys.modules['airflow.providers.google.cloud.hooks.gcs'].GCSHook = GCSHook
+sys.modules['airflow.models'].Variable = Variable
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'dags'))
 
