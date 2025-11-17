@@ -989,11 +989,6 @@ def validate_engineered_schema(**context):
     logging.info("\n🔍 Validating input_text Format...")
     
     for name, df in [('train', train_df), ('val', val_df), ('test', test_df)]:
-        # # Must have prefix
-        # has_prefix = df['input_text'].str.contains('translate English to SQL:', na=False, regex=False).all()
-        # if not has_prefix:
-        #     validation_errors.append(f"{name} input_text missing required prefix")
-        #     logging.error(f"❌ {name} input_text format invalid")
         
         # Must have "query:" keyword
         has_query = df['input_text'].str.contains('query:', na=False, regex=False).all()
@@ -1003,9 +998,6 @@ def validate_engineered_schema(**context):
         
         if has_query:
             logging.info(f"✅ {name} input_text format validated")
-
-        # if has_prefix and has_query:
-        #     logging.info(f"✅ {name} input_text format validated")
     
     # Raise error if any validation failed
     if validation_errors:
@@ -1661,140 +1653,6 @@ def send_pipeline_success_notification(**context):
         'final_test_size': final_test_size,
         'total_duplicates_removed': total_duplicates_removed
     }
-
-# def upload_to_gcp(**context):
-#     """Upload final datasets to Google Cloud Storage using Airflow UI GCP Connection"""
-#     import logging
-#     from datetime import datetime
-#     import json
-#     import os
-
-#     from airflow.models import Variable
-#     from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-#     logging.info("=" * 60)
-#     logging.info("UPLOADING DATASETS TO GCP")
-#     logging.info("=" * 60)
-
-#     # Read Airflow variables
-#     bucket_name = Variable.get("GCS_BUCKET_NAME", default_var="text-to-sql-dataset")
-#     project_id = Variable.get("gcp_project")
-
-#     logging.info(f"Bucket: {bucket_name}, Project: {project_id}")
-
-#     # Use the Airflow Connection (with key_path mounted)
-#     hook = GCSHook(gcp_conn_id="google_cloud_default")
-
-#     # This automatically loads the key file:
-#     # extra__google_cloud_platform__key_path=/opt/airflow/keys/gcp_sa.json
-#     client = hook.get_conn()
-#     bucket = client.bucket(bucket_name)
-
-#     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#     output_dir = "/opt/airflow/data"
-#     uploaded_files = []
-
-#     # -------------------------
-#     # Upload dataset files
-#     # -------------------------
-#     for filename in ["train.csv", "val.csv", "test.csv"]:
-#         local_path = f"{output_dir}/{filename}"
-
-#         if not os.path.exists(local_path):
-#             logging.error(f"❌ File not found: {local_path}")
-#             continue
-
-#         gcs_path = f"processed_datasets/{timestamp}/{filename}"
-#         blob = bucket.blob(gcs_path)
-#         blob.upload_from_filename(local_path)
-
-#         file_size = os.path.getsize(local_path)
-#         logging.info(f"   ✅ Uploaded {filename} → gs://{bucket_name}/{gcs_path}")
-
-#         uploaded_files.append({
-#             "local": filename,
-#             "gcs_path": f"gs://{bucket_name}/{gcs_path}",
-#             "size_kb": file_size / 1024
-#         })
-
-#     # -------------------------
-#     # Upload metadata files
-#     # -------------------------
-#     metadata_files = [
-#         "raw_schema_and_stats.json",
-#         "engineered_schema_and_stats.json",
-#         "sql_validation_anomalies.csv",
-#         "synthetic_data.csv"
-#     ]
-
-#     for schema_file in metadata_files:
-#         local_path = f"{output_dir}/{schema_file}"
-
-#         if os.path.exists(local_path):
-#             gcs_path = f"processed_datasets/{timestamp}/{schema_file}"
-#             blob = bucket.blob(gcs_path)
-#             blob.upload_from_filename(local_path)
-
-#             file_size = os.path.getsize(local_path)
-#             logging.info(f"   ✅ Uploaded {schema_file} → gs://{bucket_name}/{gcs_path}")
-
-#             uploaded_files.append({
-#                 "local": schema_file,
-#                 "gcs_path": f"gs://{bucket_name}/{gcs_path}",
-#                 "size_kb": file_size / 1024
-#             })
-
-#     # -------------------------
-#     # Manifest file
-#     # -------------------------
-#     manifest_data = {
-#         "timestamp": timestamp,
-#         "folder": f"processed_datasets/{timestamp}/",
-#         "files": uploaded_files,
-#         "total_files": len(uploaded_files)
-#     }
-
-#     manifest_blob = bucket.blob(f"processed_datasets/{timestamp}/manifest.json")
-#     manifest_blob.upload_from_string(
-#         json.dumps(manifest_data, indent=2),
-#         content_type="application/json"
-#     )
-
-#     logging.info(f"📋 Manifest uploaded: gs://{bucket_name}/processed_datasets/{timestamp}/manifest.json")
-
-#     # -------------------------
-#     # Latest pointer
-#     # -------------------------
-#     latest_data = {
-#         "latest_run": timestamp,
-#         "folder": f"processed_datasets/{timestamp}/",
-#         "uploaded_at": datetime.now().isoformat()
-#     }
-
-#     latest_blob = bucket.blob("processed_datasets/latest.json")
-#     latest_blob.upload_from_string(
-#         json.dumps(latest_data, indent=2),
-#         content_type="application/json"
-#     )
-
-#     logging.info(f"📌 Latest pointer updated: gs://{bucket_name}/processed_datasets/latest.json")
-
-#     # Push XCom
-#     task_instance = context["task_instance"]
-#     task_instance.xcom_push(key="gcs_uploads", value=uploaded_files)
-#     task_instance.xcom_push(key="gcs_timestamp_folder", value=timestamp)
-
-#     logging.info("=" * 60)
-#     logging.info(f"GCP UPLOAD COMPLETE - Folder: {timestamp}")
-#     logging.info("=" * 60)
-
-#     return {
-#         "uploaded": len(uploaded_files),
-#         "timestamp": timestamp,
-#         "bucket": bucket_name,
-#         "folder": f"processed_datasets/{timestamp}/",
-#         "files": uploaded_files
-#     }
 
 
 def upload_to_gcp(**context):

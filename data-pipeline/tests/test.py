@@ -4,16 +4,6 @@ import pytest
 import pandas as pd
 from pathlib import Path
 
-# Mock Airflow before imports
-# sys.modules['airflow'] = MagicMock()
-# sys.modules['airflow.models'] = MagicMock()
-# sys.modules['airflow.models.Variable'] = MagicMock()
-# sys.modules['airflow.settings'] = MagicMock()
-# sys.modules['airflow.operators'] = MagicMock()
-# sys.modules['airflow.operators.python'] = MagicMock()
-# sys.modules['airflow.utils'] = MagicMock()
-# sys.modules['airflow.utils.email'] = MagicMock()
-
 # Mock ALL Airflow modules before imports
 sys.modules['airflow'] = MagicMock()
 sys.modules['airflow.models'] = MagicMock()
