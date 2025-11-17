@@ -34,6 +34,7 @@ data-pipeline/plugins/
 data-pipeline/dvc.lock
 data-pipeline/.dvc/tmp/
 data-pipeline/.dvc/cache/
+data-pipeline/postgres_db_volume/
 vectorstore/VectorStores/
 
 # Frontend specific files/folders
