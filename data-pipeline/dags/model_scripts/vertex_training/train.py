@@ -12,8 +12,73 @@ from transformers import (
     DataCollatorForSeq2Seq
 )
 from peft import LoraConfig, TaskType, get_peft_model
+from google.cloud import storage
+
+def download_from_gcs_if_needed(path):
+    """
+    Download file or folder from GCS if path starts with gs://
+    Returns local path
+    """
+    if not path.startswith("gs://"):
+        return path
+
+    print(f"Downloading from GCS: {path}")
+    path_parts = path.replace("gs://", "").split("/", 1)
+    bucket_name = path_parts[0]
+    object_path = path_parts[1] if len(path_parts) > 1 else ""
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+
+    # Handle single file (CSV, JSON, TXT)
+    if object_path.endswith((".csv", ".json", ".txt")):
+        local_path = f"/tmp/{os.path.basename(object_path)}"
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        blob = bucket.blob(object_path)
+        blob.download_to_filename(local_path)
+        print(f"✅ Downloaded file to {local_path}")
+        return local_path
+
+    # Otherwise treat as folder
+    local_dir = f"/tmp/{os.path.basename(object_path.rstrip('/'))}"
+    os.makedirs(local_dir, exist_ok=True)
+    blobs = bucket.list_blobs(prefix=object_path)
+    for blob in blobs:
+        if not blob.name.endswith("/"):
+            relative_path = blob.name[len(object_path):].lstrip("/")
+            local_file_path = os.path.join(local_dir, relative_path)
+            os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+            blob.download_to_filename(local_file_path)
+    print(f"✅ Downloaded folder to {local_dir}")
+    return local_dir
+
+def upload_to_gcs(local_path, gcs_path):
+    """Uploads a local directory to GCS."""
+    print(f"Uploading {local_path} to {gcs_path}...")
+    client = storage.Client()
+    
+    # Remove gs:// prefix to get bucket and path
+    path_parts = gcs_path.replace("gs://", "").split("/", 1)
+    bucket_name = path_parts[0]
+    gcs_prefix = path_parts[1] if len(path_parts) > 1 else ""
+    
+    bucket = client.bucket(bucket_name)
+    
+    for root, dirs, files in os.walk(local_path):
+        for file in files:
+            local_file_path = os.path.join(root, file)
+            # Calculate relative path to maintain structure
+            relative_path = os.path.relpath(local_file_path, local_path)
+            blob_path = os.path.join(gcs_prefix, relative_path)
+            
+            blob = bucket.blob(blob_path)
+            blob.upload_from_filename(local_file_path)
+            print(f"Uploaded: {blob_path}")
 
 def main():
+    """
+    Main function to fine-tune a Hugging Face model with LoRA and upload to GCS.
+    """
     parser = argparse.ArgumentParser(description="Fine-tune a Hugging Face model with LoRA")
     
     # Paths
@@ -54,8 +119,7 @@ def main():
     print(f"Using device: {device}")
     
     # Download model from GCS if needed
-    # local_model_dir = download_from_gcs_if_needed(args.model_dir)
-    local_model_dir = args.model_dir
+    local_model_dir = download_from_gcs_if_needed(args.model_dir)
     
     # Verify model files exist
     print(f"Checking model directory: {local_model_dir}")
@@ -71,9 +135,12 @@ def main():
             raise ValueError(f"Missing required file: {req_file}")
     
     # Load datasets
-    print("Loading training data...")
-    df_train = pd.read_csv(args.train_data)
-    df_val = pd.read_csv(args.val_data)
+    local_train_csv = download_from_gcs_if_needed(args.train_data)
+    local_val_csv = download_from_gcs_if_needed(args.val_data)
+
+    # Load datasets into pandas DataFrames
+    df_train = pd.read_csv(local_train_csv)
+    df_val = pd.read_csv(local_val_csv)
     
     print(f"Train dataset size: {len(df_train)}")
     print(f"Val dataset size: {len(df_val)}")
@@ -143,17 +210,19 @@ def main():
     model.print_trainable_parameters()
     
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+
+    local_output_dir = "/tmp/lora_trained"
     
     # Training arguments
     training_args = TrainingArguments(
-        output_dir=args.output_dir,
+        output_dir=local_output_dir,
         num_train_epochs=args.num_train_epochs,
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
         learning_rate=args.learning_rate,
         warmup_steps=args.warmup_steps,
         weight_decay=args.weight_decay,
-        logging_dir=f"{args.output_dir}/logs",
+        logging_dir=f"{local_output_dir}/logs",
         logging_steps=100,
         save_steps=1000,
         save_total_limit=2,
@@ -177,12 +246,29 @@ def main():
     print("Starting training...")
     trainer.train()
     
-    # Save model
-    print(f"Saving model to: {args.output_dir}")
-    trainer.model.save_pretrained(args.output_dir)
-    tokenizer.save_pretrained(args.output_dir)
+    # Merge LoRA adapters into base model
+    print("Merging LoRA adapter into base model...")
+    merged_model_dir = "/tmp/merged_model"
+    os.makedirs(merged_model_dir, exist_ok=True)
     
-    print(f"✅ Training finished. Model saved to: {args.output_dir}")
+    # Calling .merge_and_unload() to get the merged base model.
+    merged_model = model.merge_and_unload()
+    print("✅ Merge complete.")
+
+    # Save merged model locally
+    print(f"Saving merged model to: {merged_model_dir}")
+    merged_model.save_pretrained(merged_model_dir)
+    tokenizer.save_pretrained(merged_model_dir)
+    print(f"✅ Merged model saved locally at: {merged_model_dir}")
+
+    # Upload merged model to GCS
+    if args.output_dir.startswith("gs://"):
+        upload_to_gcs(merged_model_dir, args.output_dir)
+        print(f"✅ Merged model uploaded to GCS: {args.output_dir}")
+    else:
+        print(f"Warning: Output dir {args.output_dir} is not a GCS path. Data may be lost.")
+
+    print("✅ Training and upload completed.")
 
 if __name__ == "__main__":
     main()

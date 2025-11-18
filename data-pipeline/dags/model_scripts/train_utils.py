@@ -1,58 +1,19 @@
-from datetime import datetime
-import os
 from google.cloud import aiplatform
-from google.cloud import storage
-from airflow.exceptions import AirflowException
+from model_scripts.vertex_training.experiment_utils import ( 
+    log_experiment_params,
+    get_experiment_run
+)
 
-def download_from_gcs_if_needed(path):
-    """
-    Download files from GCS if path starts with gs://
-    Returns local path
-    """
-    if not path.startswith("gs://"):
-        return path
-    
-    print(f"Downloading from GCS: {path}")
-    
-    # Parse GCS path
-    path_parts = path.replace("gs://", "").split("/", 1)
-    bucket_name = path_parts[0]
-    prefix = path_parts[1] if len(path_parts) > 1 else ""
-    
-    # Create local directory
-    local_dir = f"/tmp/{prefix.split('/')[-1]}"
-    os.makedirs(local_dir, exist_ok=True)
-    
-    # Download all files from GCS
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
-    blobs = bucket.list_blobs(prefix=prefix)
-    
-    downloaded_count = 0
-    for blob in blobs:
-        if not blob.name.endswith("/"):  # Skip directory markers
-            relative_path = blob.name[len(prefix):].lstrip("/")
-            local_file_path = os.path.join(local_dir, relative_path)
-            
-            # Create subdirectories if needed
-            os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-            
-            print(f"  Downloading: {blob.name} -> {local_file_path}")
-            blob.download_to_filename(local_file_path)
-            downloaded_count += 1
-    
-    print(f"✅ Downloaded {downloaded_count} files to {local_dir}")
-    return local_dir
-
-def submit_vertex_training_job(project_id, region, container_image_uri, gcs_model_dir, gcs_output_dir):
+def submit_vertex_training_job(project_id, region, container_image_uri, machine_type, gpu_type, gcs_model_dir, gcs_train_data, gcs_val_data, gcs_output_dir, run_name):
     """
     Submit Vertex AI custom training job (LoRA fine-tuning)
     """
+
     aiplatform.init(project=project_id, location=region)
 
     training_args = [
-        "--train_data=gs://train_data_query_hub/data/train.csv",
-        "--val_data=gs://train_data_query_hub/data/val.csv",
+        f"--train_data={gcs_train_data}",
+        f"--val_data={gcs_val_data}",
         f"--model_dir={gcs_model_dir}",
         f"--output_dir={gcs_output_dir}",
         "--num_train_epochs=1",
@@ -65,13 +26,26 @@ def submit_vertex_training_job(project_id, region, container_image_uri, gcs_mode
         "--target_modules", "q", "v"
     ]
 
+    # Log hyper parameters info to experiment
+    run = get_experiment_run(run_name, experiment_name="queryhub-experiments", project_id=project_id, region=region)
+    params_dict = {}
+    for arg in training_args:
+        if "=" in arg:
+            key, value = arg.lstrip("-").split("=", 1)
+            params_dict[key] = value
+        else:
+            params_dict[arg] = True
+
+    log_experiment_params(run, params_dict)
+
+    # Configure the Custom Job
     job = aiplatform.CustomJob(
         display_name="hf_training_job",
         staging_bucket="gs://train_data_query_hub/staging_bucket",
         worker_pool_specs=[{
             "machine_spec": {
-                "machine_type": "a2-highgpu-1g",
-                "accelerator_type": "NVIDIA_TESLA_A100",
+                "machine_type": machine_type,
+                "accelerator_type": gpu_type,
                 "accelerator_count": 1
             },
             "replica_count": 1,
@@ -85,5 +59,7 @@ def submit_vertex_training_job(project_id, region, container_image_uri, gcs_mode
 
     print("Submitting Vertex AI Custom Job...")
     job.run(sync=True)
+
     print(f"✅ Training finished. Model saved to: {gcs_output_dir}")
+    
     return gcs_output_dir
