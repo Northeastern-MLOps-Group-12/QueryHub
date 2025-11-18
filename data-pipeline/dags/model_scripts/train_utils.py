@@ -17,12 +17,13 @@ def submit_vertex_training_job(project_id, region, container_image_uri, machine_
         f"--model_dir={gcs_model_dir}",
         f"--output_dir={gcs_output_dir}",
         "--num_train_epochs=1",
-        "--per_device_train_batch_size=8",
-        "--per_device_eval_batch_size=8",
-        "--learning_rate=5e-5",
-        "--lora_r=16",
-        "--lora_alpha=32",
-        "--lora_dropout=0.1",
+        "--per_device_train_batch_size=32",
+        "--per_device_eval_batch_size=16",
+        "--gradient_accumulation_steps=4",
+        "--learning_rate=25e-4",
+        "--lora_r=8",
+        "--lora_alpha=16",
+        "--lora_dropout=0.0683",
         "--target_modules", "q", "v"
     ]
 
