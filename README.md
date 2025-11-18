@@ -305,6 +305,9 @@ airflow variables set gcp_test_data_path "gs://your-bucket/optional-folder/test-
 airflow variables set gcp_evaluation_output_csv "	
 gs://your-bucket/optional-folder/"
 airflow variables set gcs_bias_and_syntax_validation_output "gs://your-bucket/optional-folder/"
+airflow variables set gcs_registered_models "gs://your-bucket/optional-folder"
+airflow variables set gcs_staging_bucket "gs://your-bucket/optional-folder"
+airflow variables set gcs_bucket_name "your-bucket"
 ```
 
 ### Required GCP Resources
