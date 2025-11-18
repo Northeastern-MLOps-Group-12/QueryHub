@@ -1,11 +1,10 @@
-datasets
 pandas
 scikit-learn
 sqlglot
 dvc[gs]
 pytest
 pytest-mock
-transformers
-peft
-torch
 google-cloud-artifact-registry
+apache-airflow-providers-google>=10.0.0
+apache-airflow==3.1.0
+datasets
