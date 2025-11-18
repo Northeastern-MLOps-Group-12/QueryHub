@@ -30,7 +30,7 @@ from airflow.exceptions import AirflowException
 
 # Import the DAG creation function
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from dags.your_dag_file import create_model_training_dag, fetch_latest_model, train_on_vertex_ai, register_model_in_vertex_ai, launch_evaluation_job, run_bias_detection, run_syntax_validation_task
+from dags.train_model_and_save import create_model_training_dag, fetch_latest_model, train_on_vertex_ai, register_model_in_vertex_ai, launch_evaluation_job, run_bias_detection, run_syntax_validation_task
 
 
 class TestModelTrainingDAG:
@@ -44,7 +44,7 @@ class TestModelTrainingDAG:
     @pytest.fixture
     def mock_variables(self):
         """Mock Airflow Variables"""
-        with patch('dags.your_dag_file.Variable') as mock_var:
+        with patch('dags.train_model_and_save.Variable') as mock_var:
             mock_var.get.side_effect = lambda key: {
                 "alert_email": "alerts@example.com",
                 "gcp_project": "test-project",
@@ -165,7 +165,7 @@ class TestModelTrainingDAG:
         }
         assert train_task.op_kwargs == expected_train_kwargs
 
-    @patch('dags.your_dag_file.storage.Client')
+    @patch('dags.train_model_and_save.storage.Client')
     def test_fetch_latest_model_success(self, mock_storage_client, mock_variables):
         """Test successful execution of fetch_latest_model"""
         # Mock GCS client and blob responses
@@ -192,7 +192,7 @@ class TestModelTrainingDAG:
         assert result == expected_path
         mock_ti.xcom_push.assert_called_with(key="latest_model_dir", value=expected_path)
 
-    @patch('dags.your_dag_file.storage.Client')
+    @patch('dags.train_model_and_save.storage.Client')
     def test_fetch_latest_model_no_models_found(self, mock_storage_client, mock_variables):
         """Test fetch_latest_model when no models are found"""
         mock_bucket = MagicMock()
@@ -205,10 +205,10 @@ class TestModelTrainingDAG:
         with pytest.raises(AirflowException, match="No merged models found"):
             fetch_latest_model("test-project", "us-central1", ti=mock_ti)
 
-    @patch('dags.your_dag_file.aiplatform')
-    @patch('dags.your_dag_file.start_experiment_run')
-    @patch('dags.your_dag_file.log_experiment_params')
-    @patch('dags.your_dag_file.submit_vertex_training_job')
+    @patch('dags.train_model_and_save.aiplatform')
+    @patch('dags.train_model_and_save.start_experiment_run')
+    @patch('dags.train_model_and_save.log_experiment_params')
+    @patch('dags.train_model_and_save.submit_vertex_training_job')
     def test_train_on_vertex_ai_success(self, mock_submit_job, mock_log_params, 
                                       mock_start_experiment, mock_aiplatform, mock_variables):
         """Test successful execution of train_on_vertex_ai"""
@@ -246,9 +246,9 @@ class TestModelTrainingDAG:
         mock_ti.xcom_push.assert_any_call(key="experiment_run_name", value=mock.ANY)
         mock_ti.xcom_push.assert_any_call(key="trained_model_gcs", value="gs://bucket/trained_model")
 
-    @patch('dags.your_dag_file.aiplatform')
-    @patch('dags.your_dag_file.get_experiment_run')
-    @patch('dags.your_dag_file.log_experiment_params')
+    @patch('dags.train_model_and_save.aiplatform')
+    @patch('dags.train_model_and_save.get_experiment_run')
+    @patch('dags.train_model_and_save.log_experiment_params')
     def test_register_model_in_vertex_ai_success(self, mock_log_params, mock_get_experiment, 
                                                mock_aiplatform, mock_variables):
         """Test successful model registration"""
@@ -284,8 +284,8 @@ class TestModelTrainingDAG:
         # Verify return value
         assert result == mock_model.resource_name
 
-    @patch('dags.your_dag_file.aiplatform')
-    @patch('dags.your_dag_file.build_output_csv_path')
+    @patch('dags.train_model_and_save.aiplatform')
+    @patch('dags.train_model_and_save.build_output_csv_path')
     def test_launch_evaluation_job_success(self, mock_build_path, mock_aiplatform, mock_variables):
         """Test successful evaluation job launch"""
         # Mock dependencies
@@ -324,10 +324,10 @@ class TestModelTrainingDAG:
             sync=True
         )
 
-    @patch('dags.your_dag_file.storage.Client')
-    @patch('dags.your_dag_file.upload_to_gcs')
-    @patch('dags.your_dag_file.get_experiment_run')
-    @patch('dags.your_dag_file.log_experiment_metrics')
+    @patch('dags.train_model_and_save.storage.Client')
+    @patch('dags.train_model_and_save.upload_to_gcs')
+    @patch('dags.train_model_and_save.get_experiment_run')
+    @patch('dags.train_model_and_save.log_experiment_metrics')
     def test_run_bias_detection_success(self, mock_log_metrics, mock_get_experiment, 
                                       mock_upload_gcs, mock_storage_client, mock_variables):
         """Test successful bias detection execution"""
@@ -365,11 +365,11 @@ class TestModelTrainingDAG:
         # Verify experiment metrics logging
         mock_log_metrics.assert_called()
 
-    @patch('dags.your_dag_file.storage.Client')
-    @patch('dags.your_dag_file.upload_to_gcs')
-    @patch('dags.your_dag_file.aiplatform')
-    @patch('dags.your_dag_file.get_experiment_run')
-    @patch('dags.your_dag_file.log_experiment_metrics')
+    @patch('dags.train_model_and_save.storage.Client')
+    @patch('dags.train_model_and_save.upload_to_gcs')
+    @patch('dags.train_model_and_save.aiplatform')
+    @patch('dags.train_model_and_save.get_experiment_run')
+    @patch('dags.train_model_and_save.log_experiment_metrics')
     def test_run_syntax_validation_success(self, mock_log_metrics, mock_get_experiment, 
                                          mock_aiplatform, mock_upload_gcs, mock_storage_client, mock_variables):
         """Test successful syntax validation execution"""
@@ -423,7 +423,7 @@ class TestModelTrainingDAG:
         assert dag.default_args['email_on_failure'] is True
         assert dag.default_args['email_on_retry'] is False
 
-    @patch('dags.your_dag_file.aiplatform')
+    @patch('dags.train_model_and_save.aiplatform')
     def test_train_on_vertex_ai_missing_xcom(self, mock_aiplatform, mock_variables):
         """Test train_on_vertex_ai when XCom data is missing"""
         mock_ti = MagicMock()
@@ -443,7 +443,7 @@ class TestModelTrainingDAG:
 
     def test_build_output_csv_path(self):
         """Test output CSV path building function"""
-        from dags.your_dag_file import build_output_csv_path
+        from dags.train_model_and_save import build_output_csv_path
         
         base_folder = "gs://bucket/eval_output"
         result = build_output_csv_path(base_folder)
@@ -456,11 +456,11 @@ class TestModelTrainingDAG:
         result_with_slash = build_output_csv_path(base_folder_with_slash)
         assert not result_with_slash.endswith("//")  # No double slash
 
-    @patch('dags.your_dag_file.pd.read_csv')
-    @patch('dags.your_dag_file.storage.Client')
+    @patch('dags.train_model_and_save.pd.read_csv')
+    @patch('dags.train_model_and_save.storage.Client')
     def test_detect_bias_function(self, mock_storage_client, mock_read_csv, mock_variables):
         """Test the detect_bias helper function"""
-        from dags.your_dag_file import detect_bias
+        from dags.train_model_and_save import detect_bias
         
         # Mock DataFrame with evaluation results
         mock_df = pd.DataFrame({
@@ -489,12 +489,12 @@ class TestModelTrainingDAG:
         assert complex_dist.loc['complex', 'count'] == 1
         assert complex_dist.loc['medium', 'count'] == 1
 
-    @patch('dags.your_dag_file.parse_one')
-    @patch('dags.your_dag_file.pd.read_csv')
-    @patch('dags.your_dag_file.storage.Client')
+    @patch('dags.train_model_and_save.parse_one')
+    @patch('dags.train_model_and_save.pd.read_csv')
+    @patch('dags.train_model_and_save.storage.Client')
     def test_syntax_validation_from_gcs(self, mock_storage_client, mock_read_csv, mock_parse_one, mock_variables):
         """Test the syntax_validation_from_gcs helper function"""
-        from dags.your_dag_file import syntax_validation_from_gcs
+        from dags.train_model_and_save import syntax_validation_from_gcs
         
         # Mock DataFrame with SQL predictions
         mock_df = pd.DataFrame({

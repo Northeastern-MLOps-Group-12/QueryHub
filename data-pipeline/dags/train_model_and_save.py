@@ -12,7 +12,7 @@ from model_scripts.retrain_model import (
 from model_scripts.bias_detection import run_bias_detection
 from model_scripts.model_eval_job_launcher import launch_evaluation_job
 from model_scripts.syntax_validation import run_syntax_validation_task
-from dags.utils.test_utils import pre_test_model_training_pipeline
+from dags.utils.test_utils import run_unit_tests
 
 # DAG default arguments
 default_args = {
@@ -45,9 +45,9 @@ def create_model_training_dag():
         start_pipeline = EmptyOperator(task_id='start_pipeline')
 
         # Pre-test node
-        pre_test_node = PythonOperator(
-            task_id='pre_test_node',
-            python_callable=pre_test_model_training_pipeline
+        run_model_unit_tests = PythonOperator(
+            task_id='run_model_unit_tests',
+            python_callable=run_unit_tests,
         )
 
         # Task 1: Fetch latest image + model files
@@ -134,10 +134,10 @@ def create_model_training_dag():
         training_failed = EmptyOperator(task_id='training_failed', trigger_rule='one_failed')
 
         # DAG flow
-        start_pipeline >> pre_test_node >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> training_completed
+        start_pipeline >> run_model_unit_tests >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> training_completed
         
         # Send any failure to training_failed
-        [pre_test_node, fetch_model_task, train_model_task, upload_model_task, evaluate_model, bias_detection_task, syntax_validation] >> training_failed
+        [run_model_unit_tests, fetch_model_task, train_model_task, upload_model_task, evaluate_model, bias_detection_task, syntax_validation] >> training_failed
 
         return dag
 
