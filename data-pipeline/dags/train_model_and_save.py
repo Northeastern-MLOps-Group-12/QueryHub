@@ -30,7 +30,7 @@ default_args = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
     'email_on_retry': False,
-    'retries': 0,
+    'retries': 1,
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=6),
     'on_failure_callback': failure_callback,
@@ -65,7 +65,8 @@ def create_model_training_dag():
             python_callable=fetch_latest_model,
             op_kwargs={
                 "project_id": Variable.get("gcp_project"),
-                "region": Variable.get("gcp_region")
+                "region": Variable.get("gcp_region"),
+                "gcs_bucket_name": Variable.get("gcs_bucket_name"),
             }
         )
 
@@ -81,6 +82,8 @@ def create_model_training_dag():
                 "container_image_uri": Variable.get("vertex_ai_training_image_uri"),
                 "machine_type": Variable.get("vertex_ai_train_machine_type"),
                 "gpu_type": Variable.get("vertex_ai_train_gpu_type"),
+                "gcs_staging_bucket": Variable.get("gcs_staging_bucket"),
+                "gcs_registered_models": Variable.get("gcs_registered_models"),
             }
         )
 
@@ -109,6 +112,7 @@ def create_model_training_dag():
                 "test_data_path": Variable.get("gcp_test_data_path"),
                 "machine_type": Variable.get("vertex_ai_eval_machine_type"),
                 "gpu_type": Variable.get("vertex_ai_eval_gpu_type"),
+                "gcs_staging_bucket": Variable.get("gcs_staging_bucket"),
             }
         )
 

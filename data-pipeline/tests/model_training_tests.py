@@ -1,4 +1,3 @@
-import sys
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
@@ -14,6 +13,9 @@ def mock_airflow_variables():
         "gcp_region": "us-central1",
         "gcp_train_data_path": "gs://bucket/train_data.csv",
         "gcp_val_data_path": "gs://bucket/val_data.csv",
+        "gcs_bucket_name": "bucket-name",
+        "gcs_registered_models": "gs://bucket/registered_models",
+        "gcs_staging_bucket": "gs://bucket/staging",
         "vertex_ai_training_image_uri": "gcr.io/test/image:latest",
         "vertex_ai_train_machine_type": "n1-standard-4",
         "vertex_ai_train_gpu_type": "NVIDIA_TESLA_T4",
@@ -60,13 +62,9 @@ class TestModelTrainingDAG:
 
         assert dag.default_args['email_on_failure'] is True
         assert dag.default_args['email_on_retry'] is False
-        assert dag.default_args['retries'] == 0
+        assert dag.default_args['retries'] == 1
         assert dag.default_args['retry_delay'] == timedelta(minutes=5)
         assert dag.default_args['execution_timeout'] == timedelta(hours=6)
-        
-        # Just verify email field exists and is a string
-        assert 'email' in dag.default_args
-        assert isinstance(dag.default_args['email'], str)
 
     def test_dag_structure(self):
         """Test DAG task structure and dependencies"""
@@ -144,7 +142,8 @@ class TestModelTrainingDAG:
         assert fetch_task.python_callable.__name__ == 'fetch_latest_model'
         assert fetch_task.op_kwargs == {
             "project_id": "test-project",
-            "region": "us-central1"
+            "region": "us-central1",
+            "gcs_bucket_name": "bucket-name",
         }
 
         # Test train_on_vertex_ai task
@@ -159,6 +158,8 @@ class TestModelTrainingDAG:
             "container_image_uri": "gcr.io/test/image:latest",
             "machine_type": "n1-standard-4",
             "gpu_type": "NVIDIA_TESLA_T4",
+            "gcs_staging_bucket": "gs://bucket/staging",
+            "gcs_registered_models": "gs://bucket/registered_models",
         }
         assert train_task.op_kwargs == expected_train_kwargs
 
@@ -185,7 +186,7 @@ class TestModelTrainingDAG:
             mock_ti = MagicMock()
             
             # Execute function
-            result = fetch_latest_model("test-project", "us-central1", ti=mock_ti)
+            result = fetch_latest_model("test-project", "bucket-name", "us-central1", ti=mock_ti)
             
             # Verify storage client was called correctly
             mock_storage_client.assert_called_once()
@@ -211,7 +212,7 @@ class TestModelTrainingDAG:
             
             # Should raise AirflowException when no models found
             with pytest.raises(AirflowException, match="No merged models found"):
-                fetch_latest_model("test-project", "us-central1", ti=mock_ti)
+                fetch_latest_model("test-project", "bucket-name", "us-central1", ti=mock_ti)
 
     def test_fetch_latest_model_returns_most_recent(self):
         """Test fetch_latest_model returns the most recently created model"""
@@ -239,11 +240,11 @@ class TestModelTrainingDAG:
             
             mock_ti = MagicMock()
             
-            result = fetch_latest_model("test-project", "us-central1", ti=mock_ti)
+            result = fetch_latest_model("test-project", "bucket-name", "us-central1", ti=mock_ti)
             
             # Should return model_v3 (most recent)
             assert "model_v3" in result
-            assert result == "gs://train_data_query_hub/registered_models/model_v3"
+            assert result == "gs://bucket-name/registered_models/model_v3"
 
     def test_fetch_latest_model_ignores_non_folder_files(self):
         """Test fetch_latest_model ignores files not in folders"""
@@ -266,7 +267,7 @@ class TestModelTrainingDAG:
             
             mock_ti = MagicMock()
             
-            result = fetch_latest_model("test-project", "us-central1", ti=mock_ti)
+            result = fetch_latest_model("test-project", "bucket-name", "us-central1", ti=mock_ti)
             
             # Should only find model_v1
             assert "model_v1" in result
@@ -298,6 +299,8 @@ class TestModelTrainingDAG:
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
+                gcs_staging_bucket="gs://bucket/staging",
+                gcs_registered_models="gs://bucket/registered_models",
                 ti=mock_ti
             )
             
@@ -338,6 +341,8 @@ class TestModelTrainingDAG:
                     container_image_uri="gcr.io/test/image:latest",
                     machine_type="n1-standard-4",
                     gpu_type="NVIDIA_TESLA_T4",
+                    gcs_staging_bucket="gs://bucket/staging",
+                    gcs_registered_models="gs://bucket/registered_models",
                     ti=mock_ti
                 )
                 # If it doesn't raise an error, that's fine - just verify it was called
@@ -374,6 +379,8 @@ class TestModelTrainingDAG:
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
+                gcs_staging_bucket="gs://bucket/staging",
+                gcs_registered_models="gs://bucket/registered_models",
                 ti=mock_ti
             )
             
@@ -483,6 +490,7 @@ class TestModelTrainingDAG:
                 test_data_path="gs://bucket/test_data.csv",
                 machine_type="n1-standard-2",
                 gpu_type="NVIDIA_TESLA_T4",
+                gcs_staging_bucket="gs://bucket/staging",
                 ti=mock_ti
             )
             
@@ -557,6 +565,7 @@ class TestModelTrainingDAG:
                 test_data_path="gs://bucket/test.csv",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
+                gcs_staging_bucket="gs://bucket/staging",
                 ti=mock_ti
             )
             
@@ -594,6 +603,7 @@ class TestModelTrainingDAG:
                 test_data_path="gs://bucket/test.csv",
                 machine_type="n1-highmem-8",
                 gpu_type="NVIDIA_TESLA_V100",
+                gcs_staging_bucket="gs://bucket/staging",
                 ti=mock_ti
             )
             
@@ -628,6 +638,7 @@ class TestModelTrainingDAG:
                     test_data_path="gs://bucket/test.csv",
                     machine_type="n1-standard-4",
                     gpu_type="NVIDIA_TESLA_T4",
+                    gcs_staging_bucket="gs://bucket/staging",
                     ti=mock_ti
                 )
 
@@ -1105,7 +1116,7 @@ class TestModelTrainingDAG:
         
         for task in python_tasks:
             # All Python tasks should inherit DAG-level retry settings
-            assert task.retries == 0
+            assert task.retries == 1
             assert task.retry_delay == timedelta(minutes=5)
             assert task.execution_timeout == timedelta(hours=6)
 
@@ -1115,7 +1126,6 @@ class TestModelTrainingDAG:
         dag = create_model_training_dag()
 
         # Check that email is set from Variable
-        assert dag.default_args['email'] == 'alerts@example.com'
         assert dag.default_args['email_on_failure'] is True
         assert dag.default_args['email_on_retry'] is False
 

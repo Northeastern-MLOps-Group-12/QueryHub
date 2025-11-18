@@ -1,5 +1,4 @@
 import pytest
-import sys
 from pathlib import Path
 
 def run_unit_tests():

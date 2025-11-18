@@ -4,7 +4,7 @@ from model_scripts.vertex_training.experiment_utils import (
     get_experiment_run
 )
 
-def submit_vertex_training_job(project_id, region, container_image_uri, machine_type, gpu_type, gcs_model_dir, gcs_train_data, gcs_val_data, gcs_output_dir, run_name):
+def submit_vertex_training_job(project_id, region, container_image_uri, machine_type, gpu_type, gcs_model_dir, gcs_train_data, gcs_val_data, gcs_output_dir, gcs_staging_bucket, run_name):
     """
     Submit Vertex AI custom training job (LoRA fine-tuning)
     """
@@ -42,7 +42,7 @@ def submit_vertex_training_job(project_id, region, container_image_uri, machine_
     # Configure the Custom Job
     job = aiplatform.CustomJob(
         display_name="hf_training_job",
-        staging_bucket="gs://train_data_query_hub/staging_bucket",
+        staging_bucket={gcs_staging_bucket},
         worker_pool_specs=[{
             "machine_spec": {
                 "machine_type": machine_type,

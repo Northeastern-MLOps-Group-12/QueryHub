@@ -146,11 +146,11 @@ All training runs are logged to Vertex AI Experiments:
 ### Sample Experiment Tracking
 1. **Metrics**
 
-    ![Metrics](https://lucid.app/publicSegments/view/604b9877-d0cd-4a51-b8ad-111cf2978ec4/image.png)
+    ![Metrics](https://lucid.app/publicSegments/view/9d5dfd29-ba23-4534-8eaa-4b3b7e69a133/image.png)
 
 1. **Parameters**
 
-    ![Parameters](https://lucid.app/publicSegments/view/d986f29b-41d8-4b55-beb3-bd27b7a3522a/image.png)
+    ![Parameters](https://lucid.app/publicSegments/view/e3ee460e-313d-4f46-aabc-6b08e54800ec/image.png)
 
 ---
 

@@ -200,7 +200,7 @@ def run_evaluation(model_registry_id, test_data_path, project_id, region, output
     print(f"Exact Match score = {final_em}")
     log_experiment_metrics(run, {"exact_match": final_em})
 
-    print(f"Exact Match score = {final_f1}")
+    print(f"F1 score = {final_f1}")
     log_experiment_metrics(run, {"f1_score": final_f1})
 
     return final_em, final_f1

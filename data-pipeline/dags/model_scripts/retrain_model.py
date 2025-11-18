@@ -1,6 +1,5 @@
 from airflow.exceptions import AirflowException
 from google.cloud import storage
-from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 from model_scripts.train_utils import submit_vertex_training_job
 from airflow.models import Variable
 from datetime import datetime
@@ -25,14 +24,14 @@ from model_scripts.vertex_training.experiment_utils import (
 )
 
 
-def fetch_latest_model(project_id, region, **kwargs):
+def fetch_latest_model(project_id, gcs_bucket_name, region, **kwargs):
     """
     Fetch the latest Artifact Registry Docker image and latest merged model folder.
     Push them to XCom for downstream tasks.
     """
     ti = kwargs["ti"]
     client = storage.Client(project=project_id)
-    bucket_name = "train_data_query_hub"
+    bucket_name = gcs_bucket_name
 
     # Latest merged model folder
     merged_prefix = "registered_models/"
@@ -60,7 +59,7 @@ def fetch_latest_model(project_id, region, **kwargs):
     return latest_model_path
 
 
-def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, container_image_uri, machine_type, gpu_type, **kwargs):
+def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, container_image_uri, machine_type, gpu_type, gcs_staging_bucket, gcs_registered_models, **kwargs):
     """
     Submit Vertex AI Custom Training Job using latest model files + image.
     """
@@ -83,7 +82,7 @@ def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, contain
 
     # Prepare output model path
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    gcs_output_dir = f"gs://train_data_query_hub/registered_models/{timestamp}"
+    gcs_output_dir = f"{gcs_registered_models}/{timestamp}"
 
     # Log params to experiment
     print("Logging training parameters to experiment...")
@@ -107,6 +106,7 @@ def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, contain
         gcs_train_data=gcs_train_data,
         gcs_val_data=gcs_val_data,
         gcs_output_dir=gcs_output_dir,
+        gcs_staging_bucket=gcs_staging_bucket,
         run_name=run_name
     )
 

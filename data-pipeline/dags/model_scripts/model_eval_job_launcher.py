@@ -22,6 +22,7 @@ def launch_evaluation_job(
     test_data_path,
     machine_type,
     gpu_type,
+    gcs_staging_bucket,
     **kwargs
 ):
     """
@@ -54,7 +55,7 @@ def launch_evaluation_job(
     # Configure the Vertex AI Custom Job
     eval_job = aiplatform.CustomJob(
         display_name=f"model-eval-{run_name}",
-        staging_bucket="gs://train_data_query_hub/staging_bucket",
+        staging_bucket={gcs_staging_bucket},
         worker_pool_specs=[
             {
                 "machine_spec": {
