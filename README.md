@@ -498,10 +498,11 @@ QueryHub/
 │   │   └── config                                  # DVC configuration
 │   ├── dags/
 │   │   ├── model_scripts/                          # Model Training and Evaluation DAG
-│   │   │   ├── vertex_training/                    # Custome Docker Image for Vertex AI
+│   │   │   ├── vertex_training/                    # Custom Docker Image for Vertex AI
 │   │   │   │   ├── Dockerfile
 │   │   │   │   ├── experiment_utils.py             # Utility functions for logging and managing experiments
 │   │   │   │   ├── model_eval.py                   # Script to evaluate models on test datasets
+│   │   │   │   ├── README.md
 │   │   │   │   ├── requirements.txt
 │   │   │   │   └── train.py                        # Script to fine-tune/train models on Vertex AI
 │   │   │   ├── bias_detection.py                   # Task for detecting performance bias by SQL complexity
@@ -535,10 +536,11 @@ QueryHub/
 │   │   │   ├── DataGenerator.py                    # Main synthetic data generator
 │   │   │   ├── EmailContentGenerator.py            # Email notification utilities
 │   │   │   ├── SQLValidator.py                     # Validates SQL using sqlglot
-│   │   │   └── __init__.py
+│   │   │   └── test_utils.py                       # Utility Function for tests
 │   │   ├── data_pipeline_dag.py                    # Main Airflow DAG
 │   │   └── train_model_and_save.py                 # Model Training DAG
 │   ├── tests/
+│   │   ├── model_training_tests.py                 # Model Training Tests
 │   │   └── test.py                                 # Pytest suite (45 tests)
 │   ├── .dvcignore                                  # DVC ignore patterns
 │   ├── Dockerfile                                  # Docker image for data pipeline

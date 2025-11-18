@@ -11,6 +11,8 @@ This Apache Airflow DAG orchestrates an end-to-end machine learning pipeline for
 ```
 Start Pipeline
     ↓
+Run Unit Tests
+    ↓
 Fetch Latest Model
     ↓
 Train on Vertex AI (with LoRA fine-tuning)
@@ -30,12 +32,18 @@ Pipeline Completed
 
 ## Pipeline Tasks
 
-### 1. **Fetch Latest Model** (`fetch_latest_model`)
+### 1. **Run Model Training Unit Tests** (`run_model_unit_tests`)
+- Executes unit tests to validate model training functionality
+- **Outcome**:
+  - **Pass**: Pipeline proceeds to next task
+  - **Fail**: Pipeline terminates immediately; subsequent tasks are skipped
+
+### 2. **Fetch Latest Model** (`fetch_latest_model`)
 - Retrieves the latest model file path from GCS
 - Prepares the base model for fine-tuning
 - **Output**: Model directory path
 
-### 2. **Train on Vertex AI** (`train_on_vertex_ai`)
+### 3. **Train on Vertex AI** (`train_on_vertex_ai`)
 - Launches a Vertex AI Custom Training Job
 - Performs LoRA (Low-Rank Adaptation) fine-tuning on T5-Large
 - Uses GPU acceleration
@@ -43,11 +51,11 @@ Pipeline Completed
 - **Output**: 
   - Saves trained model path in xcom
 
-### 3. **Upload Model to Vertex AI** (`upload_model_to_vertex_ai`)
+### 4. **Upload Model to Vertex AI** (`upload_model_to_vertex_ai`)
 - Registers the trained model in Vertex AI Model Registry
 - **Output**: Registered model path
 
-### 4. **Evaluate Model** (`evaluate_model_on_vertex_ai`)
+### 5. **Evaluate Model** (`evaluate_model_on_vertex_ai`)
 - Runs model evaluation on a test dataset
 - Computes metrics: Exact Match (EM) and Token F1 Score
 - Generates evaluation results CSV with predictions
@@ -55,7 +63,7 @@ Pipeline Completed
   - Saves prediction results in GCS
   - Logs EM and F1 score to Vertex AI Experiments
 
-### 5. **Bias Detection** (`bias_detection`)
+### 6. **Bias Detection** (`bias_detection`)
 - Analyzes model performance across SQL complexity buckets
 - Detects performance disparities between simple and complex queries
 - Generates two reports:
@@ -65,7 +73,7 @@ Pipeline Completed
   - Uploads artifacts to GCS
   - Logs GCS path to Vertex AI Experiments
 
-### 6. **Syntax Validation** (`syntax_validation`)
+### 7. **Syntax Validation** (`syntax_validation`)
 - Validates syntactic correctness of generated SQL queries
 - Uses SQLGlot parser for syntax checking
 - Computes syntax validity rate
@@ -112,6 +120,7 @@ The pipeline uses XCom to pass data between tasks:
 
 ### Failure Triggers
 The `training_failed` task is triggered when any of these tasks fail:
+- run_model_unit_tests
 - fetch_model_task
 - train_model_task
 - upload_model_task

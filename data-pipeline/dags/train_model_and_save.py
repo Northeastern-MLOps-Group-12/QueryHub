@@ -1,3 +1,4 @@
+import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
@@ -13,6 +14,14 @@ from model_scripts.bias_detection import run_bias_detection
 from model_scripts.model_eval_job_launcher import launch_evaluation_job
 from model_scripts.syntax_validation import run_syntax_validation_task
 from dags.utils.test_utils import run_unit_tests
+from utils.EmailContentGenerator import notify_task_failure
+
+# Get alert email
+ALERT_EMAIL = os.getenv('ALERT_EMAIL', Variable.get("alert_email"))
+
+def failure_callback(context):
+    """Wrapper to call notify_task_failure with the email"""
+    return notify_task_failure(context, to_emails=[ALERT_EMAIL])
 
 # DAG default arguments
 default_args = {
@@ -20,11 +29,11 @@ default_args = {
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
-    'email': Variable.get("alert_email"), 
     'email_on_retry': False,
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=6),
+    'on_failure_callback': failure_callback,
 }
 
 def create_model_training_dag():
