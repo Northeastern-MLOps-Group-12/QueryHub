@@ -42,7 +42,7 @@ def submit_vertex_training_job(project_id, region, container_image_uri, machine_
     # Configure the Custom Job
     job = aiplatform.CustomJob(
         display_name="hf_training_job",
-        staging_bucket={gcs_staging_bucket},
+        staging_bucket=gcs_staging_bucket,
         worker_pool_specs=[{
             "machine_spec": {
                 "machine_type": machine_type,

@@ -1,12 +1,15 @@
 import os
 import argparse
+import sys
 import torch
 import pandas as pd
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from .experiment_utils import log_experiment_metrics, get_experiment_run
 from google.cloud import aiplatform
 from google.cloud import storage
 from sklearn.metrics import f1_score
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from experiment_utils import log_experiment_metrics, get_experiment_run
 
 def load_model_from_registry(model_resource_name, project_id, region, device="cpu"):
     """
