@@ -428,7 +428,11 @@ expected_schema = {
 ---
 
 ## Pipeline Gantt Chart
-![Gantt Chart](https://lucid.app/publicSegments/view/92fbd187-0444-4e76-9500-548e5bdb3c0f/image.png)
+### Data Pipeline:
+![Data Pipeline](https://lucid.app/publicSegments/view/92fbd187-0444-4e76-9500-548e5bdb3c0f/image.png)
+
+### Model Training:
+![Model Training](https://lucid.app/publicSegments/view/f019e1f0-e4ae-4d9a-a079-de2df7312c03/image.png)
 
 ---
 

@@ -38,7 +38,7 @@ def send_email_notification(subject, html_content, to_emails=None):
         return False
 
 
-def notify_task_failure(context):
+def notify_task_failure(context, to_emails=None):
     """
     Callback function to send email notification on task failure
     
@@ -152,7 +152,7 @@ def notify_task_failure(context):
     </html>
     """
     
-    send_email_notification(subject, html_content)
+    send_email_notification(subject, html_content, to_emails)
     logging.error(f"📧 Task failure notification sent for {dag_id}.{task_id}")
 
 

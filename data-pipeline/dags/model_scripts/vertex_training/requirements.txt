@@ -1,6 +1,14 @@
+# For Hugging Face models, training, and PEFT (LoRA)
 torch
 transformers
 datasets
 peft
+accelerate
+scikit-learn
+
+# For data handling
 pandas
-gcsfs
+
+# For GCS access and Vertex AI SDK
+google-cloud-storage
+google-cloud-aiplatform
