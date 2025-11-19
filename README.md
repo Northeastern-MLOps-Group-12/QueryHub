@@ -279,6 +279,92 @@ ls data/
 
 ---
 
+## Model Training and Evaluation Pipeline
+
+### Required Airflow Variables
+Set these variables in Airflow UI or via CLI:
+
+```bash
+# GCP Configuration
+airflow variables set gcp_project "your-project-id"
+airflow variables set gcp_region "your-project-region"
+airflow variables set service_account "your-service-account-email"
+
+# Training Configuration
+airflow variables set vertex_ai_training_image_uri "your-region-docker.pkg.dev/your-project/your-artifact/your-image-name:your-image-tag"
+airflow variables set serving_container_image_uri "us-docker.pkg.dev/vertex-ai/prediction/transformers-cpu:latest"
+airflow variables set vertex_ai_train_machine_type "your-machine-type"
+airflow variables set vertex_ai_train_gpu_type "your-gpu-type"
+airflow variables set vertex_ai_eval_machine_type "your-machine-type"
+airflow variables set vertex_ai_eval_gpu_type "your-gpu-type"
+
+# Data Paths
+airflow variables set gcp_train_data_path "gs://your-bucket/optional-folder/train-file-name"
+airflow variables set gcp_val_data_path "gs://your-bucket/optional-folder/val-file-name"
+airflow variables set gcp_test_data_path "gs://your-bucket/optional-folder/test-file-name"
+airflow variables set gcp_evaluation_output_csv "	
+gs://your-bucket/optional-folder/"
+airflow variables set gcs_bias_and_syntax_validation_output "gs://your-bucket/optional-folder/"
+airflow variables set gcs_registered_models "gs://your-bucket/optional-folder"
+airflow variables set gcs_staging_bucket "gs://your-bucket/optional-folder"
+airflow variables set gcs_bucket_name "your-bucket"
+```
+
+### Required GCP Resources
+
+1. **GCS Buckets**:
+   - Training, Testing, and Validation data
+   - Pre-built Model Artifacts
+   - Prediction results folder
+   - Evaluation results folder
+   - Validation outputs folder
+
+2. **Vertex AI**:
+   - Enough GPU Quota (ideally 2)
+   - Enabled Vertex AI API
+   - Service account with appropriate permissions
+   - Model Registry enabled
+
+### Required Vertex AI Training and Evaluation Image
+Vertex AI requires a custom Docker image with all the files required on the go for running. This image must be built from the `data-pipeline/dags/model_scripts/vertex_training` folder and pushed to **Artifact Registry**.
+
+1. **Training Job:**
+The code used by Vertex AI during training exists in the `data-pipeline/dags/model_scripts/vertex_training/train.py` file.
+
+2. **Evaluation Job:**
+The code used by Vertex AI during evaluation exists in the `data-pipeline/dags/model_scripts/vertex_training/model_eval.py` file.
+
+#### **Steps to Build & Push the Training Image**
+
+#### 1. Build the Docker Image
+Run the following command from `data-pipeline/dags/model_scripts/vertex_training` directory:
+
+```bash
+docker build --platform linux/amd64 -t your-region-docker.pkg.dev/your-project/your-artifact/your-image-name:your-image-tag .
+```
+
+#### 2. Push the Image to Artifact Registry
+```bash
+docker push your-region-docker.pkg.dev/your-project/your-artifact/your-image-name:your-image-tag
+```
+
+---
+
+### Usage
+
+#### Trigger from Airflow UI
+1. Navigate to DAGs in the Airflow web UI
+2. Locate vertex_ai_model_training_pipeline
+3. Click Trigger DAG
+
+#### Trigger from CLI
+
+  ```bash
+  airflow dags trigger vertex_ai_model_training_pipeline
+  ```
+
+---
+
 ## Database Connector
 
 ### Environment Variables
@@ -414,6 +500,20 @@ QueryHub/
 │   ├── .dvc/
 │   │   └── config                                  # DVC configuration
 │   ├── dags/
+│   │   ├── model_scripts/                          # Model Training and Evaluation DAG
+│   │   │   ├── vertex_training/                    # Custom Docker Image for Vertex AI
+│   │   │   │   ├── Dockerfile
+│   │   │   │   ├── experiment_utils.py             # Utility functions for logging and managing experiments
+│   │   │   │   ├── model_eval.py                   # Script to evaluate models on test datasets
+│   │   │   │   ├── README.md
+│   │   │   │   ├── requirements.txt
+│   │   │   │   └── train.py                        # Script to fine-tune/train models on Vertex AI
+│   │   │   ├── bias_detection.py                   # Task for detecting performance bias by SQL complexity
+│   │   │   ├── model_eval_job_launcher.py          # Script to submit evaluation jobs to Vertex AI
+│   │   │   ├── README.md
+│   │   │   ├── retrain_model.py                    # Functions to fetch latest models and trigger retraining
+│   │   │   ├── syntax_validation.py                # Script to validate syntax of predicted SQL queries
+│   │   │   └── train_utils.py                      # Helper functions used during training/fine-tuning
 │   │   ├── utils/
 │   │   │   ├── DataGenData/
 │   │   │   │   ├── DomainData/                     # Domain-specific synthetic data generators
@@ -439,9 +539,11 @@ QueryHub/
 │   │   │   ├── DataGenerator.py                    # Main synthetic data generator
 │   │   │   ├── EmailContentGenerator.py            # Email notification utilities
 │   │   │   ├── SQLValidator.py                     # Validates SQL using sqlglot
-│   │   │   └── __init__.py
-│   │   └── data_pipeline_dag.py                    # Main Airflow DAG
+│   │   │   └── test_utils.py                       # Utility Function for tests
+│   │   ├── data_pipeline_dag.py                    # Main Airflow DAG
+│   │   └── train_model_and_save.py                 # Model Training DAG
 │   ├── tests/
+│   │   ├── model_training_tests.py                 # Model Training Tests
 │   │   └── test.py                                 # Pytest suite (45 tests)
 │   ├── .dvcignore                                  # DVC ignore patterns
 │   ├── Dockerfile                                  # Docker image for data pipeline
@@ -485,6 +587,7 @@ QueryHub/
 - ### [Data Pipeline Document](https://drive.google.com/file/d/16-PMufGVTTjZV_wD82Gt67hwiSHLNgZb/view?usp=sharing)
 - ### [Errors + Graceful Failures](https://drive.google.com/file/d/19lTvv-opQvoHg_TPCLMkKkeQnZggVjZA/view?usp=sharing)
 - ### [User Needs + Defining Success](https://drive.google.com/file/d/1QPuquIgZYNhsXJazj4CHYTqXD0pHxyRW/view?usp=sharing)
+- ### [Model Development Document](https://docs.google.com/document/d/1D5nyl2Pb45JF5NJGTn9cwV6xBmpFTchtbwbQRXK_C5E/edit?usp=sharing)
 
 ---
 

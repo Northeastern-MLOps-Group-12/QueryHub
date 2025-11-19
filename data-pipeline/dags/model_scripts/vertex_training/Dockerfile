@@ -10,6 +10,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy training script
 COPY train.py /app/train.py
+COPY model_eval.py /app/model_eval.py
+COPY experiment_utils.py /app/experiment_utils.py
+
+# Set working directory
 WORKDIR /app
 
 # Default command
