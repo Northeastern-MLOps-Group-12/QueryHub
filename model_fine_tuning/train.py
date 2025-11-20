@@ -92,6 +92,8 @@ def main():
     parser.add_argument("--max_target_length", type=int, default=256)
     
     # Training hyperparameters
+    parser.add_argument("--train_samples", type=int, default=10000)
+    parser.add_argument("--val_samples", type=int, default=2000)
     parser.add_argument("--num_train_epochs", type=int, default=3)
     parser.add_argument("--per_device_train_batch_size", type=int, default=32)
     parser.add_argument("--per_device_eval_batch_size", type=int, default=16)
@@ -147,8 +149,10 @@ def main():
     print(f"Val dataset size: {len(df_val)}")
     
     # Optional: sampling for memory limits
-    df_train = df_train.sample(n=min(len(df_train), 1), random_state=42)
-    df_val = df_val.sample(n=min(len(df_val), 1), random_state=42)
+    train_samples = args.train_samples
+    val_samples = args.val_samples
+    df_train = df_train.sample(n=min(len(df_train), train_samples), random_state=42)
+    df_val = df_val.sample(n=min(len(df_val), val_samples), random_state=42)
     
     gc.collect()
     

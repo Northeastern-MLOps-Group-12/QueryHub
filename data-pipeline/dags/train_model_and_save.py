@@ -4,7 +4,6 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.models import Variable
 from datetime import datetime, timedelta
-
 from model_scripts.retrain_model import (
     fetch_latest_model,
     train_on_vertex_ai,
@@ -13,7 +12,7 @@ from model_scripts.retrain_model import (
 from model_scripts.bias_detection import run_bias_detection
 from model_scripts.model_eval_job_launcher import launch_evaluation_job
 from model_scripts.syntax_validation import run_syntax_validation_task
-from dags.utils.test_utils import run_unit_tests
+from utils.test_utils import run_unit_tests
 from utils.EmailContentGenerator import notify_task_failure
 
 # Get alert email
@@ -84,6 +83,9 @@ def create_model_training_dag():
                 "gpu_type": Variable.get("vertex_ai_train_gpu_type"),
                 "gcs_staging_bucket": Variable.get("gcs_staging_bucket"),
                 "gcs_registered_models": Variable.get("gcs_registered_models"),
+                "train_samples": int(Variable.get("train_samples")),
+                "val_samples": int(Variable.get("val_samples")),
+                "num_train_epochs": int(Variable.get("num_train_epochs")),
             }
         )
 

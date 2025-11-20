@@ -3,6 +3,8 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from airflow.exceptions import AirflowException
+import sys
+sys.path.insert(0, '/opt/airflow')
 
 @pytest.fixture(scope='session', autouse=True)
 def mock_airflow_variables():
@@ -25,6 +27,9 @@ def mock_airflow_variables():
         "vertex_ai_eval_machine_type": "n1-standard-2",
         "vertex_ai_eval_gpu_type": "NVIDIA_TESLA_T4",
         "gcs_bias_and_syntax_validation_output": "gs://bucket/bias_output",
+        "train_samples": "1000",
+        "val_samples": "200",
+        "num_train_epochs": "3",
     }
     
     with patch('airflow.models.Variable.get') as mock_get:
@@ -160,6 +165,9 @@ class TestModelTrainingDAG:
             "gpu_type": "NVIDIA_TESLA_T4",
             "gcs_staging_bucket": "gs://bucket/staging",
             "gcs_registered_models": "gs://bucket/registered_models",
+            "train_samples": 1000,
+            "val_samples": 200,
+            "num_train_epochs": 3,
         }
         assert train_task.op_kwargs == expected_train_kwargs
 
@@ -301,6 +309,9 @@ class TestModelTrainingDAG:
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
                 gcs_registered_models="gs://bucket/registered_models",
+                train_samples=1000,
+                val_samples=200,
+                num_train_epochs=3,
                 ti=mock_ti
             )
             
@@ -343,6 +354,9 @@ class TestModelTrainingDAG:
                     gpu_type="NVIDIA_TESLA_T4",
                     gcs_staging_bucket="gs://bucket/staging",
                     gcs_registered_models="gs://bucket/registered_models",
+                    train_samples=1000,
+                    val_samples=200,
+                    num_train_epochs=3,
                     ti=mock_ti
                 )
                 # If it doesn't raise an error, that's fine - just verify it was called
@@ -381,6 +395,9 @@ class TestModelTrainingDAG:
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
                 gcs_registered_models="gs://bucket/registered_models",
+                train_samples=1000,
+                val_samples=200,
+                num_train_epochs=3,
                 ti=mock_ti
             )
             
