@@ -1,5 +1,4 @@
 # For Hugging Face models, training, and PEFT (LoRA)
-torch
 transformers
 datasets
 peft
