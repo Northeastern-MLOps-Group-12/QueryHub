@@ -67,7 +67,7 @@ class TestModelTrainingDAG:
 
         assert dag.default_args['email_on_failure'] is True
         assert dag.default_args['email_on_retry'] is False
-        assert dag.default_args['retries'] == 1
+        assert dag.default_args['retries'] == 2
         assert dag.default_args['retry_delay'] == timedelta(minutes=5)
         assert dag.default_args['execution_timeout'] == timedelta(hours=6)
 
@@ -1133,7 +1133,7 @@ class TestModelTrainingDAG:
         
         for task in python_tasks:
             # All Python tasks should inherit DAG-level retry settings
-            assert task.retries == 1
+            assert task.retries == 2
             assert task.retry_delay == timedelta(minutes=5)
             assert task.execution_timeout == timedelta(hours=6)
 
