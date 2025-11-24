@@ -33,7 +33,7 @@ default_args = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 2,
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=6),
     'on_failure_callback': failure_callback,
