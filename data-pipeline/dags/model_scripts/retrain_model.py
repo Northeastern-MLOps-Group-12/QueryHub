@@ -1,28 +1,14 @@
 from airflow.exceptions import AirflowException
 from google.cloud import storage
-from model_scripts.train_utils import submit_vertex_training_job
 from airflow.models import Variable
 from datetime import datetime
 from google.cloud import aiplatform
-from pathlib import Path
-import sys
-current_file = Path(__file__).resolve()
-
-# Two parent directories
-parent_dir = current_file.parent.parent
-grandparent_dir = current_file.parent.parent.parent
-
-# Add to sys.path
-sys.path.insert(0, str(parent_dir))
-sys.path.insert(0, str(grandparent_dir))
-
-# Now imports should work
-from model_scripts.vertex_training.experiment_utils import (
+from model_scripts.train_utils import submit_vertex_training_job
+from model_scripts.dag_experiment_utils import (
     start_experiment_run, 
     log_experiment_params,
     get_experiment_run
 )
-
 
 def fetch_latest_model(project_id, gcs_bucket_name, region, **kwargs):
     """
@@ -59,7 +45,7 @@ def fetch_latest_model(project_id, gcs_bucket_name, region, **kwargs):
     return latest_model_path
 
 
-def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, container_image_uri, machine_type, gpu_type, gcs_staging_bucket, gcs_registered_models, **kwargs):
+def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, container_image_uri, machine_type, gpu_type, gcs_staging_bucket, gcs_registered_models, train_samples, val_samples, num_train_epochs, **kwargs):
     """
     Submit Vertex AI Custom Training Job using latest model files + image.
     """
@@ -107,6 +93,9 @@ def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, contain
         gcs_val_data=gcs_val_data,
         gcs_output_dir=gcs_output_dir,
         gcs_staging_bucket=gcs_staging_bucket,
+        train_samples=train_samples,
+        val_samples=val_samples,
+        num_train_epochs=num_train_epochs,
         run_name=run_name
     )
 

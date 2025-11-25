@@ -1,10 +1,10 @@
 from google.cloud import aiplatform
-from model_scripts.vertex_training.experiment_utils import ( 
+from model_scripts.dag_experiment_utils import ( 
     log_experiment_params,
     get_experiment_run
 )
 
-def submit_vertex_training_job(project_id, region, container_image_uri, machine_type, gpu_type, gcs_model_dir, gcs_train_data, gcs_val_data, gcs_output_dir, gcs_staging_bucket, run_name):
+def submit_vertex_training_job(project_id, region, container_image_uri, machine_type, gpu_type, gcs_model_dir, gcs_train_data, gcs_val_data, gcs_output_dir, gcs_staging_bucket, train_samples, val_samples, num_train_epochs, run_name):
     """
     Submit Vertex AI custom training job (LoRA fine-tuning)
     """
@@ -16,7 +16,9 @@ def submit_vertex_training_job(project_id, region, container_image_uri, machine_
         f"--val_data={gcs_val_data}",
         f"--model_dir={gcs_model_dir}",
         f"--output_dir={gcs_output_dir}",
-        "--num_train_epochs=1",
+        f"--train_samples={train_samples}",
+        f"--val_samples={val_samples}",
+        f"--num_train_epochs={num_train_epochs}",
         "--per_device_train_batch_size=32",
         "--per_device_eval_batch_size=16",
         "--gradient_accumulation_steps=4",

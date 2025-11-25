@@ -118,6 +118,7 @@ dvc version
 data-pipeline/
 │
 ├── dags/
+│   ├── model_scripts/                          # Model Training Files
 │   ├── data_pipeline_dag.py                    # Main Airflow DAG
 │   │
 │   └── utils/
@@ -158,7 +159,8 @@ data-pipeline/
 │   └── engineered_schema_and_stats.json        # Final data statistics
 │
 ├── tests/
-│   └── test.py                                 # Comprehensive pytest suite (45 tests)
+│   └── model_training_tests.py                 # Test cases for model training pipeline
+│   └── test.py                                 # Comprehensive pytest for data pipeline
 │
 ├── logs/
 │   └── (Airflow logs - auto-generated)

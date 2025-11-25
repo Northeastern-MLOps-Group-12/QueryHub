@@ -4,7 +4,6 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.models import Variable
 from datetime import datetime, timedelta
-
 from model_scripts.retrain_model import (
     fetch_latest_model,
     train_on_vertex_ai,
@@ -13,8 +12,8 @@ from model_scripts.retrain_model import (
 from model_scripts.bias_detection import run_bias_detection
 from model_scripts.model_eval_job_launcher import launch_evaluation_job
 from model_scripts.syntax_validation import run_syntax_validation_task
-from dags.utils.test_utils import run_unit_tests
-from utils.EmailContentGenerator import notify_task_failure
+from utils.test_utils import run_unit_tests
+from utils.EmailContentGenerator import notify_task_failure, notify_pipeline_success
 
 # Get alert email
 ALERT_EMAIL = os.getenv('ALERT_EMAIL', Variable.get("alert_email"))
@@ -23,6 +22,10 @@ def failure_callback(context):
     """Wrapper to call notify_task_failure with the email"""
     return notify_task_failure(context, to_emails=[ALERT_EMAIL])
 
+def success_callback(context):
+    """Wrapper to call notify_pipeline_success with the email"""
+    return notify_pipeline_success(context, to_emails=[ALERT_EMAIL])
+
 # DAG default arguments
 default_args = {
     'owner': 'data-engineering',
@@ -30,7 +33,7 @@ default_args = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 2,
     'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=6),
     'on_failure_callback': failure_callback,
@@ -84,6 +87,9 @@ def create_model_training_dag():
                 "gpu_type": Variable.get("vertex_ai_train_gpu_type"),
                 "gcs_staging_bucket": Variable.get("gcs_staging_bucket"),
                 "gcs_registered_models": Variable.get("gcs_registered_models"),
+                "train_samples": int(Variable.get("train_samples")),
+                "val_samples": int(Variable.get("val_samples")),
+                "num_train_epochs": int(Variable.get("num_train_epochs")),
             }
         )
 
@@ -142,8 +148,14 @@ def create_model_training_dag():
             }
         )
 
-        # Training completion and failure handlers
-        training_completed = EmptyOperator(task_id='training_completed', trigger_rule='all_success')
+        # Training completion nodes
+        training_completed = EmptyOperator(
+            task_id='training_completed', 
+            trigger_rule='all_success',
+            on_success_callback=success_callback
+        )
+
+        # Training failure node
         training_failed = EmptyOperator(task_id='training_failed', trigger_rule='one_failed')
 
         # DAG flow

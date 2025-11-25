@@ -1,5 +1,200 @@
 import logging
 
+def notify_pipeline_success(context, to_emails=None):
+    """
+    Callback function to send email notification on pipeline success
+    
+    Args:
+        context (dict): Airflow context dictionary containing task instance info
+        to_emails (list): List of email addresses to send to
+    """
+    import os
+    from airflow.utils.email import send_email
+    from airflow.models import Variable
+    from datetime import datetime
+    from google.cloud import aiplatform
+    
+    # Use default email if not provided
+    if to_emails is None:
+        to_emails = [os.getenv('ALERT_EMAIL', 'veddeore2312@gmail.com')]
+    
+    task_instance = context.get('task_instance')
+    dag = context.get('dag')
+    dag_id = dag.dag_id if dag else 'unknown'
+    dag_run = context.get('dag_run')
+    
+    # Pull metrics from XCom (from bias_detection and syntax_validation tasks)
+    ti = task_instance
+    
+    # Get parameters
+    experiment_run_name = ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') or 'N/A'
+    project_id = Variable.get("gcp_project")
+    region = Variable.get("gcp_region")
+    
+    # Fetch metrics from Vertex AI Experiment
+    try:
+        # init() sets the project and location context
+        aiplatform.init(project=project_id, location=region)
+        
+        # Get the run object directly by its name and experiment name
+        run = aiplatform.ExperimentRun(
+            run_name=experiment_run_name,
+            experiment='queryhub-experiments'
+        )
+        
+        # Get metrics from the run
+        metrics = run.get_metrics()
+        
+        exact_match = metrics.get('exact_match', 0.0)
+        f1_score = metrics.get('f1_score', 0.0)
+        syntax_overall = metrics.get('syntax_overall', 0.0)
+        per_bucket_path = metrics.get('per_bucket_complexity_eval', 'N/A')
+        complexity_dist_path = metrics.get('sql_complexity_distribution', 'N/A')
+        per_complexity_validation_path = metrics.get('per_complexity_validation', 'N/A')
+
+    except Exception as e:
+        print(f"Warning: Could not fetch metrics from Vertex AI: {e}")
+        # Fallback to default values
+        exact_match = 0.0
+        f1_score = 0.0
+        syntax_overall = 0.0
+        per_bucket_path = 'N/A'
+        complexity_dist_path = 'N/A'
+        per_complexity_validation_path = 'N/A'
+    
+    subject = f"✅ Model Training Pipeline Completed Successfully - {experiment_run_name}"
+    
+    html_content = f'''
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+            .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
+            .content {{ padding: 20px; }}
+            .metric-box {{ 
+                background-color: #f5f5f5; 
+                border-left: 4px solid #4CAF50; 
+                padding: 15px; 
+                margin: 10px 0; 
+            }}
+            .metric-label {{ font-weight: bold; color: #333; }}
+            .metric-value {{ color: #4CAF50; font-size: 1.2em; }}
+            .artifact-link {{ 
+                color: #2196F3; 
+                text-decoration: none; 
+                word-break: break-all;
+            }}
+            table {{ 
+                border-collapse: collapse; 
+                width: 100%; 
+                margin: 15px 0; 
+            }}
+            th, td {{ 
+                border: 1px solid #ddd; 
+                padding: 12px; 
+                text-align: left; 
+            }}
+            th {{ 
+                background-color: #4CAF50; 
+                color: white; 
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🎉 Model Training Pipeline Completed Successfully</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Pipeline Summary</h2>
+            <table>
+                <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td><strong>DAG ID</strong></td>
+                    <td>{dag_id}</td>
+                </tr>
+                <tr>
+                    <td><strong>Run ID</strong></td>
+                    <td>{dag_run.run_id if dag_run else 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td><strong>Experiment Run</strong></td>
+                    <td>{experiment_run_name}</td>
+                </tr>
+                <tr>
+                    <td><strong>Completion Time</strong></td>
+                    <td>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                </tr>
+            </table>
+            
+            <h2>📊 Model Performance Metrics</h2>
+            
+            <div class="metric-box">
+                <span class="metric-label">Exact Match:</span> 
+                <span class="metric-value">{exact_match:.4f}</span>
+            </div>
+            
+            <div class="metric-box">
+                <span class="metric-label">F1 Score:</span> 
+                <span class="metric-value">{f1_score:.4f}</span>
+            </div>
+            
+            <div class="metric-box">
+                <span class="metric-label">Syntax Validity (Overall):</span> 
+                <span class="metric-value">{syntax_overall:.4f}</span>
+            </div>
+            
+            <h2>📁 Evaluation Artifacts</h2>
+            
+            <table>
+                <tr>
+                    <th>Artifact Type</th>
+                    <th>GCS Path</th>
+                </tr>
+                <tr>
+                    <td><strong>Per-Bucket Complexity Evaluation</strong></td>
+                    <td><a class="artifact-link" href="{per_bucket_path}">{per_bucket_path}</a></td>
+                </tr>
+                <tr>
+                    <td><strong>SQL Complexity Distribution</strong></td>
+                    <td><a class="artifact-link" href="{complexity_dist_path}">{complexity_dist_path}</a></td>
+                </tr>
+                <tr>
+                    <td><strong>Per-Complexity Validation</strong></td>
+                    <td><a class="artifact-link" href="{per_complexity_validation_path}">{per_complexity_validation_path}</a></td>
+                </tr>
+            </table>
+            
+            <h2>🔗 Quick Links</h2>
+            <ul>
+                <li><a href="https://console.cloud.google.com/vertex-ai/experiments">View in Vertex AI Experiments</a></li>
+                <li><a href="https://console.cloud.google.com/storage/browser">View GCS Artifacts</a></li>
+            </ul>
+            
+            <p style="margin-top: 30px; color: #666; font-size: 0.9em;">
+                This is an automated notification from the QueryHub ML Pipeline.
+            </p>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    try:
+        send_email(to=to_emails, subject=subject, html_content=html_content)
+        logging.info(f"✅ Email sent successfully to {', '.join(to_emails)}")
+    except Exception as e:
+        logging.error(f"❌ Failed to send email: {e}")
+        logging.info("💡 Tip: Configure SMTP settings in docker-compose.yaml or airflow.cfg")
+        logging.info("💡 Example SMTP config for Gmail:")
+        logging.info("   AIRFLOW__SMTP__SMTP_HOST=smtp.gmail.com")
+        logging.info("   AIRFLOW__SMTP__SMTP_PORT=587")
+        logging.info("   AIRFLOW__SMTP__SMTP_USER=your-email@gmail.com")
+        logging.info("   AIRFLOW__SMTP__SMTP_PASSWORD=your-app-password")
+        logging.info("   AIRFLOW__SMTP__SMTP_MAIL_FROM=your-email@gmail.com")
+        return False
 
 def send_email_notification(subject, html_content, to_emails=None):
     """

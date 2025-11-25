@@ -1,20 +1,16 @@
-# Base Python image
-FROM python:3.11-slim
+FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
 
-# Install system packages
+# Install your other dependencies
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy training script
+# Copy your scripts
 COPY train.py /app/train.py
 COPY model_eval.py /app/model_eval.py
 COPY experiment_utils.py /app/experiment_utils.py
 
-# Set working directory
 WORKDIR /app
 
-# Default command
 CMD ["python3", "train.py"]
