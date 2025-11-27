@@ -5,8 +5,9 @@ on:
     branches:
       - main
       - dev
-    paths:
-      - "backend/**"
+      - connections_cruds
+    # paths:
+    #   - "backend/**"
   workflow_dispatch:
 
 env:
