@@ -1,0 +1,13 @@
+# For Hugging Face models, training, and PEFT (LoRA)
+transformers
+datasets
+peft
+accelerate
+scikit-learn
+
+# For data handling
+pandas
+
+# For GCS access and Vertex AI SDK
+google-cloud-storage
+google-cloud-aiplatform
