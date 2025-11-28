@@ -54,13 +54,18 @@ def build_vector_store(state):
 
     # Initialize the Chroma vector store
     vector_store = ChromaVectorStore(
+        user_id=config['user_id'], 
         db_name=config['db_name'],        # Name of the database
         embedding_model=EMBEDDING_MODEL,  # Embedding model to use
         model='gemini'                    # Model type
     )
 
+    if vector_store.exists():
+        print("⚠️ Existing vector store found. Resetting...")
+        vector_store.reset()
+
     # Build the vector store from the database schema and data
     vector_store.build(connector=connector)
-    trace(f"✅ Vector store built for {config['db_name']}")
+    print(f"✅ Vector store built for {config['db_name']}")
 
     return state

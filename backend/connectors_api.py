@@ -5,7 +5,12 @@ from .models.connector_request import ConnectorRequest
 from agents.load_data_to_vector.graph import build_graph
 from agents.load_data_to_vector.state import AgentState
 from fastapi.middleware.cors import CORSMiddleware
+# from agents.load_data_to_vector.chroma_vector_store import ChromaVectorStore
+from vectorstore.chroma_vector_store import ChromaVectorStore
+from backend.utils.connectors_api_utils import structure_vector_store_data
 import os
+import json
+from connectors.engines.postgres.postgres_connector import PostgresConnector
 
 # Connector API service entrypoint: exposes endpoints to create/test connectors.
 # - ConnectorRequest: Pydantic model describing the incoming payload (engine, provider, config).
@@ -23,6 +28,8 @@ import os
 
 # CORS configuration
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+MODEL = os.getenv("MODEL")
 
 app = FastAPI(title="Connector Service API")
 
@@ -52,3 +59,74 @@ def connect(request: ConnectorRequest):
         return {"success": True, "message": f"{request.engine}-{request.provider} connector created!"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/connect/getAllConnections/{user_id}")
+def get_all_connections(user_id: str):
+    """
+    Get all vector store collections for a specific user with structured data.
+    """
+    try:
+        vector_stores_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "vectorstore", "VectorStores")
+        
+        all_connections = {}
+        
+        if os.path.exists(vector_stores_dir):
+            for folder in os.listdir(vector_stores_dir):
+                if folder.startswith("chroma_") and folder.endswith(f"_{user_id}"):
+                    db_name = folder.replace("chroma_", "").replace(f"_{user_id}", "")
+                    vector_store = ChromaVectorStore(user_id=user_id, db_name=db_name, embedding_model=EMBEDDING_MODEL, model=MODEL)
+                    raw_data = vector_store.get_all_vector_stores()
+                    
+                    # Structure the data
+                    all_connections[db_name] = structure_vector_store_data(raw_data)
+        
+        return {"success": True, "user_id": user_id, "connections": all_connections}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/connect/deleteConnection/{user_id}/{db_name}")
+def delete_connection(user_id: int, db_name: str):
+    """
+    Delete a specific vector store for a user.
+    """
+    try:
+        vector_store = ChromaVectorStore(
+            user_id=user_id, 
+            db_name=db_name, 
+            embedding_model=EMBEDDING_MODEL, 
+            model=MODEL
+        )
+        
+        if not vector_store.exists():
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Connection '{db_name}' not found for user '{user_id}'"
+            )
+        
+        is_vectore_deleted = vector_store.delete()
+
+        if is_vectore_deleted:
+            # Also delete credentials from the database
+            connector = PostgresConnector(config={
+                "user_id": user_id,
+                "db_name": db_name
+            })
+            connector.delete_creds()
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to delete connection '{db_name}' for user '{user_id}'"
+            )
+
+        
+        return {
+            "success": True, 
+            "message": f"Connection '{db_name}' deleted successfully for user '{user_id}'"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

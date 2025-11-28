@@ -20,3 +20,27 @@ def create_record(db: Session, model_class, data: dict):
     db.refresh(new_record)
     return new_record
 
+def delete_record(db: Session, model_class, user_id: int, db_name: str):
+    """
+    Delete a record from any table by user_id and db_name.
+
+    Args:
+        db (Session): SQLAlchemy session.
+        model_class: SQLAlchemy ORM model class (e.g., Credentials).
+        user_id (str): The user's ID.
+        db_name (str): The database name.
+
+    Returns:
+        bool: True if record was deleted, False if not found.
+    """
+    record = db.query(model_class).filter(
+        model_class.user_id == user_id,
+        model_class.db_name == db_name
+    ).first()
+    
+    if record:
+        db.delete(record)
+        db.commit()
+        return True
+    return False
+

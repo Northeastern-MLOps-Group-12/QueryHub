@@ -3,7 +3,7 @@ import urllib.parse
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from ...base_connector import BaseConnector
-from databases.cloudsql.crud import create_record
+from databases.cloudsql.crud import create_record, delete_record
 from databases.cloudsql.database import get_db
 from databases.cloudsql.models.credentials import Credentials
 from langsmith import traceable
@@ -35,7 +35,9 @@ class PostgresConnector(BaseConnector):
 
             connection_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db_name}"
 
-            self.engine = create_engine(connection_url)
+            self.engine = create_engine(
+                connection_url
+            )
             self.conn = self.engine.connect()
             trace("✅ Connected successfully using SQLAlchemy!")
             return self.conn
@@ -109,3 +111,12 @@ class PostgresConnector(BaseConnector):
         })
 
         trace("✅ Connection metadata saved successfully!")
+    
+    def delete_creds(self):
+        
+        # --- Save credentials to DB
+        db = next(get_db())
+    
+        delete_record(db, Credentials, self.config['user_id'], self.config['db_name'])
+
+        print("✅ Connection metadata deleted successfully!")

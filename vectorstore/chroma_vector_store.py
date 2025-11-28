@@ -10,6 +10,8 @@ from connectors.connector import Connector
 from agents.base_agent import Agent
 from langsmith import traceable
 from langsmith.run_helpers import trace
+import chromadb
+        
 
 load_dotenv()
 
@@ -18,10 +20,11 @@ DIR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VectorStore
 LLM_API_KEY=os.environ["LLM_API_KEY"]
 
 class ChromaVectorStore:
-    def __init__(self, db_name: str, embedding_model: str = "text-embedding-3-large", model='gpt'):
+    def __init__(self, user_id: str, db_name: str, embedding_model: str = "text-embedding-3-large", model='gpt'):
+        self.user_id = user_id
         self.db_name = db_name
-        self.persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}")
-        self.collection_name = f"chroma_{db_name}_schema"
+        self.persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}_{user_id}")
+        self.collection_name = f"chroma_{db_name}_schema_{user_id}"
         self.embedding_function = OpenAIEmbeddings(model=embedding_model) if model == "gpt" else GoogleGenerativeAIEmbeddings(model=embedding_model, google_api_key=LLM_API_KEY)
         self.vector_store = None
         self.model = model
@@ -31,9 +34,10 @@ class ChromaVectorStore:
 
     @traceable(name="build_vector_store")
     def build(self, connector: Connector):
+        print("Building vector store...")
         if self.exists():
             trace("Vector Store already exists")
-            return
+            self.reset()
 
         self.vector_store = Chroma(
             collection_name=self.collection_name,
@@ -42,9 +46,9 @@ class ChromaVectorStore:
         )
 
         tables_metadata, table_descriptions, dataset_desc = self.generate_data(connector=connector)
-        trace("tables_metadata:", tables_metadata)
-        trace("✅table_descriptions:", table_descriptions)
-        trace("✅dataset_desc:", dataset_desc)
+        print("tables_metadata:", tables_metadata)
+        print("✅table_descriptions:", table_descriptions)
+        print("✅dataset_desc:", dataset_desc)
 
         for table_meta, table_desc in zip(tables_metadata, table_descriptions):
             self.vector_store.add_texts(
@@ -197,3 +201,30 @@ class ChromaVectorStore:
         }
 
         return agent.generate(prompt, prompt_placeholders)
+    
+    def get_all_vector_stores(self):
+        """Get all collections data as JSON."""
+        client = chromadb.PersistentClient(path=self.persist_directory)
+        collections = client.list_collections()
+        
+        all_data = {}
+        for col in collections:
+            collection = client.get_collection(name=col.name)
+            all_data[col.name] = collection.get()
+        
+        return all_data
+    
+    def reset(self):
+        """Cleanly delete the vector store folder."""
+        import shutil
+        if os.path.exists(self.persist_directory):
+            shutil.rmtree(self.persist_directory)
+            print("🧹 Vector store reset successfully")
+    
+    def delete(self):
+        """Delete the vector store for this user and database."""
+        import shutil
+        if os.path.exists(self.persist_directory):
+            shutil.rmtree(self.persist_directory)
+            return True
+        return False
