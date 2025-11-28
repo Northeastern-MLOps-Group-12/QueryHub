@@ -36,7 +36,7 @@ class ChromaVectorStore:
     def build(self, connector: Connector):
         print("Building vector store...")
         if self.exists():
-            trace("Vector Store already exists")
+            print("✅Vector Store already exists")
             self.reset()
 
         self.vector_store = Chroma(

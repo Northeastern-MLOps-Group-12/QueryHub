@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 from connectors.connector import Connector
 from .models.connector_request import ConnectorRequest 
-from agents.load_data_to_vector.graph import build_graph
+from agents.load_data_to_vector.graph import build_graph_to_load
+from agents.update_data_in_vector.graph import build_graph_to_update
 from agents.load_data_to_vector.state import AgentState
 from fastapi.middleware.cors import CORSMiddleware
 # from agents.load_data_to_vector.chroma_vector_store import ChromaVectorStore
@@ -49,7 +50,7 @@ def connect(request: ConnectorRequest):
     """
     try:
         initial_state = AgentState(engine=request.engine, creds=request.config)
-        graph = build_graph()
+        graph = build_graph_to_load()
 
         final_state = graph.invoke(
             initial_state,
@@ -57,6 +58,25 @@ def connect(request: ConnectorRequest):
         )
 
         return {"success": True, "message": f"{request.engine}-{request.provider} connector created!"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+
+@app.put("/connect/updateConnection")
+def connect(request: ConnectorRequest):
+    """
+    Call the factory function to get a connector instance and test connection.
+    """
+    try:
+        initial_state = AgentState(engine=request.engine, creds=request.config)
+        graph = build_graph_to_update()
+
+        final_state = graph.invoke(
+            initial_state,
+            config={"configurable": {"thread_id": 1}}
+        )
+
+        return {"success": True, "message": f"{request.engine}-{request.provider} connector updated!"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -44,3 +44,32 @@ def delete_record(db: Session, model_class, user_id: int, db_name: str):
         return True
     return False
 
+
+def update_record(db: Session, model_class, user_id: int, connection_name: str, data: dict):
+    """
+    Update a record in any table by user_id and connection_name.
+
+    Args:
+        db (Session): SQLAlchemy session.
+        model_class: SQLAlchemy ORM model class (e.g., Credentials).
+        user_id (int): The user's ID.
+        connection_name (str): The connection name.
+        data (dict): Dictionary of fields to update.
+
+    Returns:
+        The updated record if found, None otherwise.
+    """
+    record = db.query(model_class).filter(
+        model_class.user_id == int(user_id),
+        model_class.connection_name == connection_name
+    ).first()
+    
+    if record:
+        for key, value in data.items():
+            if hasattr(record, key):
+                setattr(record, key, value)
+        db.commit()
+        db.refresh(record)
+        return record
+    return None
+
