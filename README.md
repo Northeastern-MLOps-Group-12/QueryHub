@@ -297,6 +297,9 @@ airflow variables set vertex_ai_train_machine_type "your-machine-type"
 airflow variables set vertex_ai_train_gpu_type "your-gpu-type"
 airflow variables set vertex_ai_eval_machine_type "your-machine-type"
 airflow variables set vertex_ai_eval_gpu_type "your-gpu-type"
+airflow variables set train_samples "train_samples_number"
+airflow variables set val_samples "validation_samples_number"
+airflow variables set num_train_epochs "num_of_train_epochs"
 
 # Data Paths
 airflow variables set gcp_train_data_path "gs://your-bucket/optional-folder/train-file-name"
@@ -326,18 +329,18 @@ airflow variables set gcs_bucket_name "your-bucket"
    - Model Registry enabled
 
 ### Required Vertex AI Training and Evaluation Image
-Vertex AI requires a custom Docker image with all the files required on the go for running. This image must be built from the `data-pipeline/dags/model_scripts/vertex_training` folder and pushed to **Artifact Registry**.
+Vertex AI requires a custom Docker image with all the files required on the go for running. This image must be built from the `model_fine_tuning` folder and pushed to **Artifact Registry**.
 
 1. **Training Job:**
-The code used by Vertex AI during training exists in the `data-pipeline/dags/model_scripts/vertex_training/train.py` file.
+The code used by Vertex AI during training exists in the `model_fine_tuning/vertex_ai_image/train.py` file.
 
 2. **Evaluation Job:**
-The code used by Vertex AI during evaluation exists in the `data-pipeline/dags/model_scripts/vertex_training/model_eval.py` file.
+The code used by Vertex AI during evaluation exists in the `model_fine_tuning/vertex_ai_image/model_eval.py` file.
 
 #### **Steps to Build & Push the Training Image**
 
 #### 1. Build the Docker Image
-Run the following command from `data-pipeline/dags/model_scripts/vertex_training` directory:
+Run the following command from `model_fine_tuning/vertex_ai_image` directory:
 
 ```bash
 docker build --platform linux/amd64 -t your-region-docker.pkg.dev/your-project/your-artifact/your-image-name:your-image-tag .
@@ -501,14 +504,8 @@ QueryHub/
 │   │   └── config                                  # DVC configuration
 │   ├── dags/
 │   │   ├── model_scripts/                          # Model Training and Evaluation DAG
-│   │   │   ├── vertex_training/                    # Custom Docker Image for Vertex AI
-│   │   │   │   ├── Dockerfile
-│   │   │   │   ├── experiment_utils.py             # Utility functions for logging and managing experiments
-│   │   │   │   ├── model_eval.py                   # Script to evaluate models on test datasets
-│   │   │   │   ├── README.md
-│   │   │   │   ├── requirements.txt
-│   │   │   │   └── train.py                        # Script to fine-tune/train models on Vertex AI
 │   │   │   ├── bias_detection.py                   # Task for detecting performance bias by SQL complexity
+│   │   │   ├── dag_experiment_utils.py             # Experiment Tracking Utility Functions
 │   │   │   ├── model_eval_job_launcher.py          # Script to submit evaluation jobs to Vertex AI
 │   │   │   ├── README.md
 │   │   │   ├── retrain_model.py                    # Functions to fetch latest models and trigger retraining
@@ -560,6 +557,20 @@ QueryHub/
 │   │   ├── crud.py                                 # CRUD operations for cloud SQL
 │   │   └── database.py                             # DB connection/session management
 │   └── __init__.py
+│
+├── model_fine_tuning/  
+│   ├── ft_notebooks
+│   │   ├── QH_FT_Sensitivity.ipynb                 # Model Sensitivity
+│   │   ├── QH_FT_T1.ipynb                          # Trial 1 Training
+│   │   ├── QH_FT_T2.ipynb                          # Trial 2 Training
+│   │   └── QH_FT_T3.ipynb                          # Trial 3 Training
+│   └── vertex_ai_image
+│       ├── Dockerfile
+│       ├── experiment_utils.py                     # Utility functions for logging and managing experiments
+│       ├── model_eval.py                           # Script to evaluate models on test datasets
+│       ├── README.md
+│       ├── requirements.txt
+│       └── train.py                                # Script to fine-tune/train models on Vertex AI
 │
 ├── vectorstore/                                    # Vector database integration
 │   ├── __init__.md

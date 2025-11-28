@@ -5,24 +5,10 @@ from sqlglot import parse_one
 from google.cloud import aiplatform
 from pathlib import Path
 import sys
-current_file = Path(__file__).resolve()
-
-# Two parent directories
-parent_dir = current_file.parent.parent
-grandparent_dir = current_file.parent.parent.parent
-
-# Add to sys.path
-sys.path.insert(0, str(parent_dir))
-sys.path.insert(0, str(grandparent_dir))
-
-# Now imports should work
-from model_scripts.vertex_training.experiment_utils import (
+from model_scripts.bias_detection import upload_to_gcs
+from model_scripts.dag_experiment_utils import (
     log_experiment_metrics,
     get_experiment_run
-)
-
-from model_scripts.vertex_training.model_eval import (
-    upload_to_gcs,
 )
 
 def run_syntax_validation_task(project_id, region, run_name, gcs_csv_path, gcs_output_path, **kwargs):

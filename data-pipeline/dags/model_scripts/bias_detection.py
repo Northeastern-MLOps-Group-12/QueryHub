@@ -2,26 +2,31 @@ from google.cloud import storage
 import pandas as pd
 import os
 from datetime import datetime
-from pathlib import Path
-import sys
-current_file = Path(__file__).resolve()
-
-# Two parent directories
-parent_dir = current_file.parent.parent
-grandparent_dir = current_file.parent.parent.parent
-
-# Add to sys.path
-sys.path.insert(0, str(parent_dir))
-sys.path.insert(0, str(grandparent_dir))
-
-from model_scripts.vertex_training.experiment_utils import (
+from model_scripts.dag_experiment_utils import (
     get_experiment_run,
     log_experiment_metrics,
 )
 
-from model_scripts.vertex_training.model_eval import (
-    upload_to_gcs,
-)
+def upload_to_gcs(local_path: str, gcs_path: str):
+    """
+    Upload a local file to a given GCS path of format gs://bucket/path/to/file.
+    """
+    if not gcs_path.startswith("gs://"):
+        raise ValueError("gcs_path must start with gs://")
+
+    print(f"🔼 Uploading to GCS: {gcs_path}")
+
+    # Extract bucket + object name
+    path_no_prefix = gcs_path.replace("gs://", "")
+    bucket_name, object_name = path_no_prefix.split("/", 1)
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(object_name)
+
+    blob.upload_from_filename(local_path)
+
+    print(f"✅ Uploaded to gs://{bucket_name}/{object_name}")
 
 def run_bias_detection(project_id, region, run_name, gcs_csv_path, gcs_output_path, **kwargs):
     """
