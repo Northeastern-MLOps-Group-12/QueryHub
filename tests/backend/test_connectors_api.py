@@ -13,7 +13,7 @@ from backend.models.connector_request import ConnectorRequest
 client = TestClient(app)
 
 
-@patch("backend.connectors_api.build_graph")
+@patch("backend.connectors_api.build_graph_to_load")
 def test_connect_add_connection_success(mock_build_graph, sample_request_payload):
     """Test POST /connect/addConnection returns success."""
 
@@ -33,7 +33,7 @@ def test_connect_add_connection_success(mock_build_graph, sample_request_payload
     mock_graph_instance.invoke.assert_called_once()
 
 
-@patch("backend.connectors_api.build_graph")
+@patch("backend.connectors_api.build_graph_to_load")
 def test_connect_add_connection_failure(mock_build_graph, sample_request_payload):
     """Test POST /connect/addConnection handles exceptions correctly."""
 
