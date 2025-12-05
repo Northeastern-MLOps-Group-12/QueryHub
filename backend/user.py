@@ -1,10 +1,10 @@
 import os
-from backend import user_api, connectors_api
+from backend import user_api
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from databases.cloudsql.database import engine, Base
+from database import engine, Base
 
 load_dotenv()
 
@@ -30,7 +30,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(user_api.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(connectors_api.router, prefix="/api/connector", tags=["Connections"])
 
 @app.get("/")
 async def root():
@@ -39,13 +38,3 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-
-if __name__ == "__main__":
-    # Get the port from environment variable, default to 8080 if not set
-    # Useful for cloud platforms like Cloud Run that provide a PORT environment variable
-    port = int(os.environ.get("PORT", 8080))
-    
-    # Run the FastAPI app using uvicorn
-    # host="0.0.0.0" makes it accessible from outside the container
-    uvicorn.run(app, host="0.0.0.0", port=port)

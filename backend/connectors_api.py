@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter
 from fastapi.responses import JSONResponse
 from connectors.connector import Connector
 from .models.connector_request import ConnectorRequest 
@@ -6,7 +6,6 @@ from agents.load_data_to_vector.graph import build_graph_to_load
 from agents.update_data_in_vector.graph import build_graph_to_update
 from agents.load_data_to_vector.state import AgentState
 from fastapi.middleware.cors import CORSMiddleware
-# from agents.load_data_to_vector.chroma_vector_store import ChromaVectorStore
 from vectorstore.chroma_vector_store import ChromaVectorStore
 from backend.utils.connectors_api_utils import structure_vector_store_data
 import os
@@ -27,23 +26,9 @@ from connectors.engines.postgres.postgres_connector import PostgresConnector
 # - Routes should raise HTTPException for client errors; unexpected exceptions are caught in the route.
 # - If more fine-grained error handling is needed, add custom exception classes in connectors/agents.
 
-# CORS configuration
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
-MODEL = os.getenv("MODEL")
+router = APIRouter()
 
-app = FastAPI(title="Connector Service API")
-
-# Configure CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],  
-    allow_credentials=True,
-    allow_methods=["*"],        
-    allow_headers=["*"],         
-)
-
-@app.post("/connect/addConnection")
+@router.post("/connect/addConnection")
 def connect(request: ConnectorRequest):
     """
     Call the factory function to get a connector instance and test connection.
@@ -62,7 +47,7 @@ def connect(request: ConnectorRequest):
         raise HTTPException(status_code=400, detail=str(e))
     
 
-@app.put("/connect/updateConnection")
+@router.put("/connect/updateConnection")
 def connect(request: ConnectorRequest):
     """
     Call the factory function to get a connector instance and test connection.
@@ -80,7 +65,7 @@ def connect(request: ConnectorRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/connect/getAllConnections/{user_id}")
+@router.get("/connect/getAllConnections/{user_id}")
 def get_all_connections(user_id: str):
     """
     Get all vector store collections for a specific user with structured data.
@@ -106,7 +91,7 @@ def get_all_connections(user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/connect/deleteConnection/{user_id}/{db_name}")
+@router.delete("/connect/deleteConnection/{user_id}/{db_name}")
 def delete_connection(user_id: int, db_name: str):
     """
     Delete a specific vector store for a user.
