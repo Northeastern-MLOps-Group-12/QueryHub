@@ -5,7 +5,7 @@ services:
         dockerfile: backend/Dockerfile
       container_name: queryhub-backend
       ports:
-        - "8080:8080"
+        - "8081:8080"
       environment:
         DATABASE_URL: "${DATABASE_URL}"
         LLM_API_KEY: "${LLM_API_KEY}"

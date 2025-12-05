@@ -29,5 +29,6 @@ ENV PYTHONPATH=/app
 EXPOSE 8080
 
 # Default command to run the application
-CMD ["python", "backend/main.py"]
+# CMD ["python", "backend/main.py"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
