@@ -3,12 +3,17 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 import sys
 import os
+from fastapi import FastAPI
 
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from backend.connectors_api import app
+from backend.connectors_api import router  # ✅ Router imported instead of app
 from backend.models.connector_request import ConnectorRequest
+
+# Create a FastAPI test instance
+app = FastAPI()
+app.include_router(router)
 
 client = TestClient(app)
 
@@ -21,7 +26,7 @@ def test_connect_add_connection_success(mock_build_graph, sample_request_payload
     mock_graph_instance = MagicMock()
     mock_build_graph.return_value = mock_graph_instance
     mock_graph_instance.invoke.return_value = MagicMock()  # final_state
-
+    
     response = client.post("/connect/addConnection", json=sample_request_payload)
 
     assert response.status_code == 200
@@ -51,12 +56,13 @@ def test_connect_add_connection_failure(mock_build_graph, sample_request_payload
 
 def test_connect_add_connection_invalid_payload():
     """Test invalid request payload raises 422 validation error."""
+    
     invalid_payload = {
         "engine": "postgres"
-        # missing 'provider' and 'config'
+        # missing provider + config
     }
+
     response = client.post("/connect/addConnection", json=invalid_payload)
 
-    assert response.status_code == 422  # FastAPI/Pydantic validation error
-    data = response.json()
-    assert "detail" in data
+    assert response.status_code == 422
+    assert "detail" in response.json()
