@@ -559,7 +559,7 @@ QueryHub/
 │   └── __init__.py
 │
 ├── model_fine_tuning/  
-│   ├── ft_notebooks
+│   ├── FT_NoteBooks
 │   │   ├── QH_FT_Sensitivity.ipynb                 # Model Sensitivity
 │   │   ├── QH_FT_T1.ipynb                          # Trial 1 Training
 │   │   ├── QH_FT_T2.ipynb                          # Trial 2 Training
