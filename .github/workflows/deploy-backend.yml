@@ -59,7 +59,7 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
-    needs: test     # <-- ensures tests run before deployment
+    needs: test
     if: success()   # <-- only deploy if tests succeeded
 
     steps:

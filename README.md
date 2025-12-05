@@ -332,15 +332,15 @@ airflow variables set gcs_bucket_name "your-bucket"
 Vertex AI requires a custom Docker image with all the files required on the go for running. This image must be built from the `model_fine_tuning` folder and pushed to **Artifact Registry**.
 
 1. **Training Job:**
-The code used by Vertex AI during training exists in the `model_fine_tuning/train.py` file.
+The code used by Vertex AI during training exists in the `model_fine_tuning/vertex_ai_image/train.py` file.
 
 2. **Evaluation Job:**
-The code used by Vertex AI during evaluation exists in the `model_fine_tuning/model_eval.py` file.
+The code used by Vertex AI during evaluation exists in the `model_fine_tuning/vertex_ai_image/model_eval.py` file.
 
 #### **Steps to Build & Push the Training Image**
 
 #### 1. Build the Docker Image
-Run the following command from `model_fine_tuning` directory:
+Run the following command from `model_fine_tuning/vertex_ai_image` directory:
 
 ```bash
 docker build --platform linux/amd64 -t your-region-docker.pkg.dev/your-project/your-artifact/your-image-name:your-image-tag .
@@ -559,12 +559,18 @@ QueryHub/
 │   └── __init__.py
 │
 ├── model_fine_tuning/  
-│   ├── Dockerfile
-│   ├── experiment_utils.py             # Utility functions for logging and managing experiments
-│   ├── model_eval.py                   # Script to evaluate models on test datasets
-│   ├── README.md
-│   ├── requirements.txt
-│   └── train.py                        # Script to fine-tune/train models on Vertex AI
+│   ├── FT_NoteBooks
+│   │   ├── QH_FT_Sensitivity.ipynb                 # Model Sensitivity
+│   │   ├── QH_FT_T1.ipynb                          # Trial 1 Training
+│   │   ├── QH_FT_T2.ipynb                          # Trial 2 Training
+│   │   └── QH_FT_T3.ipynb                          # Trial 3 Training
+│   └── vertex_ai_image
+│       ├── Dockerfile
+│       ├── experiment_utils.py                     # Utility functions for logging and managing experiments
+│       ├── model_eval.py                           # Script to evaluate models on test datasets
+│       ├── README.md
+│       ├── requirements.txt
+│       └── train.py                                # Script to fine-tune/train models on Vertex AI
 │
 ├── vectorstore/                                    # Vector database integration
 │   ├── __init__.md

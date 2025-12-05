@@ -69,4 +69,3 @@ def build_vector_store(state):
     print(f"✅ Vector store built for {config['db_name']}")
 
     return state
-

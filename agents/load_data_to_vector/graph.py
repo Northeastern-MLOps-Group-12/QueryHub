@@ -5,6 +5,9 @@ from .load_creds_to_vectordb import save_creds_to_gcp, build_vector_store
 
 
 def build_graph_to_load():
+    '''
+    Build a state graph for loading data to a vector database.
+    '''
     graph = StateGraph(AgentState)
 
     # Add nodes
