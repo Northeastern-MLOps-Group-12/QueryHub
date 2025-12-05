@@ -9,8 +9,8 @@ from langsmith.run_helpers import trace
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 
 
-@traceable(name="save_creds_to_gcp")
-def save_creds_to_gcp(state):
+
+def update_creds_in_gcp(state):
     """
     Save database credentials to GCP Secret Manager.
 
@@ -26,14 +26,17 @@ def save_creds_to_gcp(state):
     # Create a connector object based on the engine and config
     connector = Connector.get_connector(engine=engine, config=config)
     conn = connector.connect()            # Establish connection
-    connector.analyze_and_save()          # Save credentials securely to GCP Secret Manager
+    connector.update_creds(config)          # Update credentials securely in GCP
 
-    trace("✅ Credentials saved to GCP Secret Manager successfully")
+    trace("✅ Credentials updated in GCP successfully")
 
     # Update state and return
     state.engine = engine
     state.creds = config
     return state
+
+
+
 
 @traceable(name="build_vector_store")
 def build_vector_store(state):
@@ -69,4 +72,3 @@ def build_vector_store(state):
     print(f"✅ Vector store built for {config['db_name']}")
 
     return state
-

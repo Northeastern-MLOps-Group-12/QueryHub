@@ -7,6 +7,7 @@ on:
       - dev
     paths:
       - "backend/**"
+      - "tests/**"
   workflow_dispatch:
 
 env:
@@ -22,6 +23,9 @@ env:
   EMBEDDING_MODEL: text-embedding-004
   FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
   CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE }}
+  ACCESS_TOKEN_EXPIRE_MINUTES: 30
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  ALGORITHM: ${{ secrets.ALGORITHM }}
 
 jobs:
   # 1️⃣ Run Unit Tests
@@ -104,4 +108,4 @@ jobs:
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }}
+            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }},ACCESS_TOKEN_EXPIRE_MINUTES=${{ env.ACCESS_TOKEN_EXPIRE_MINUTES }},SECRET_KEY=${{ env.SECRET_KEY }},ALGORITHM=${{ env.ALGORITHM }}
