@@ -1,8 +1,9 @@
 import os
-from backend import user_api, connectors_api
+from backend import user_api, connectors_api, chat_api
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
 
 from databases.cloudsql.database import engine, Base
 
@@ -31,6 +32,7 @@ app.add_middleware(
 # Include routers
 app.include_router(user_api.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(connectors_api.router, prefix="/api/connector", tags=["Connections"])
+app.include_router(chat_api.router, prefix="/api/chats", tags=["Chats"])
 
 @app.get("/")
 async def root():

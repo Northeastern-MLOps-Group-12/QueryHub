@@ -1,0 +1,10 @@
+{
+  "total_visualizations": 4,
+  "rendered": 2,
+  "errors": [],
+  "timestamp": "2025-12-05T21:27:07.228469",
+  "files": [
+    "/app/query_visualizations/1111/queryhub_855885d0_20251205_212707/viz_03_histogram_Distribution of Db Port.html",
+    "/app/query_visualizations/1111/queryhub_855885d0_20251205_212707/viz_04_box_Db Port - Outlier Detection.html"
+  ]
+}
