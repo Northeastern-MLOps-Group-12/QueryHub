@@ -27,7 +27,7 @@ _dashboard_generator = DashboardGenerator()
 
 GCS_CONFIG = {
     'enabled': os.getenv('GCS_UPLOAD_ENABLED', 'true').lower() == 'true',
-    'project_id': os.getenv('GCS_PROJECT_ID'),
+    'project_id': os.getenv('PROJECT_ID'),
     'bucket_name': os.getenv('GCS_BUCKET_NAME'),
     'credentials_path': os.getenv('GCS_CREDENTIALS_PATH'),
     'make_public': os.getenv('GCS_MAKE_PUBLIC', 'false').lower() == 'true',

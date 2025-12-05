@@ -18,7 +18,7 @@ from pathlib import Path
 warnings.filterwarnings("ignore")
 load_dotenv()
 
-def build_visualization(user_query: str):
+def build_visualization(user_query: str, user_id: str):
     memory = MemorySaver()
 
     # Initialize workflow
@@ -74,7 +74,7 @@ def build_visualization(user_query: str):
     agent = workflow.compile(checkpointer=memory)
 
     session_id = str(uuid.uuid4())[:8]
-    user_id = "1111"
+    
 
     print(f"Session ID: {session_id}")
 

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Visualization Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+               min-height: 100vh; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header { background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px;
+                   box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .header h1 { color: #2d3748; font-size: 32px; margin-bottom: 10px; }
+        .header .meta { color: #718096; font-size: 14px; }
+        .header .stats { display: flex; gap: 30px; margin-top: 20px; flex-wrap: wrap; }
+        .stat { background: #f7fafc; padding: 15px 25px; border-radius: 8px; border-left: 4px solid #667eea; }
+        .stat-label { color: #718096; font-size: 12px; text-transform: uppercase; }
+        .stat-value { color: #2d3748; font-size: 24px; font-weight: bold; margin-top: 5px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+                 gap: 25px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .viz-card { background: white; border-radius: 12px; overflow: hidden;
+                     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                     transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .viz-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .viz-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                       color: white; padding: 20px; font-size: 16px; font-weight: 600; }
+        .viz-content { padding: 0; background: white; }
+        .viz-content iframe { width: 100%; height: 550px; border: none; display: block; }
+        .viz-content img { width: 100%; height: auto; display: block; }
+        .text-content { padding: 25px; font-size: 14px; line-height: 1.6; color: #2d3748; }
+        .text-content h3 { color: #2d3748; margin-bottom: 15px; font-size: 18px; }
+        .text-content p { margin: 10px 0; }
+        .text-content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .text-content th { background: #f7fafc; padding: 12px; text-align: left; 
+                           border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+        .text-content td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+        .text-content .highlight { background: #fef3c7; padding: 2px 6px; border-radius: 3px; 
+                                    font-weight: 600; }
+        .text-content .metric { font-weight: bold; color: #667eea; }
+        .full-width { grid-column: 1 / -1; }
+        .footer { text-align: center; color: white; padding: 20px; margin-top: 30px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Query Visualization Dashboard</h1>
+            <div class="meta">
+                <strong>Mode:</strong> BI | 
+                <strong>Data:</strong> 24 rows × 3 columns
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total Visualizations</div>
+                    <div class="stat-value">4</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Rendered</div>
+                    <div class="stat-value">4</div>
+                </div>
+            </div>
+        </div>
+        <div class="grid">
+            
+        <div class="viz-card">
+            <div class="viz-header">Distribution of Totalsales</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_d9297a9e_20251205_231813/viz_01_histogram_Distribution%20of%20Totalsales.html?Expires=1765063095&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=bPGTp5FzKXchAOXTdHNNQSKplRKYuFycylLFJnTceZc3%2FNypU1SpKiccnXqjfRoUS9PEMUt%2F7z7kV26agN%2BV3%2BC2KJTB8aSHt9lEiCs94oOe4Bf3Mat01zxHGQjnNyAPl%2FzS3JLJW%2BMJXvbeyt1Rk3XtHcxn6dUi1zZv4kxkhFz5TP7bsnxGsLTRbpFMLXI6jN7dVQsfohVPAb3RTmbGDeg42rzf9PdiJ%2FZRG2wsZxXOZPA4mIxpR6FLk%2FJ56PjyONQeuyoRpV9L%2B4epaNDOWO3YB8yBUcc3tNHWoGvBR39VpUfoJkLT%2BZhSgD9eYpn1I68sbHsvTgcT9gzs5cLkhw%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+
+        <div class="viz-card">
+            <div class="viz-header">Distribution of Numberofinvoices</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_d9297a9e_20251205_231813/viz_02_histogram_Distribution%20of%20Numberofinvoices.html?Expires=1765063096&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=B2rpdbPTNPChCyWkG%2BW0Vf5DL1JHVvjViCUvnccT9MJFDDizlL3suj%2BI3u4j8E4VVROIdmiRNiOKn%2Fv6S44RUguiKyoANKSdJ1WtVzcm%2B09g%2BTpg0rRJsFGO4UYVz37U%2F955ISUZ8r6yFNFiJiUFJDyuRArCbPljuoNpcnCgRKDAznsptlfJZqzEXUTFrZ%2BqHQxGDia6IpHCK07gnrYh%2FGdWiP%2Bi29U4W1aMErUpbKP%2FqkdcFzeP9gN6ZZTtM%2FmOSTibNnP98fRwOpwSgc%2Fd0bq%2FkC%2Bt%2FW%2FhijOnVaVFI2T9VX6LIcD4WGKjC0mgou5v8QVmPIRhpp0mJNrUHvMsfw%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+
+        <div class="viz-card">
+            <div class="viz-header">Totalsales by Country</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_d9297a9e_20251205_231813/viz_03_bar_Totalsales%20by%20Country.html?Expires=1765063097&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=gYNlXNwz2YWABkygKQJ3bgBEGfs%2FbEut4lHRtRS7aKt43J4FXYS6TjBg7am%2B6xOH9nLQ8lQeh7%2FoX5mJByvCiKeDV58%2B1SXohQTtVwLe0xxMzl6KrX0SD%2F59ysZ58%2F2M4pr%2FQwec%2B22PQvG6ER9xDBG1lQYVFwGIY7%2FDvAZiNXIisZEMyHrdU8XADsohlYEjFvKAUvra8%2FZLsT46swmIm5a3yADs1YfGHttGAalpxR0QKocSjY9wioZsXegVn3uZx9RdkUYHlNlw3jqoW%2BDVF9tvjFJETHyx7XGvZaTUerYOmtcbLcHhHniEsFsm4y%2BJ%2BVUKEMIq2wcF90l6pY8C2A%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+
+        <div class="viz-card">
+            <div class="viz-header">Numberofinvoices by Country</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_d9297a9e_20251205_231813/viz_04_bar_Numberofinvoices%20by%20Country.html?Expires=1765063095&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=IA2ApJvQa09jj1Z1AH2O3XH1jDybfR6HmXmN8quAKsxXXpf7iSG5cuUOFMQU0wP%2Fw361ZyXvvA%2BpUsAYHxwoNygH7l2F7jp8ymBMSsBzCiFfjNIP3d2%2F1M4hDNFsBnh%2FcJ1uTnSsws9339JE4jd2XXvwnBRrFTaONHk6fLmQ%2FHlSc9G8kHLJF5nW0F65GNfQy8QJfdvkeTsHn7gZCr0ZlqdHHYTu%2BDtX97C4%2Bt2cDAmq4%2BYQeSvZhFGM9WfdZ5nDqg%2FdLc8naI550uDVmUZqQmDPFDq2e%2B8kKTilZDmLSPcSjNsKFTLHkp6nRbc2HpzNE0U3LmpPXFSL26vBVCLfuQ%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+        </div>
+        <div class="footer">Generated at 2025-12-05T23:18:14.255815</div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "total_visualizations": 3,
+  "rendered": 2,
+  "errors": [],
+  "timestamp": "2025-12-05T23:01:04.151176",
+  "files": [
+    "/app/query_visualizations/111/chinook_68622b48_20251205_230104/viz_02_bar_Firstname Frequency.html",
+    "/app/query_visualizations/111/chinook_68622b48_20251205_230104/viz_03_bar_Lastname Frequency.html"
+  ]
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Visualization Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+               min-height: 100vh; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header { background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px;
+                   box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .header h1 { color: #2d3748; font-size: 32px; margin-bottom: 10px; }
+        .header .meta { color: #718096; font-size: 14px; }
+        .header .stats { display: flex; gap: 30px; margin-top: 20px; flex-wrap: wrap; }
+        .stat { background: #f7fafc; padding: 15px 25px; border-radius: 8px; border-left: 4px solid #667eea; }
+        .stat-label { color: #718096; font-size: 12px; text-transform: uppercase; }
+        .stat-value { color: #2d3748; font-size: 24px; font-weight: bold; margin-top: 5px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+                 gap: 25px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .viz-card { background: white; border-radius: 12px; overflow: hidden;
+                     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                     transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .viz-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .viz-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                       color: white; padding: 20px; font-size: 16px; font-weight: 600; }
+        .viz-content { padding: 0; background: white; }
+        .viz-content iframe { width: 100%; height: 550px; border: none; display: block; }
+        .viz-content img { width: 100%; height: auto; display: block; }
+        .text-content { padding: 25px; font-size: 14px; line-height: 1.6; color: #2d3748; }
+        .text-content h3 { color: #2d3748; margin-bottom: 15px; font-size: 18px; }
+        .text-content p { margin: 10px 0; }
+        .text-content table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .text-content th { background: #f7fafc; padding: 12px; text-align: left; 
+                           border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+        .text-content td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+        .text-content .highlight { background: #fef3c7; padding: 2px 6px; border-radius: 3px; 
+                                    font-weight: 600; }
+        .text-content .metric { font-weight: bold; color: #667eea; }
+        .full-width { grid-column: 1 / -1; }
+        .footer { text-align: center; color: white; padding: 20px; margin-top: 30px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Query Visualization Dashboard</h1>
+            <div class="meta">
+                <strong>Mode:</strong> BI | 
+                <strong>Data:</strong> 24 rows × 2 columns
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total Visualizations</div>
+                    <div class="stat-value">2</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Rendered</div>
+                    <div class="stat-value">2</div>
+                </div>
+            </div>
+        </div>
+        <div class="grid">
+            
+        <div class="viz-card">
+            <div class="viz-header">Distribution of Totalsales</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_c4f496ed_20251205_230306/viz_01_histogram_Distribution%20of%20Totalsales.html?Expires=1765062187&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=QyCdgW6v11jmjjeIECD63y4NKw47%2BZMGQkJrO4eMnXPo3Bgkt3dUDfDq0YtIftHP3Zo2vWQzRx2lmiy6URIKsgAuXsNUvHJR4E%2F1zBPyrApak6H%2BrDwtxa%2BAFu2RYfpnGyS5ErJLKMBs62%2FDNY8W0BWJgaqDUvw2u%2FV6Vy%2B2gy7Ew%2BDLDyBLoobRjXyWPcguVBnLBW%2Fi2VovVQgsJwPtJYitQOEttZ9u3CiLbJfqfyevpz0WZiKeLpVQ8eFUACk50%2FdiFHJDACtcHJEu97z9lmPUonHkhyA7vjK4ZfDT2cnnpylSwj7ThefpDAvEE%2FUlInqwO%2B4sJ9fWOfmgrL%2BI2w%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+
+        <div class="viz-card">
+            <div class="viz-header">Totalsales by Billingcountry</div>
+            <div class="viz-content">
+                <iframe src="https://storage.googleapis.com/queryhub-visualizations/visualizations/111/chinook_c4f496ed_20251205_230306/viz_02_bar_Totalsales%20by%20Billingcountry.html?Expires=1765062188&GoogleAccessId=mlops-sa%40queryhub-473901.iam.gserviceaccount.com&Signature=C6EZT8laa4qAsrfh1RJgk8s%2B6V%2FHwPAN4gTXWWs0UIngyEAMl7K1gVi1xsC%2BwWDAwY9yR9Fn%2BqIRfn1ex3%2F32poXABf7GkX%2FeUd4kW4%2BzTQbFb1WOpgty8eSfLmQZQmUL7B0nrpDjjZZYgZ%2BGNOBI8FhNBhb9txN3UDanOzM3l1iYcSOV3zIcRiODpx3khnoP9xSdzJ1SYaN1Wys0Iov0lCR6vzQ8Ujy%2FAOoIZH5%2B9%2FrhXKv5zou9LEQD%2F5Ocj%2FZ0uWooAbh5iQnXyeqoRJNhKyd3oeS4kSu1ZYO4ayBiBCeOHltaad24gB4BL2eXh4MVLa%2FeNiU5xxJ9Iu8hf5reg%3D%3D"></iframe>
+            </div>
+        </div>
+                        
+        </div>
+        <div class="footer">Generated at 2025-12-05T23:03:06.868061</div>
+    </div>
+</body>
+</html>

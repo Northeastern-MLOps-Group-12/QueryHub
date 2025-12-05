@@ -36,6 +36,7 @@ class DatabaseSelector:
 
         db = next(get_db())
         creds = get_records_by_user_id(db, int(user_id))
+        print(creds, "_____________________CREDS_____________________")
 
         config = {"databases": []}
 
@@ -135,6 +136,9 @@ class DatabaseSelector:
         
         db_configs = self.load_db_configs(state.user_id)
         available_dbs = self.get_all_vector_stores(state.user_id)
+
+        print(available_dbs, "_____________________HERE_____________________")
+        print(db_configs, "_____________________HERE_____________________")
         
         database_metadata = []
         
@@ -240,7 +244,7 @@ class DatabaseSelector:
             database_metadata = metadata_result['database_metadata']
         else:
             database_metadata = state.database_metadata
-        
+        print(database_metadata, "_____________________HERE_____________________")
         databases = database_metadata['databases']
         
         if not databases:

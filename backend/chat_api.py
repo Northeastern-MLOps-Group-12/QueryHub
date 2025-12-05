@@ -32,6 +32,6 @@ router = APIRouter()
 
 @router.post("/chats/messages")
 def query(request: ChatRequest):
-    build_visualization(request.text)
+    build_visualization(request.text, request.user_id)
     
  
