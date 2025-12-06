@@ -12,7 +12,6 @@ import os
 import json
 from connectors.engines.postgres.postgres_connector import PostgresConnector
 from databases.cloudsql.crud import get_records_by_user_and_db;
-from .utils.user_security import get_current_user
 from databases.cloudsql.models.user import User
 from databases.cloudsql.database import get_db
 
