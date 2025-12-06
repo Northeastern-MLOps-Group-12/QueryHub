@@ -44,7 +44,7 @@ export default function DatabaseConnection() {
         engine: formData.engine,
         provider: formData.provider,
         config: {
-          user_id: userId || "",
+          user_id: String(userId),
           connection_name: formData.connectionName,
           db_host: formData.host,
           provider: formData.provider,
@@ -57,13 +57,10 @@ export default function DatabaseConnection() {
 
       // Call service to add database connection
       const res = await addDatabaseConnection(payload);
-      const connectionId = res.data.id;
       setSuccess("Database connected successfully!");
 
-      // Redirect to description page
-      navigate(`/database/databasedescription/${connectionId}`, {
-        state: { fromNewConnection: true },
-      });
+      // Redirect to databases list
+      navigate("/database/connecteddatabases");
     } catch (err: any) {
       console.error("Error adding connection:", err);
       setError(err.response?.data || "Failed to connect to database");

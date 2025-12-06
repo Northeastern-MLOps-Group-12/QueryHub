@@ -9,8 +9,8 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    first_name: "",
+    last_name: "",
     email: "",
     password: "",
   });
@@ -39,7 +39,7 @@ export default function SignUp() {
     try {
       const response = await register(formData);
       if (response.status === 201) {
-        navigate("/account/databaseconnection", {
+        navigate("/database/databaseconnection", {
           state: { successMessage: "You are signed up successfully!" },
         });
       }
@@ -122,8 +122,8 @@ export default function SignUp() {
                       </span>
                       <input
                         type="text"
-                        name="firstName"
-                        value={formData.firstName}
+                        name="first_name"
+                        value={formData.first_name}
                         onChange={handleChange}
                         className="form-control border-start-0 ps-2"
                         placeholder="Enter your first name"
@@ -141,8 +141,8 @@ export default function SignUp() {
                       </span>
                       <input
                         type="text"
-                        name="lastName"
-                        value={formData.lastName}
+                        name="last_name"
+                        value={formData.last_name}
                         onChange={handleChange}
                         className="form-control border-start-0 ps-2"
                         placeholder="Enter your last name"

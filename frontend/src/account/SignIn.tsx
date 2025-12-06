@@ -3,6 +3,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { signIn } from "../services/authService";
 import { getUserConnections } from "../services/databaseService";
+import useAuth from "../hooks/useAuth";
 
 // SignIn component that handles user sign-in functionality
 export default function SignIn() {
@@ -10,6 +11,7 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   // Effect to automatically hide error messages after 3 seconds
@@ -31,7 +33,12 @@ export default function SignIn() {
     try {
       const response = await signIn({ email, password });
       if (response.status === 200) {
-        const userId = response.data.user.id;
+        const responseBody = response.data.data; 
+        const token = responseBody.token;
+        const user = responseBody.user;
+        login(token, user);
+
+        const userId = user.user_id;
 
         // Check if user has any database connections
         const connections = await getUserConnections(userId);
@@ -42,14 +49,15 @@ export default function SignIn() {
             state: { successMessage: "You are signed in successfully!" },
           });
         } else {
-          navigate("/account/databaseconnection", {
+          console.log("No connections found, navigating to database connection page.");
+          navigate("/database/databaseconnection", {
             state: { successMessage: "You are signed in successfully!" },
           });
         }
       }
     } catch (error: any) {
       if (error.response) {
-        setError(error.response.data || "An error occurred");
+        setError(error.response.data.detail || "An error occurred");
       } else if (error.request) {
         setError("Network error, please try again later");
       } else {

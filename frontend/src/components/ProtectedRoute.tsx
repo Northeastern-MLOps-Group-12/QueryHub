@@ -2,39 +2,25 @@ import { Navigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { type ReactElement } from "react";
 
-// Props for the ProtectedRoute component
 interface ProtectedRouteProps {
   element: ReactElement;
-  publicRoutes?: string[];
 }
 
-// A component that protects routes based on authentication status
-const ProtectedRoute = ({
-  element,
-  publicRoutes = [
-    "/",
-    "/account/signin",
-    "/account/signup",
-  ],
-}: ProtectedRouteProps) => {
+const ProtectedRoute = ({ element }: ProtectedRouteProps) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
+  // Debugging: Uncomment the line below to see exactly what useAuth is returning
+  console.log("ProtectedRoute Check:", { isAuthenticated, loading, path: location.pathname });
+
   if (loading) return <div>Loading...</div>;
 
-  // If route is public, allow it
-  if (
-    publicRoutes.some(
-      (route) => route.toLowerCase() === location.pathname.toLowerCase()
-    )
-  ) {
+  // If authenticated, render the protected element
+  if (isAuthenticated) {
     return element;
   }
 
-  // If logged in then allow the route
-  if (isAuthenticated) return element;
-
-  // Not logged in then redirect to SignIn
+  // If not authenticated, redirect to SignIn
   return <Navigate to="/account/signin" state={{ from: location }} replace />;
 };
 

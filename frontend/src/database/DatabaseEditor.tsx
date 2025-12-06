@@ -5,14 +5,16 @@ import {
   Button,
   Form,
   Container,
-  OverlayTrigger,
-  Tooltip,
+  Badge,
+  Row,
+  Col
 } from "react-bootstrap";
+import { FiRefreshCw, FiDatabase, FiTable, FiColumns } from "react-icons/fi";
 
 //Types for Column
 interface Column {
   name: string;
-  description: string;
+  dataType: string;
 }
 
 //Types for Table
@@ -25,8 +27,8 @@ interface Table {
 // Props for DatabaseEditor component
 interface DatabaseProps {
   databaseName: string;
+  databaseDescription: string;
   tables: Table[];
-  onSave: (tables: Table[]) => void;
   onRefetch: () => void;
   disableEditing?: boolean;
 }
@@ -34,178 +36,132 @@ interface DatabaseProps {
 // Main DatabaseEditor component
 export default function DatabaseEditor({
   databaseName,
+  databaseDescription,
   tables: externalTables,
-  onSave,
   onRefetch,
   disableEditing = false,
 }: DatabaseProps) {
   const [tables, setTables] = useState<Table[]>(externalTables);
-  const [openTableIndexes, setOpenTableIndexes] = useState<number[]>([0]);
-  const [editing, setEditing] = useState(false);
-  const [originalTables, setOriginalTables] = useState<Table[]>(externalTables);
+  const [openTableIndexes, setOpenTableIndexes] = useState<string[]>(["0"]);
 
   // Sync external tables when they change
   useEffect(() => {
     setTables(externalTables);
-    setEditing(false);
   }, [externalTables]);
-
-  // Toggle accordion item
-  const handleToggle = (index: number) => {
-    setOpenTableIndexes((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
-    );
-  };
-
-  // Handle column description change
-  const handleColumnChange = (
-    tableIndex: number,
-    columnIndex: number,
-    value: string
-  ) => {
-    const updated = [...tables];
-    updated[tableIndex].columns[columnIndex].description = value;
-    setTables(updated);
-  };
-
-  // Handle table description change
-  const handleTableDescriptionChange = (tableIndex: number, value: string) => {
-    const updated = [...tables];
-    updated[tableIndex].description = value;
-    setTables(updated);
-  };
-
-  // Toggle editing mode
-  const toggleEditing = () => {
-    if (!editing) {
-      setOriginalTables(JSON.parse(JSON.stringify(tables)));
-      setEditing(true);
-    } else {
-      setTables(originalTables);
-      setEditing(false);
-    }
-  };
-
-  // Handle refetch click
-  const handleRefetchClick = async () => {
-    if (editing) return;
-    setEditing(false);
-    onRefetch();
-  };
 
   return (
     <Container className="my-4 position-relative">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h3 className="mb-0">{databaseName}</h3>
-        <div className="d-flex gap-3">
+      <div className="mb-4 border-bottom pb-3">
+        
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h2 className="d-flex align-items-center gap-2 mb-0">
+            <FiDatabase className="text-primary" />
+            {databaseName}
+          </h2>
 
-          {/* Edit Button */}
           <Button
-            variant={editing ? "secondary" : "primary"}
-            onClick={toggleEditing}
+            variant="outline-primary"
+            onClick={onRefetch}
             disabled={disableEditing}
+            className="d-flex align-items-center gap-2"
           >
-            {editing ? "Cancel Editing" : "Edit Descriptions"}
+            <FiRefreshCw
+              className={disableEditing ? "spinner-border spinner-border-sm" : ""}
+            />
+            {disableEditing ? "Refreshing..." : "Re-fetch Schema"}
           </Button>
+        </div>
 
-          {/* Refetch Button with Tooltip */}
-          {editing ? (
-            <OverlayTrigger
-              placement="bottom"
-              overlay={
-                <Tooltip id="refetch-tooltip">
-                  You are in editing mode. Re-fetch is disabled until you exit editing.
-                </Tooltip>
-              }
-            >
-              <span className="d-inline-block">
-                <Button
-                  variant="outline-primary"
-                  disabled
-                  style={{ pointerEvents: "none", opacity: 0.7 }}
-                >
-                  Re-fetch Schema
-                </Button>
-              </span>
-            </OverlayTrigger>
-          ) : (
-            <Button
-              variant="outline-primary"
-              onClick={handleRefetchClick}
-              disabled={disableEditing}
-            >
-              Re-fetch Schema
-            </Button>
-          )}
+        <div
+          className="text-muted bg-light p-2 rounded border"
+          style={{
+            maxHeight: "8em",
+            overflowY: "auto",
+            whiteSpace: "pre-wrap",
+            fontSize: "0.9rem",
+          }}
+        >
+          {databaseDescription || "No database summary available."}
         </div>
       </div>
 
       {/* Tables Accordion */}
-      <Accordion
-        alwaysOpen
-        activeKey={openTableIndexes.map((i) => i.toString())}
-      >
-        {tables.map((table, tIndex) => (
-          <Card key={table.name} className="mb-3 shadow-sm">
-            <Accordion.Item eventKey={tIndex.toString()}>
-
-              {/* Accordion Header and Body */}
-              <Accordion.Header onClick={() => handleToggle(tIndex)}>
-                {table.name}
-              </Accordion.Header>
-              <Accordion.Body>
-                <Form.Group className="mb-3">
-                  <Form.Label>Table Description</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    value={table.description}
-                    onChange={(e) =>
-                      handleTableDescriptionChange(tIndex, e.target.value)
-                    }
-                    placeholder="Describe this table"
-                    disabled={!editing || disableEditing}
-                  />
-                </Form.Group>
-
-                <h5 className="fs-6 mb-3">Columns</h5>
-
-                {/* Column Groups */}
-                {table.columns.map((col, cIndex) => (
-                  <Form.Group
-                    key={col.name}
-                    className="d-flex align-items-center mb-2"
-                  >
-                    <div style={{ flex: 1, fontWeight: "500" }}>{col.name}</div>
-                    <Form.Control
-                      type="text"
-                      style={{ flex: 2, marginLeft: "1rem" }}
-                      value={col.description}
-                      onChange={(e) =>
-                        handleColumnChange(tIndex, cIndex, e.target.value)
-                      }
-                      placeholder="Describe this column"
-                      disabled={!editing || disableEditing}
-                    />
-                  </Form.Group>
-                ))}
-              </Accordion.Body>
-            </Accordion.Item>
-          </Card>
-        ))}
-      </Accordion>
-
-      {/* Save Button */}
-      {editing && (
-        <div className="mt-3 text-end">
-          <Button
-            onClick={() => onSave(tables)}
-            variant="primary"
-            disabled={disableEditing}
-          >
-            Save Descriptions
-          </Button>
+      <h5 className="mb-3 text-secondary">
+        Tables <Badge bg="secondary">{tables.length}</Badge>
+      </h5>
+      {tables.length === 0 ? (
+        <div className="text-center p-5 bg-light rounded text-muted">
+          No tables found in this database.
         </div>
+      ) : (
+        <Accordion
+          alwaysOpen
+          activeKey={openTableIndexes}
+          onSelect={(e) => setOpenTableIndexes(Array.isArray(e) ? e : [e || ""])}
+        >
+          {tables.map((table, tIndex) => (
+            <Card key={table.name} className="mb-3 shadow-sm">
+              <Accordion.Item eventKey={tIndex.toString()}>
+                {/* Accordion Header and Body */}
+                <Accordion.Header>
+                  <div className="d-flex align-items-center gap-2">
+                    <FiTable className="text-secondary" />
+                    <strong>{table.name}</strong>
+                    <span className="text-muted small ms-2">
+                      ({table.columns.length} columns)
+                    </span>
+                  </div>
+                </Accordion.Header>
+
+                <Accordion.Body>
+                  <Form.Group className="mb-4">
+                    <Form.Label className="text-muted small fw-bold text-uppercase">
+                      Table Description
+                    </Form.Label>
+                    <div className="p-2 bg-light rounded border">
+                      {table.description || "No description available."}
+                    </div>
+                  </Form.Group>
+
+                  {/* Column Groups */}
+                  <div>
+                    <h6 className="d-flex align-items-center gap-2 text-muted small fw-bold text-uppercase mb-2">
+                      <FiColumns /> Columns
+                    </h6>
+                    <div className="border rounded overflow-hidden">
+                      {/* Grid Header */}
+                      <Row className="bg-secondary bg-opacity-10 py-2 px-2 m-0 border-bottom fw-bold text-secondary" style={{fontSize: "0.9rem"}}>
+                        <Col xs={6}>Column Name</Col>
+                        <Col xs={6}>Data Type</Col>
+                      </Row>
+
+                      {/* Grid Rows */}
+                      {table.columns.length > 0 ? (
+                        table.columns.map((col, idx) => (
+                          <Row 
+                            key={idx} 
+                            className={`py-2 px-2 m-0 align-items-center ${idx !== table.columns.length - 1 ? "border-bottom" : ""}`}
+                          >
+                            <Col xs={6} className="fw-medium text-dark font-monospace">
+                              {col.name}
+                            </Col>
+                            <Col xs={6} className="text-muted fst-italic small">
+                              <Badge bg="light" text="dark" className="border">
+                                {col.dataType}
+                              </Badge>
+                            </Col>
+                          </Row>
+                        ))
+                      ) : (
+                         <div className="p-3 text-muted fst-italic text-center">No columns found.</div>
+                      )}
+                    </div>
+                  </div>
+                </Accordion.Body>
+              </Accordion.Item>
+            </Card>
+          ))}
+        </Accordion>
       )}
     </Container>
   );

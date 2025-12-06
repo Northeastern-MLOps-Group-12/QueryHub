@@ -11,6 +11,10 @@ from backend.utils.connectors_api_utils import structure_vector_store_data
 import os
 import json
 from connectors.engines.postgres.postgres_connector import PostgresConnector
+from databases.cloudsql.crud import get_records_by_user_and_db;
+from .utils.user_security import get_current_user
+from databases.cloudsql.models.user import User
+from databases.cloudsql.database import get_db
 
 # Connector API service entrypoint: exposes endpoints to create/test connectors.
 # - ConnectorRequest: Pydantic model describing the incoming payload (engine, provider, config).
@@ -27,6 +31,9 @@ from connectors.engines.postgres.postgres_connector import PostgresConnector
 # - If more fine-grained error handling is needed, add custom exception classes in connectors/agents.
 
 router = APIRouter()
+
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+MODEL = os.getenv("MODEL")
 
 @router.post("/connect/addConnection")
 def connect(request: ConnectorRequest):
@@ -47,13 +54,34 @@ def connect(request: ConnectorRequest):
         raise HTTPException(status_code=400, detail=str(e))
     
 
-@router.put("/connect/updateConnection")
-def connect(request: ConnectorRequest):
+@router.put("/connect/updateConnection/{user_id}/{db_name}")
+def connect(user_id:int, db_name:str):
     """
     Call the factory function to get a connector instance and test connection.
     """
     try:
-        initial_state = AgentState(engine=request.engine, creds=request.config)
+        db = next(get_db())
+        records = get_records_by_user_and_db(db, user_id=user_id, db_name=db_name)
+        if not records:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No credentials found for database: {db_name}"
+            )
+        record = records[0]
+
+        creds = {
+            "user_id": str(user_id),
+            "connection_name": record.connection_name,
+            "db_host": record.db_host,
+            "provider": record.provider,
+            "db_type": record.db_type,
+            "db_user": record.db_user,
+            "db_password": record.db_password,
+            "db_name": record.db_name
+        }
+
+        initial_state = AgentState(engine=record.db_type, creds=creds)
+        
         graph = build_graph_to_update()
 
         final_state = graph.invoke(
@@ -61,7 +89,7 @@ def connect(request: ConnectorRequest):
             config={"configurable": {"thread_id": 1}}
         )
 
-        return {"success": True, "message": f"{request.engine}-{request.provider} connector updated!"}
+        return {"success": True, "message": f"{record.db_type}-{record.provider} connector updated!"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

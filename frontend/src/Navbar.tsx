@@ -1,13 +1,12 @@
 import { Button, Modal } from "react-bootstrap";
 import useAuth from "./hooks/useAuth";
-import { signOut } from "./services/authService";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 
 // Navigation Bar Component
 export default function Navbar() {
-  const { userId, userData } = useAuth();
+  const { userId, userData, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,7 +45,7 @@ export default function Navbar() {
   // Handle user sign out
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
       setShowProfile(false);
       navigate("/account/signin");
     } catch (error) {

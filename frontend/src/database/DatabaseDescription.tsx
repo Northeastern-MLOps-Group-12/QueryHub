@@ -1,28 +1,30 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import DatabaseEditor from "./DatabaseEditor";
-import { Container, Spinner } from "react-bootstrap";
+import { Container, Spinner, Alert} from "react-bootstrap";
+import useAuth from "../hooks/useAuth";
 import {
-  getDatabaseTables,
-  updateDatabaseTables,
+  getSingleDatabaseDetails,
+  updateDatabaseConnection,
   type Table,
 } from "../services/databaseService";
 
 // Component to display and edit database description
 export default function DatabaseDescription() {
-  const { connectionId } = useParams<{ connectionId: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const fromNewConnection = location.state?.fromNewConnection ?? false;
+  const { dbName } = useParams<{ dbName: string }>();
+  const { userId } = useAuth();
 
   // State to hold database tables and loading status
+  const [dbDescription, setDbDescription] = useState("");
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(false);
   const [refetching, setRefetching] = useState(false);
+  const [error, setError] = useState("");
 
   // Fetch tables (shared logic)
-  const fetchTables = async (isRefetch = false) => {
-    if(!connectionId) return;
+  const fetchData = async (isRefetch: boolean) => {
+    if (!dbName || !userId) return;
+    setError("");
 
     try {
       if (isRefetch) {
@@ -31,12 +33,25 @@ export default function DatabaseDescription() {
         setLoading(true);
       }
 
+      let data;
+
       // Fetch data from API
-      const data = await getDatabaseTables(connectionId!);
-      setTables(data);
+      if (isRefetch) {
+        await updateDatabaseConnection(Number(userId), dbName);
+        data = await getSingleDatabaseDetails(userId, dbName);
+      } else {
+        data = await getSingleDatabaseDetails(userId, dbName);
+      }
+
+      if (data) {
+        setTables(data.tables);
+        setDbDescription(data.description);
+      } else {
+        setError("Database not found in response.");
+      }
     } catch (error) {
       console.error("Failed to fetch tables:", error);
-      alert("Failed to fetch database schema.");
+      setError("Failed to fetch database schema.");
     } finally {
       if (isRefetch) {
         setRefetching(false);
@@ -48,35 +63,17 @@ export default function DatabaseDescription() {
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchTables(false);
-  }, [connectionId]);
-
-  // Handle saving updated tables
-  const handleSave = async (updatedTables: Table[]) => {
-    if (!connectionId) return;
-    try {
-      await updateDatabaseTables(connectionId, updatedTables);
-      setTables(updatedTables);
-      alert("Tables updated successfully!");
-
-      // Redirect based on how user came here
-      if (fromNewConnection) {
-        navigate("/chatinterface");
-      } else {
-        navigate("/database/connecteddatabases");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update tables.");
+    if (userId && dbName) {
+      fetchData(false);
     }
-  };
+  }, [userId, dbName]);
 
   // Show loading spinner while fetching data
   if (loading)
     return (
       <Container className="my-5 text-center">
         <Spinner animation="border" />
-        <p className="mt-2">Loading database schema...</p>
+        <p className="mt-2">Loading database schema for {dbName}...</p>
       </Container>
     );
 
@@ -87,19 +84,21 @@ export default function DatabaseDescription() {
       {refetching && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex flex-column justify-content-center align-items-center"
-          style={{ zIndex: 9999 }}
+          style={{ zIndex: 9999, backgroundColor: "rgba(0,0,0,0.5)" }}
         >
-          <Spinner animation="border" role="status" />
-          <div className="mt-2 text-light fs-6">Refreshing schema...</div>
+          <Spinner animation="border" variant="light" />
+          <div className="mt-2 text-light fw-bold">Refetching Schema...</div>
         </div>
       )}
 
+      {error && <Alert variant="danger">{error}</Alert>}
+
       {/* Database Editor */}
       <DatabaseEditor
-        databaseName={`Database: ${connectionId}`}
+        databaseName={dbName || ""}
+        databaseDescription={dbDescription}
         tables={tables}
-        onSave={handleSave}
-        onRefetch={() => fetchTables(true)}
+        onRefetch={() => fetchData(true)}
         disableEditing={refetching}
       />
     </Container>

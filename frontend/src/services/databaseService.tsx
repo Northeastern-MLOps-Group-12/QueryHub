@@ -1,21 +1,11 @@
 import axios from "axios";
+import api from "./api";
 
 // Enable sending cookies with requests
 axios.defaults.withCredentials = true;
 
-// Base API URL for database connection endpoints
-const API_URL = `${import.meta.env.VITE_BACKEND_URL}/connect`;
-
-// Interface for database connection
 export interface DatabaseConnection {
-  id: string;
-  provider: string;
-  dbType: string;
-  connectionName: string;
   dbName: string;
-  dbUser: string;
-  dbPassword?: string;
-  connectedOn: string;
 }
 
 // Payload for adding a database connection
@@ -37,7 +27,7 @@ export interface DatabaseConnectionPayload {
 // Column type definition
 export interface Column {
   name: string;
-  description: string;
+  dataType: string;
 }
 
 // Table type definition
@@ -47,42 +37,96 @@ export interface Table {
   columns: Column[];
 }
 
+// Database details including tables
+export interface DatabaseDetails {
+  dbName: string;
+  description: string;
+  tables: Table[];
+}
+
+// Transform Backend JSON to Frontend Interface
+const transformResponse = (
+  responseData: any,
+  targetDbName: string
+): DatabaseDetails | null => {
+  if (!responseData || !responseData.connections) return null;
+
+  const dbData = responseData.connections[targetDbName];
+
+  if (!dbData) return null;
+
+  const tablesArray: Table[] = Object.entries(dbData.tables || {}).map(
+    ([tableName, tableData]: [string, any]) => ({
+      name: tableName,
+      description: tableData.description || "",
+      columns: Array.isArray(tableData.columns)
+        ? tableData.columns.map((col: any) => ({
+            name: typeof col === "string" ? col : col.name,
+            dataType: col.type || col.data_type || col.dtype || "Unknown",
+          }))
+        : [],
+    })
+  );
+
+  return {
+    dbName: targetDbName,
+    description: dbData.dataset_summary || "",
+    tables: tablesArray,
+  };
+};
+
 // Add a new database connection
 export const addDatabaseConnection = async (
   data: DatabaseConnectionPayload
 ) => {
-  return axios.post(`${API_URL}/addConnection`, data);
+  return api.post(`/connector/connect/addConnection`, data);
 };
 
 // Get all connections for current user
 export const getUserConnections = async (userId: string) => {
-  const res = await axios.get(`${API_URL}/getDbConnections`, {
-    params: { userId },
-  });
-  return res.data as DatabaseConnection[];
+  const res = await api.get(`/connector/connect/getAllConnections/${userId}`);
+
+  const responseData = res.data;
+  if (responseData && responseData.connections) {
+    const transformedArray = Object.keys(responseData.connections).map(
+      (key) => ({
+        dbName: key,
+      })
+    );
+
+    return transformedArray;
+  }
+
+  return [];
+};
+
+// Get details of a single database connection
+export const getSingleDatabaseDetails = async (
+  userId: string,
+  dbName: string
+) => {
+  const res = await api.get(`/connector/connect/getAllConnections/${userId}`);
+  return transformResponse(res.data, dbName);
+};
+
+// Update a database connection
+export const updateDatabaseConnection = async (
+  userId: number,
+  dbName: string
+) => {
+  const res = await api.put(
+    `/connector/connect/updateConnection/${userId}/${dbName}`
+  );
+  console.log("Update response data:", res.data);
+  return transformResponse(res.data, dbName);
 };
 
 // Delete a connection by ID
 export const deleteConnection = async (
-  connectionId: string,
-  userId: string
+  dbName: string,
+  userId: number
 ) => {
-  return axios.delete(`${API_URL}/deleteConnection/${connectionId}`, {
-    params: { userId },
-  });
-};
-
-// Fetch tables for a database connection
-export const getDatabaseTables = async (connectionId: string) => {
-  const res = await axios.get(`${API_URL}/${connectionId}`);
-  return res.data as Table[];
-};
-
-// Update tables for a database connection
-export const updateDatabaseTables = async (
-  connectionId: string,
-  tables: Table[]
-) => {
-  const res = await axios.put(`${API_URL}/${connectionId}`, { tables });
-  return res.data;
+  console.log("Deleting connection in service:", dbName, "for user ID:", userId);
+  console.log("User ID type in service:", typeof userId);
+  return api.delete(`/connector/connect/deleteConnection/${userId}/${dbName}`);
 };

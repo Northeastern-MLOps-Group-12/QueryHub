@@ -11,7 +11,7 @@ export default function Database() {
         <Route path="/connecteddatabases" element={<ConnectedDatabases />} />
         <Route path="/databaseconnection" element={<DatabaseConnection />} />
         <Route
-          path="/databasedescription/*"
+          path="/databasedescription/:dbName"
           element={<DatabaseDescription />}
         />
       </Routes>
