@@ -1,3 +1,41 @@
+# Environment variables
 .env
-VectorStores
-__pycache__
+*.env
+
+# Python cache
+**/_pycache_/
+*.pyc
+*.pyo
+*.pyd
+**/.pytest_cache/
+
+# Sensitive files
+gcs_creds.json
+
+# Virtual environments
+**/env/
+**/venv/
+
+# macOS specific
+.DS_STORE
+
+# VS Code workspace
+.vscode/*
+
+# Commit specific team-wide settings
+!.vscode/settings.json
+
+# Data Pipeline specific files/folders
+data-pipeline/config/
+data-pipeline/data/
+data-pipeline/logs/
+data-pipeline/keys/
+data-pipeline/plugins/
+data-pipeline/dvc.lock
+data-pipeline/.dvc/tmp/
+data-pipeline/.dvc/cache/
+data-pipeline/postgres_db_volume/
+vectorstore/VectorStores/
+
+# Frontend specific files/folders
+frontend/node_modules/  

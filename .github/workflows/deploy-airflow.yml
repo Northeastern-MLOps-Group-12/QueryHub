@@ -1,0 +1,58 @@
+name: Trigger Airflow DAG
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'data-pipeline/dags/**'
+
+jobs:
+  trigger-dag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up environment
+        run: |
+          # Install jq for JSON parsing
+          sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Request Airflow Bearer Token
+        id: get_token
+        run: |
+          TOKEN_RESPONSE=$(curl -s -X POST "${{ secrets.AIRFLOW_VM_URL }}/auth/token" \
+            -H "Content-Type: application/json" \
+            -d "{
+                  \"username\": \"${{ secrets.AIRFLOW_USERNAME }}\",
+                  \"password\": \"${{ secrets.AIRFLOW_PASSWORD }}\"
+                }")
+          echo "$TOKEN_RESPONSE" | jq
+          ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+
+      - name: Trigger Data Pipeline DAG
+        run: |
+          CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/data_pipeline_with_synthetic_v1_schema_validation/dagRuns" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+                  \"dag_run_id\": \"manual__${CURRENT_UTC}\",
+                  \"logical_date\": \"${CURRENT_UTC}\",
+                  \"conf\": {}
+                }"
+
+      - name: Trigger Model Training DAG
+        run: |
+          CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/vertex_ai_model_training_pipeline/dagRuns" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+                  \"dag_run_id\": \"manual__${CURRENT_UTC}\",
+                  \"logical_date\": \"${CURRENT_UTC}\",
+                  \"conf\": {}
+                }"
