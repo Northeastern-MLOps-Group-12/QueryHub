@@ -130,6 +130,8 @@ class QueryResultSaver:
         except Exception as e:
             print(f"Failed to save query result: {e}")
             return {
+                "error": True,
+                "error_message": f"Failed to save query results.",
                 "result_saved": False,
                 "result_gcs_path": "",
                 "result_url": "",

@@ -54,3 +54,6 @@ class AgentState(BaseModel):
     selected_db_similarity: float = Field(default=0.0, description="...")
     database_selection_ranking: List[Dict] = Field(default=[], description="...")
     db_config: Dict = Field(default={}, description="...")
+
+    error:bool = Field(default=False, description="An error occured between the process")
+    error_message: str = Field(default="", description="Error message shown to user")

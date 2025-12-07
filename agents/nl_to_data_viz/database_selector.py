@@ -173,6 +173,12 @@ class DatabaseSelector:
         
         print(f"Cached embeddings for {len(database_metadata)} databases")
         
+        if not database_metadata:
+            return {
+                "error": True,
+                "error_message": "Connect atleast one database or check your internet connection!!!"
+            }
+
         return {
             "database_metadata": {
                 'databases': database_metadata,

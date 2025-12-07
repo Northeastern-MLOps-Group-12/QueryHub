@@ -72,8 +72,10 @@ def get_conn_str(user_id: int, db_name: str) -> str:
                 "TrustServerCertificate=Yes&"
                 "MARS_Connection=Yes"
             )
-
-        raise ValueError(f"Unsupported db_type: {db_type}")
+        return {
+            "error": True,
+            "error_message": f"Unsupported database type: {db_type}"
+        }
 
 
 def execute_sql_query(state: AgentState):
@@ -114,6 +116,8 @@ def execute_sql_query(state: AgentState):
         
         # Return only updated fields as dict
         return {
+            "error": False,
+            "error_message": "",
             "query_results": query_results,
             "execution_success": True,
             "execution_error": None
@@ -130,6 +134,8 @@ def execute_sql_query(state: AgentState):
         
         # Return only updated fields as dict
         return {
+            "error": True,
+            "error_message": "SQL execution failed. Please try again.",
             "query_results": [],
             "execution_success": False,
             "execution_error": error_message,

@@ -40,3 +40,7 @@ query_visualizations/
 
 # Frontend specific files/folders
 frontend/node_modules/  
+/queryhub
+/temp_results
+
+/backend/service-account-key.json

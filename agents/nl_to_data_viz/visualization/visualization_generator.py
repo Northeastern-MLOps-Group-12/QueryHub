@@ -174,6 +174,8 @@ def generate_visualizations(state: AgentState) -> Dict:
     cloud_files = []
     upload_success = False
     dashboard_url = None
+    error = False
+    error_message = ""
     
     if GCS_CONFIG['enabled'] and GCS_CONFIG['project_id'] and GCS_CONFIG['bucket_name']:
         try:
@@ -217,10 +219,15 @@ def generate_visualizations(state: AgentState) -> Dict:
                 )
             
             upload_success = True
+            error = False
+            error_message = ""
+            
             print(f"Uploaded {len(cloud_files)} files to GCS")
             
         except Exception as e:
             print(f"GCS upload failed: {e}")
+            error = True
+            error_message = "Failed to upload to GCS. Please try again."
             upload_success = False
             dashboard_url = None
     
@@ -238,7 +245,9 @@ def generate_visualizations(state: AgentState) -> Dict:
         },
         "local_viz_path": str(session_path),
         "cloud_viz_files": cloud_files,
-        "upload_success": upload_success
+        "upload_success": upload_success,
+        "error": error,
+        "error_message": error_message
     }
     
     return sanitize_for_serialization(result)

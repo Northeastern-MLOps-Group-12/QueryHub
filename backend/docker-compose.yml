@@ -13,6 +13,7 @@ services:
         MODEL_NAME: "${MODEL_NAME}"
         EMBEDDING_MODEL: "${EMBEDDING_MODEL}"
         FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
+        MODE: "${MODE}"
         GCS_CREDENTIALS_PATH: "/app/backend/service-account-key.json"
       volumes:
         - ../:/app
