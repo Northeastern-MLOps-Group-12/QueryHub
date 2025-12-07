@@ -20,7 +20,6 @@ services:
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
       GCS_CREDENTIALS_PATH: "/app/backend/service-account-key.json"
       MODE: "${MODE}"
-      # Monitoring environment variables
       ENABLE_METRICS: "true"
     volumes:
       - ../:/app
