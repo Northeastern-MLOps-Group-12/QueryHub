@@ -123,5 +123,10 @@ def build_visualization(user_query: str, user_id: str):
     print(f"Similarity: {result1['selected_db_similarity']:.3f}")
     print(f"Embeddings computed: {result1['database_metadata']['computed']}")
     print(f"\nGenerated SQL:\n{result1['generated_sql']}")
-    print(f"\nDashboard URL: {result1['visualization_metadata']['dashboard_url']}")
+    if 'error' in result1.get('visualization_metadata', {}):
+        print(f"\nDashboard URL: Not available - {result1['visualization_metadata']['error']}")
+    else:
+        print(f"\nDashboard URL: {result1['visualization_metadata']['dashboard_url']}")
     print(f"Data URL: {result1['result_url']}")
+
+    return result1

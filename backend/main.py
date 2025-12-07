@@ -29,6 +29,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+try:
+    print("🔑 Initializing Firebase for chat functionality...")
+    chat_api.initialize_firestore()
+    print("✓ Firebase initialized for chat functionality")
+except Exception as e:
+    print(f"⚠ Firebase initialization skipped: {e}")
+
 # Include routers
 app.include_router(user_api.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(connectors_api.router, prefix="/api/connector", tags=["Connections"])
