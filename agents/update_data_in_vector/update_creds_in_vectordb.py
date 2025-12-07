@@ -6,8 +6,8 @@ from langsmith import traceable
 from langsmith.run_helpers import trace
 
 # Get the embedding model name from environment variables
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
-
+MODEL = os.getenv("EMBEDDING_MODEL","gemini")
+EMBEDDING_MODEL = os.getenv("EMBD_MODEL_PROVIDER","text-embedding-004") 
 
 
 def update_creds_in_gcp(state):
@@ -60,7 +60,7 @@ def build_vector_store(state):
         user_id=config['user_id'], 
         db_name=config['db_name'],        # Name of the database
         embedding_model=EMBEDDING_MODEL,  # Embedding model to use
-        model='gemini'                    # Model type
+        model=MODEL                       # Model type
     )
 
     if vector_store.exists():

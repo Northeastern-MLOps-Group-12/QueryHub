@@ -4,7 +4,7 @@ from sqlalchemy import text
 from dotenv import load_dotenv
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from connectors.connector import Connector
 from agents.base_agent import Agent
 from langsmith import traceable

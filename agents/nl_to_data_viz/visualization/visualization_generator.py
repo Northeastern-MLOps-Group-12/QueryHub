@@ -119,6 +119,8 @@ def generate_visualizations(state: AgentState) -> Dict:
     
     if df.empty:
         return {
+            "error": True,
+            "error_message": "No data to visualize",
             "generated_visualizations": [],
             "visualization_metadata": {"error": "No data to visualize"},
             "visualization_intent": "bi",
@@ -140,6 +142,8 @@ def generate_visualizations(state: AgentState) -> Dict:
     
     if not visualizations:
         return {
+            "error": True,
+            "error_message": "No suitable data for visualization",
             "visualization_intent": intent,
             "generated_visualizations": [],
             "visualization_metadata": {"error": "No suitable columns for visualization"},

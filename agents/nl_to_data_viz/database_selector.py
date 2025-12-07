@@ -1,42 +1,81 @@
-# ============================================================================
-# FILE: AgentFiles/DatabaseSelector/database_selector.py
-# ============================================================================
+"""
+Database Selector - FIXED with Correct Variable Names
+Automatically chooses embedding model based on EMBD_MODEL_PROVIDER environment variable
+"""
 
 import os
 import json
 from pathlib import Path
 from typing import Dict, List
 from langchain_openai.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from posthog import project_root
+from langchain_community.vectorstores import Chroma
+from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
+import numpy as np
 
 from databases.cloudsql.database import get_db
-from .state import AgentState
-import numpy as np
-from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from databases.cloudsql.crud import get_records_by_user_id
+from .state import AgentState
 
 
+# ============================================================================
+# FIXED: Correct variable names matching generate_sql_query.py
+# ============================================================================
+
+# Get environment variables
 LLM_API_KEY = os.getenv('LLM_API_KEY')
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-large')
+EMBD_MODEL_PROVIDER = os.getenv('EMBD_MODEL_PROVIDER', 'gemini')  # gemini or gpt
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-004')
+
 
 class DatabaseSelector:
     """Select best database for a query using semantic similarity"""
     
     def __init__(self):
+        """
+        Initialize DatabaseSelector with appropriate embedding model
+        based on EMBD_MODEL_PROVIDER environment variable
+        """
         project_root = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        # self.vector_stores_dir = project_root / "vectorstore" / "VectorStores"
-        # self.embedding_function = OpenAIEmbeddings(model="text-embedding-3-large")
-        self.embedding_function = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL, google_api_key=LLM_API_KEY)
-        self.vector_stores_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) / "vectorstore/VectorStores"
-        self.config_path = Path("config/db_configs.json")
+        self.vector_stores_dir = project_root / "vectorstore" / "VectorStores"
+        
+        # ====================================================================
+        # DYNAMIC EMBEDDING MODEL SELECTION
+        # ====================================================================
+        
+        model_lower = EMBD_MODEL_PROVIDER.lower()
+        
+        if model_lower in ['gpt', 'openai']:
+            # Use OpenAI embeddings for GPT models
+            self.embedding_function = OpenAIEmbeddings(
+                model="text-embedding-3-large",
+                openai_api_key=LLM_API_KEY
+            )
+            self.embedding_provider = "openai"
+            print(f"✅ DatabaseSelector using OpenAI embeddings: text-embedding-3-large")
+            
+        elif model_lower in ['gemini', 'google']:
+            # Use Google embeddings for Gemini models
+            self.embedding_function = GoogleGenerativeAIEmbeddings(
+                model=EMBEDDING_MODEL,
+                google_api_key=LLM_API_KEY
+            )
+            self.embedding_provider = "google"
+            print(f"✅ DatabaseSelector using Google embeddings: {EMBEDDING_MODEL}")
+            
+        else:
+            # Default to Google embeddings
+            self.embedding_function = GoogleGenerativeAIEmbeddings(
+                model=EMBEDDING_MODEL,
+                google_api_key=LLM_API_KEY
+            )
+            self.embedding_provider = "google"
+            print(f"⚠️  Unknown provider '{EMBD_MODEL_PROVIDER}', defaulting to Google embeddings: {EMBEDDING_MODEL}")
     
     def load_db_configs(self, user_id: str) -> Dict:
-        """Load database configurations from JSON file"""
-
+        """Load database configurations from database"""
         db = next(get_db())
         creds = get_records_by_user_id(db, int(user_id))
-        print(creds, "_____________________CREDS_____________________")
+        print(f"Loaded {len(creds)} database credentials for user {user_id}")
 
         config = {"databases": []}
 
@@ -47,30 +86,19 @@ class DatabaseSelector:
                 "db_user": cred.db_user,
                 "db_password": cred.db_password,
                 "db_host": cred.db_host,
+                "db_port": cred.db_port if hasattr(cred, 'db_port') else None
             }
             config["databases"].append(db_config)
 
         return config
-        
-        # if not self.config_path.exists():
-        #     raise FileNotFoundError(f"Database config file not found: {self.config_path}")
-        
-        # with open(self.config_path, 'r') as f:
-        #     return json.load(f)
-        
-
     
     def get_all_vector_stores(self, user_id: str) -> List[str]:
-        """Get list of all available vector store database names"""
+        """Get list of all available vector store database names for user"""
         if not self.vector_stores_dir.exists():
             return []
         
-        user_id_str = user_id
+        user_id_str = str(user_id)
         db_names = []
-        # for folder in self.vector_stores_dir.iterdir():
-        #     if folder.is_dir() and folder.name.startswith("chroma_"):
-        #         db_name = folder.name.replace("chroma_", "")
-        #         db_names.append(db_name)
 
         for folder in self.vector_stores_dir.iterdir():
             if not folder.is_dir():
@@ -86,10 +114,11 @@ class DatabaseSelector:
                 continue
 
             # Remove "chroma_" prefix and "_userid" suffix
-            core = name[len("chroma_"):]                   # remove chroma_
-            dbname = core[: -(len(user_id_str) + 1)]       # remove "_userid"
+            core = name[len("chroma_"):]
+            dbname = core[: -(len(user_id_str) + 1)]
             db_names.append(dbname)
         
+        print(f"Found {len(db_names)} vector stores for user {user_id_str}")
         return db_names
     
     def extract_dataset_description(self, db_name: str, user_id: str) -> str:
@@ -121,24 +150,19 @@ class DatabaseSelector:
         """
         Compute embeddings for all database descriptions ONCE
         Cached in state for reuse
-        
-        Returns updated state fields with database metadata
         """
         # If already computed, return existing data (CACHED)
         if state.database_metadata and state.database_metadata.get('computed'):
-            print("Using cached database embeddings")
+            print("✅ Using cached database embeddings")
             return {
                 "database_metadata": state.database_metadata,
                 "available_databases": state.available_databases
             }
         
-        print("Computing database embeddings for the first time...")
+        print(f"🔄 Computing database embeddings (Provider: {self.embedding_provider})...")
         
         db_configs = self.load_db_configs(state.user_id)
         available_dbs = self.get_all_vector_stores(state.user_id)
-
-        print(available_dbs, "_____________________HERE_____________________")
-        print(db_configs, "_____________________HERE_____________________")
         
         database_metadata = []
         
@@ -154,12 +178,12 @@ class DatabaseSelector:
                     break
             
             if not db_config:
-                print(f"Warning: No config found for {db_name}, skipping")
+                print(f"⚠️  Warning: No config found for {db_name}, skipping")
                 continue
             
             # Compute embedding for description ONCE
             if description:
-                print(f"  Computing embedding for: {db_name}")
+                print(f"  📊 Computing embedding for: {db_name}")
                 embedding = self.embedding_function.embed_query(description)
             else:
                 embedding = []
@@ -171,12 +195,12 @@ class DatabaseSelector:
                 'config': db_config
             })
         
-        print(f"Cached embeddings for {len(database_metadata)} databases")
+        print(f"✅ Cached embeddings for {len(database_metadata)} databases")
         
         if not database_metadata:
             return {
                 "error": True,
-                "error_message": "Connect atleast one database or check your internet connection!!!"
+                "error_message": "Connect at least one database or check your internet connection!"
             }
 
         return {
@@ -186,78 +210,30 @@ class DatabaseSelector:
             },
             "available_databases": available_dbs
         }
-
-    # def compute_database_embeddings(self, state: AgentState) -> Dict:
-    #     """
-    #     Compute embeddings for all database descriptions ONCE
-    #     Cached in state for reuse
-        
-    #     Returns updated state fields with database metadata
-    #     """
-    #     # If already computed, return existing data (CACHED)
-    #     if state.database_metadata and state.database_metadata.get('computed'):
-    #         print("Using cached database embeddings")
-    #         return {
-    #             "database_metadata": state.database_metadata,
-    #             "available_databases": state.available_databases
-    #         }
-        
-    #     print("Computing database embeddings for the first time...")
-        
-    #     available_dbs = self.get_all_vector_stores(state.user_id)
-    #     print(available_dbs, "_____________________HERE_____________________")
-        
-    #     database_metadata = []
-        
-    #     for db_name in available_dbs:
-    #         # Get description from vector store
-    #         description = self.extract_dataset_description(db_name, user_id=state.user_id)
-            
-    #         # Compute embedding for description ONCE
-    #         if description:
-    #             print(f"  Computing embedding for: {db_name}")
-    #             embedding = self.embedding_function.embed_query(description)
-    #         else:
-    #             embedding = []
-            
-    #         database_metadata.append({
-    #             'db_name': db_name,
-    #             'description': description,
-    #             'embedding': embedding
-    #         })
-        
-    #     print(f"Cached embeddings for {len(database_metadata)} databases")
-        
-    #     return {
-    #         "database_metadata": {
-    #             'databases': database_metadata,
-    #             'computed': True
-    #         },
-    #         "available_databases": available_dbs
-    #     }
     
     def select_best_database(self, state: AgentState) -> Dict:
         """
         Select best database for user query using semantic similarity
         Query embedding is computed FRESH each time
-        
-        Returns updated state fields with selected database
         """
         # Ensure metadata is computed
         if not state.database_metadata or not state.database_metadata.get('computed'):
-            print("Database metadata not computed. Computing now...")
+            print("⚠️  Database metadata not computed. Computing now...")
             metadata_result = self.compute_database_embeddings(state)
             database_metadata = metadata_result['database_metadata']
         else:
             database_metadata = state.database_metadata
-        print(database_metadata, "_____________________HERE_____________________")
+        
         databases = database_metadata['databases']
         
         if not databases:
-            raise ValueError("No databases available for selection")
+            return {
+                "error": True,
+                "error_message": "No databases available for selection"
+            }
         
         # Compute FRESH query embedding every time
-        print(f"Computing query embedding for: '{state.user_query}'")
+        print(f"🔍 Computing query embedding for: '{state.user_query}'")
         query_embedding = self.embedding_function.embed_query(state.user_query)
         
         # Compute similarity scores with CACHED DB embeddings
@@ -283,11 +259,15 @@ class DatabaseSelector:
         # Select best match
         best_match = similarities[0]
         
-        print(f"\nDatabase Selection Results:")
+        print(f"\n{'='*70}")
+        print(f"📊 Database Selection Results")
+        print(f"{'='*70}")
         for i, db in enumerate(similarities, 1):
-            print(f"{i}. {db['db_name']}: {db['similarity']:.3f}")
-        
-        print(f"\nSelected: {best_match['db_name']} (similarity: {best_match['similarity']:.3f})")
+            marker = "✅" if i == 1 else "  "
+            print(f"{marker} {i}. {db['db_name']}: {db['similarity']:.3f}")
+        print(f"{'='*70}")
+        print(f"🎯 Selected: {best_match['db_name']} (similarity: {best_match['similarity']:.3f})")
+        print(f"{'='*70}\n")
         
         # Return updated state fields
         return {
@@ -312,23 +292,27 @@ class DatabaseSelector:
         return dot_product / (norm1 * norm2)
 
 
-# Instantiate selector
+# ============================================================================
+# GLOBAL INSTANCE & WORKFLOW NODES
+# ============================================================================
+
+# Instantiate selector once
 _db_selector = DatabaseSelector()
 
 
 def compute_database_embeddings(state: AgentState) -> Dict:
-    print("_________________________________compute_database_embeddings called_________________________________")
     """
     Workflow node: Compute database embeddings ONCE
     Cached in state for entire session
     """
+    print("_____________________compute_database_embeddings______________________")
     return _db_selector.compute_database_embeddings(state)
 
 
 def select_best_database(state: AgentState) -> Dict:
-    print("_________________________________select_best_database called_________________________________")
     """
     Workflow node: Select best database for CURRENT query
     Query embedding computed fresh, compared to cached DB embeddings
     """
+    print("_____________________select_best_database______________________")
     return _db_selector.select_best_database(state)
