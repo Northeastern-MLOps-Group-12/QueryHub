@@ -1,5 +1,5 @@
 import os
-from backend import user_api, connectors_api, chat_api
+from backend import user_api, connectors_api, chat_api, utils
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -21,7 +21,7 @@ app = FastAPI(
 )
 
 # CORS configuration
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 MODE = os.getenv("MODE", "API")
 
 app.add_middleware(
@@ -48,7 +48,7 @@ async def startup_event():
     agent, memory, session_id = initialize_agent()
     
     # Pass the global instances to chat_api
-    chat_api.set_global_agent(agent, memory, session_id)
+    utils.agent_utils.set_global_agent(agent, memory, session_id)
     
     print("✓ Agent compiled successfully!")
     print(f"✓ Memory initialized")
@@ -56,6 +56,13 @@ async def startup_event():
     print(f"✓ Running in {MODE} mode")
     print(f"✓ Max retries: {3 if MODE == 'API' else 1}")
     print("="*60)
+
+    try:
+        print("🔑 Initializing Firebase for chat functionality...")
+        chat_api.initialize_firestore()
+        print("✓ Firebase initialized for chat functionality")
+    except Exception as e:
+        print(f"⚠ Firebase initialization skipped: {e}")
 
 
 @app.on_event("shutdown")

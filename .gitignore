@@ -11,6 +11,8 @@
 
 # Sensitive files
 gcs_creds.json
+service-account-key.json
+application_default_credentials.json
 
 # Virtual environments
 **/env/

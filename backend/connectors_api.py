@@ -26,6 +26,9 @@ from connectors.engines.postgres.postgres_connector import PostgresConnector
 # - Routes should raise HTTPException for client errors; unexpected exceptions are caught in the route.
 # - If more fine-grained error handling is needed, add custom exception classes in connectors/agents.
 
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+MODEL = os.getenv("MODEL")
+
 router = APIRouter()
 
 @router.post("/connect/addConnection")
