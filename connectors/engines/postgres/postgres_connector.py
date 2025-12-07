@@ -3,7 +3,7 @@ import urllib.parse
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from ...base_connector import BaseConnector
-from databases.cloudsql.crud import create_record, delete_record, update_record, get_records_by_user_and_db
+from databases.cloudsql.crud import create_record, delete_record, update_record
 from databases.cloudsql.database import get_db
 from databases.cloudsql.models.credentials import Credentials
 from langsmith import traceable
