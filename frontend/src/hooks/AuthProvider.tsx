@@ -2,10 +2,10 @@ import { createContext, useState, useEffect, type ReactNode } from "react";
 import { getProfile } from "../services/authService";
 
 interface UserProfile {
-  userId: string;
+  user_id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   avatarUrl?: string;
 }
 

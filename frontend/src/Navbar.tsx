@@ -66,9 +66,9 @@ export default function Navbar() {
   // Determine avatar URL
   const avatarUrl =
     userData?.avatarUrl ||
-    (userData?.firstName
+    (userData?.first_name
       ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          userData.firstName
+          userData.first_name
         )}&background=random`
       : "/src/assets/default-avatar.png");
 
@@ -83,7 +83,7 @@ export default function Navbar() {
         style={{ width: "90px", height: "90px", objectFit: "cover" }}
       />
       <h5 className="fw-bold mb-1">
-        {userData?.firstName} {userData?.lastName}
+        {userData?.first_name} {userData?.last_name}
       </h5>
       <p className="text-muted mb-3">{userData?.email}</p>
 

@@ -1,18 +1,22 @@
 import React, { useEffect, useState, useRef, type JSX } from "react";
 import botLogo from "../../public/logo.png";
 import useAuth from "../hooks/useAuth";
+import { Spinner } from "react-bootstrap";
 import {
   getChatSessions,
-  getChatMessages,
   createNewChat,
+  getChatHistory,
   sendMessage,
+  getAttachmentUrl,
+  getVisualizationUrl,
   type ChatSession,
   type Message,
 } from "../services/chatService";
 import NewChatModal from "./NewChatModal";
 
 export default function ChatInterface(): JSX.Element {
-  const { userData } = useAuth();
+  const { userData, userId } = useAuth();
+  console.log("ChatInterface Render - UserData:", userData);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,7 +36,7 @@ export default function ChatInterface(): JSX.Element {
   const leftListRef = useRef<HTMLDivElement | null>(null);
 
   // Caching helper functions
-  const cacheKeySessions = `chat_sessions_${userData?.userId}`;
+  const cacheKeySessions = `chat_sessions_${userData?.user_id}`;
   const cacheKeyMessages = (chatId: string) => `chat_messages_${chatId}`;
 
   // Load cached data from localStorage
@@ -59,13 +63,13 @@ export default function ChatInterface(): JSX.Element {
 
   // Load chat sessions on mount
   useEffect(() => {
-    if (!userData?.userId) return;
+    if (!userData?.user_id) return;
     const cachedSessions = loadCachedSessions();
     if (cachedSessions) {
       setSessions(cachedSessions);
       if (cachedSessions.length > 0) {
         setSelectedChat(cachedSessions[0]);
-        const cachedMsgs = loadCachedMessages(cachedSessions[0].id);
+        const cachedMsgs = loadCachedMessages(cachedSessions[0].chat_id);
         if (cachedMsgs) setMessages(cachedMsgs);
       }
     }
@@ -73,14 +77,14 @@ export default function ChatInterface(): JSX.Element {
     // Fetch from backend
     (async () => {
       try {
-        const chats = await getChatSessions(userData.userId);
+        const chats = await getChatSessions();
         setSessions(chats);
         saveCachedSessions(chats);
         if (chats.length > 0) {
           setSelectedChat(chats[0]);
-          const msgs = await getChatMessages(chats[0].id);
-          setMessages(msgs);
-          saveCachedMessages(chats[0].id, msgs);
+          const msgs = await getChatHistory(chats[0].chat_id);
+          setMessages(msgs.history);
+          saveCachedMessages(chats[0].chat_id, msgs.history);
         }
       } catch (err) {
         console.error("Error loading chats:", err);
@@ -92,13 +96,13 @@ export default function ChatInterface(): JSX.Element {
   const handleSelectChat = async (chat: ChatSession) => {
     try {
       setSelectedChat(chat);
-      const cachedMsgs = loadCachedMessages(chat.id);
+      const cachedMsgs = loadCachedMessages(chat.chat_id);
       if (cachedMsgs) {
         setMessages(cachedMsgs);
       } else {
-        const msgs = await getChatMessages(chat.id);
-        setMessages(msgs);
-        saveCachedMessages(chat.id, msgs);
+        const msgs = await getChatHistory(chat.chat_id);
+        setMessages(msgs.history);
+        saveCachedMessages(chat.chat_id, msgs.history);
       }
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -113,14 +117,14 @@ export default function ChatInterface(): JSX.Element {
   // Confirm create chat from modal (backend returns no title)
   const handleConfirmCreateChat = async (titleFromUser: string) => {
     setShowNewChatModal(false);
-    if (!userData?.userId) return;
+    if (!userData?.user_id) return;
     try {
-      const newChat = await createNewChat(userData.userId);
+      const newChat = await createNewChat(titleFromUser.trim() || "New Chat");
       const fallbackTitle =
         titleFromUser?.trim() || `Untitled Chat ${sessions.length + 1}`;
       const chatWithTitle: ChatSession = {
         ...newChat,
-        title: fallbackTitle,
+        chat_title: fallbackTitle,
       };
       const updatedSessions = [chatWithTitle, ...sessions];
       setSessions(updatedSessions);
@@ -140,27 +144,62 @@ export default function ChatInterface(): JSX.Element {
     setShowNewChatModal(false);
   };
 
-  // Send message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !userData?.userId) return;
-    try {
-      const updatedMessages = await sendMessage(
-        selectedChat.id,
-        userData.userId,
-        newMessage.trim()
-      );
-      setMessages(updatedMessages);
-      saveCachedMessages(selectedChat.id, updatedMessages);
-      setNewMessage("");
+    // 1. Validation
+    if (!newMessage.trim() || !selectedChat) return;
 
-      // Update sessions cache as well (for latest message preview)
-      const updatedSessions = sessions.map((s) =>
-        s.id === selectedChat.id ? { ...s, lastMessage: newMessage.trim() } : s
-      );
-      setSessions(updatedSessions);
-      saveCachedSessions(updatedSessions);
+    const textToSend = newMessage.trim();
+    setNewMessage("");
+
+    // 2. Create the User's Message object optimistically
+    const userMsg: Message = {
+      message_id: `temp-${Date.now()}`, // Temporary ID until refresh
+      sender: "user",
+      created_at: new Date().toISOString(),
+      content: { text: textToSend }
+    };
+
+    // 3. Update State & Cache with User Message immediately
+    const messagesWithUser = [...messages, userMsg];
+    setMessages(messagesWithUser);
+    saveCachedMessages(selectedChat.chat_id, messagesWithUser); // Update cache if you have this function
+
+    try {
+      // 4. Call API (returns only the Bot's response)
+      const botMsg = await sendMessage(selectedChat.chat_id, textToSend);
+
+      // 5. Update State & Cache with Bot Message
+      setMessages((prevMessages) => {
+        const updatedList = [...prevMessages, botMsg];
+        // Save to cache inside here to ensure we have the full list
+        saveCachedMessages(selectedChat.chat_id, updatedList); 
+        return updatedList;
+      });
+
+      // 6. UPDATE & RE-SORT SESSIONS LIST [FIX IS HERE]
+      setSessions((prevSessions) => {
+        // A. Update the timestamp of the current chat
+        const updatedList = prevSessions.map((s) =>
+          s.chat_id === selectedChat.chat_id 
+            ? { ...s, updated_at: new Date().toISOString() } 
+            : s
+        );
+
+        // B. Sort the list immediately (Newest first)
+        const sortedList = updatedList.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+        
+        // C. Update Cache
+        saveCachedSessions(sortedList);
+        
+        return sortedList;
+      });
+
     } catch (err) {
       console.error("Error sending message:", err);
+      // Optional: Add logic to remove the user message or show an error state
+      alert("Failed to send message");
     }
   };
 
@@ -193,8 +232,81 @@ export default function ChatInterface(): JSX.Element {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const FileAttachment = ({ msgId, fileName }: { msgId: string; fileName: string }) => {
+    const [loading, setLoading] = useState(false);
+
+    const handleDownload = async () => {
+      try {
+        setLoading(true);
+        // 1. Fetch the signed URL from your backend
+        const signedUrl = await getAttachmentUrl(msgId);
+        
+        // 2. Trigger download (create invisible link)
+        const link = document.createElement("a");
+        link.href = signedUrl;
+        link.download = fileName || "download.csv"; // Optional: suggest filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error("Failed to download:", err);
+        alert("Failed to download file.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div 
+        className="d-flex align-items-center gap-2 p-2 mt-2 bg-white rounded border cursor-pointer hover-shadow"
+        style={{ cursor: "pointer", maxWidth: "100%" }}
+        onClick={handleDownload}
+      >
+        <div className="bg-light p-2 rounded text-primary">
+          {loading ? <Spinner size="sm" animation="border" /> : <i className="bi bi-file-earmark-text-fill fs-5"></i>}
+        </div>
+        <div className="overflow-hidden">
+          <div className="fw-semibold text-truncate small">Generated Data</div>
+          <div className="text-muted small text-truncate" style={{fontSize: "0.75rem"}}>
+              {fileName || "data.csv"}
+          </div>
+        </div>
+        <i className="bi bi-download ms-auto text-secondary"></i>
+      </div>
+    );
+  };
+
+  const VisualizationButton = ({ msgId }: { msgId: string }) => {
+    const [loading, setLoading] = useState(false);
+
+    const handleViewDashboard = async () => {
+      try {
+        setLoading(true);
+        const signedUrl = await getVisualizationUrl(msgId);
+        // Open in new tab
+        window.open(signedUrl, "_blank");
+      } catch (err) {
+        console.error("Failed to open dashboard:", err);
+        alert("Failed to load visualization.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <button
+        onClick={handleViewDashboard}
+        disabled={loading}
+        className="btn btn-sm btn-outline-primary w-100 mt-2 d-flex align-items-center justify-content-center gap-2"
+      >
+        {loading ? <Spinner size="sm" animation="border" /> : <i className="bi bi-bar-chart-fill"></i>}
+        View Dashboard
+      </button>
+    );
+  };
+
   return (
-    <div className="d-flex mt-2" style={{ height: "100vh", minHeight: 600 }}>
+    <div className="d-flex mt-2" style={{ height: "calc(100vh - 60px)", overflow: "hidden" }}>
       {/* NEW CHAT MODAL */}
       <NewChatModal
         show={showNewChatModal}
@@ -204,23 +316,21 @@ export default function ChatInterface(): JSX.Element {
 
       {/* LEFT SIDEBAR */}
       <aside
-        className="d-none d-md-flex flex-column bg-body-tertiary border-end position-sticky"
+        className="d-none d-md-flex flex-column bg-body-tertiary border-end"
         style={{
           flex: sidebarOpen ? "0 0 300px" : "0 0 0",
           maxWidth: sidebarOpen ? 400 : 0,
           minWidth: sidebarOpen ? 260 : 0,
           overflow: "hidden",
-          transition: "all 0.2s ease",
-          top: "69px",
-          height: "calc(100vh - 69px)",
+          transition: "all 0.2s ease"
         }}
       >
-        <div className="p-2 ms-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary">
+        <div className="pt-2 px-2 ms-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary" style={{paddingBottom: "0.7rem"}}>
           <button
             className="btn btn-primary d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
             onClick={handleNewChat}
             aria-label="New chat"
-            style={{ fontWeight: 500, fontSize: "0.9rem" }}
+            style={{ fontWeight: 500, fontSize: "0.9rem"}}
           >
             <i className="bi bi-pencil-square"></i>
             <span>New Chat</span>
@@ -255,21 +365,21 @@ export default function ChatInterface(): JSX.Element {
             <div className="list-group list-group-flush border-0">
               {sessions.map((chat) => (
                 <button
-                  key={chat.id}
+                  key={chat.chat_id}
                   onClick={() => handleSelectChat(chat)}
                   className={`list-group-item list-group-item-action border-0 text-start ${
-                    selectedChat?.id === chat.id ? "active" : ""
+                    selectedChat?.chat_id === chat.chat_id ? "active" : ""
                   }`}
                   type="button"
                 >
                   <div className="d-flex align-items-center">
                     <div className="overflow-hidden">
                       <div className="fw-semibold text-truncate">
-                        {chat.title}
+                        {chat.chat_title}
                       </div>
-                      <div className="small text-truncate opacity-75">
+                      {/* <div className="small text-truncate opacity-75">
                         {chat.lastMessage}
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </button>
@@ -337,24 +447,24 @@ export default function ChatInterface(): JSX.Element {
             <div className="list-group list-group-flush border-0">
               {sessions.map((chat) => (
                 <button
-                  key={chat.id}
+                  key={chat.chat_id}
                   onClick={() => {
                     handleSelectChat(chat);
                     setSidebarOpen(false);
                   }}
                   className={`list-group-item list-group-item-action border-0 text-start ${
-                    selectedChat?.id === chat.id ? "active" : ""
+                    selectedChat?.chat_id === chat.chat_id ? "active" : ""
                   }`}
                   type="button"
                 >
                   <div className="d-flex align-items-center">
                     <div className="overflow-hidden">
                       <div className="fw-semibold text-truncate">
-                        {chat.title}
+                        {chat.chat_title}
                       </div>
-                      <div className="small text-truncate opacity-75">
+                      {/* <div className="small text-truncate opacity-75">
                         {chat.lastMessage}
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </button>
@@ -380,7 +490,7 @@ export default function ChatInterface(): JSX.Element {
       >
         <div
           className="p-3 pb-md-4 border-bottom d-flex align-items-center bg-body-tertiary"
-          style={{ position: "sticky", top: "66px", zIndex: 5 }}
+          // style={{ position: "sticky", top: "66px", zIndex: 5 }}
         >
 
           {/* Mobile menu button */}
@@ -400,7 +510,7 @@ export default function ChatInterface(): JSX.Element {
             </button>
           )}
           <h2 className="h6 mb-0 fw-semibold">
-            {selectedChat?.title || "New Chat"}
+            {selectedChat?.chat_title || "New Chat"}
           </h2>
         </div>
 
@@ -418,7 +528,7 @@ export default function ChatInterface(): JSX.Element {
               <div className="d-flex flex-column gap-4 flex-grow-1">
                 {messages.map((msg) => (
                   <div
-                    key={msg.id}
+                    key={msg.message_id}
                     className={`d-flex align-items-end gap-2 ${
                       msg.sender === "user" ? "flex-row-reverse" : ""
                     }`}
@@ -446,9 +556,9 @@ export default function ChatInterface(): JSX.Element {
                         <img
                           src={
                             userData?.avatarUrl ||
-                            (userData?.firstName
+                            (userData?.first_name
                               ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                  userData.firstName
+                                  userData.first_name
                                 )}&background=random`
                               : "/src/assets/default-avatar.png")
                           }
@@ -463,6 +573,7 @@ export default function ChatInterface(): JSX.Element {
                         />
                       )}
                     </div>
+                    {/* Message Bubble */}
                     <div
                       className={`p-3 rounded-4 shadow-sm ${
                         msg.sender === "user"
@@ -471,20 +582,34 @@ export default function ChatInterface(): JSX.Element {
                       }`}
                       style={{
                         maxWidth: "75%",
-                        borderBottomRightRadius:
-                          msg.sender === "user" ? 0 : undefined,
-                        borderBottomLeftRadius:
-                          msg.sender === "bot" ? 0 : undefined,
-                        padding: "0.85rem 1.1rem",
-                        lineHeight: "1.5",
-                        wordBreak: "break-word",
-                        boxShadow:
-                          msg.sender === "user"
-                            ? "0 2px 6px rgba(0,0,0,0.25)"
-                            : "0 2px 5px rgba(0,0,0,0.15)",
+                        borderBottomRightRadius: msg.sender === "user" ? 0 : undefined,
+                        borderBottomLeftRadius: msg.sender === "bot" ? 0 : undefined,
                       }}
                     >
-                      {msg.text}
+                      {/* 1. TEXT CONTENT */}
+                      <div style={{ whiteSpace: "pre-wrap", fontWeight: `${msg.sender === "bot" ? "bold" : "normal"}` }}>
+                        {msg.sender === "user" ? msg.content.text : "I found the following results:"}
+                      </div>
+
+                      {/* 2. SQL QUERY (Optional: Show if you want debugging) */}
+                      {msg.sender === "bot" && msg.content.query && (
+                        <div className="mt-2 p-2 bg-dark bg-opacity-10 rounded font-monospace small text-muted">
+                          <code>{msg.content.query}</code>
+                        </div>
+                      )}
+
+                      {/* 3. ATTACHMENT SECTION */}
+                      {msg.sender === "bot" && msg.content.attachment?.has_attachment && (
+                        <FileAttachment 
+                          msgId={msg.message_id} 
+                          fileName={msg.content.attachment.file_name || "data.csv"} // Pass filename if available in your JSON
+                        />
+                      )}
+
+                      {/* 4. VISUALIZATION SECTION */}
+                      {msg.sender === "bot" && msg.content.visualization?.has_visualization && (
+                        <VisualizationButton msgId={msg.message_id} />
+                      )}
                     </div>
                   </div>
                 ))}
