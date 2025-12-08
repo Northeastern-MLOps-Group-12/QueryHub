@@ -7,6 +7,10 @@ on:
       - dev
     paths:
       - "backend/**"
+      - "agents/**"
+      - "connectors/**"
+      - "databases/**"
+      - "vectorstore/**"
       - "tests/**"
   workflow_dispatch:
 
@@ -18,17 +22,19 @@ env:
   SERVICE: backend
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-  MODEL: gemini
-  MODEL_NAME: gemini-2.5-flash
-  EMBEDDING_MODEL: text-embedding-004
+  MODEL: ${{ secrets.MODEL }}
+  MODEL_NAME: ${{ secrets.MODEL_NAME }}
+  EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
   FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
   CLOUD_SQL_INSTANCE: ${{ secrets.CLOUD_SQL_INSTANCE }}
-  ACCESS_TOKEN_EXPIRE_MINUTES: 30
   SECRET_KEY: ${{ secrets.SECRET_KEY }}
   ALGORITHM: ${{ secrets.ALGORITHM }}
+  FIREBASE_DATABASE_ID: ${{ secrets.FIREBASE_DATABASE_ID }}
+  GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+  GCS_VECTORSTORE_BUCKET_NAME: ${{ secrets.GCS_VECTORSTORE_BUCKET_NAME }}
 
 jobs:
-  # 1️⃣ Run Unit Tests
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
@@ -55,12 +61,11 @@ jobs:
           pytest -v --maxfail=1 --disable-warnings agents backend connectors
 
 
-  # 2️⃣ Deploy to Cloud Run (only if tests pass)
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
     needs: test
-    if: success()   # <-- only deploy if tests succeeded
+    if: success()
 
     steps:
       - name: Checkout code
@@ -108,4 +113,4 @@ jobs:
             --allow-unauthenticated \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
-            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }},ACCESS_TOKEN_EXPIRE_MINUTES=${{ env.ACCESS_TOKEN_EXPIRE_MINUTES }},SECRET_KEY=${{ env.SECRET_KEY }},ALGORITHM=${{ env.ALGORITHM }}
+            --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }},ACCESS_TOKEN_EXPIRE_MINUTES=${{ env.ACCESS_TOKEN_EXPIRE_MINUTES }},SECRET_KEY=${{ env.SECRET_KEY }},ALGORITHM=${{ env.ALGORITHM }},FIREBASE_DATABASE_ID=${{ env.FIREBASE_DATABASE_ID }},GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GCS_VECTORSTORE_BUCKET_NAME=${{ env.GCS_VECTORSTORE_BUCKET_NAME }},PROJECT_ID=${{ env.PROJECT_ID }}
