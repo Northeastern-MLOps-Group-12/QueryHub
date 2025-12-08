@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - dev
-      - nlp_to_data_viz
+      - nl_to_data_viz
     paths:
       - "backend/**"
       - "tests/**"

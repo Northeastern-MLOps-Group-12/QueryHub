@@ -107,8 +107,6 @@ def check_firestore():
     return db
 
 
-# ==================== API Endpoints ====================
-
 @router.get("/chats", response_model=ChatsListResponse)
 async def list_chats(
     current_user: User = Depends(get_current_user),
