@@ -4,7 +4,7 @@ from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 import os
 from langsmith import traceable
 from langsmith.run_helpers import trace
-from backend.utils.vectorstore_gcs import upload_vectorstore_to_gcs
+from backend.utils.vectorstore_gcs import upload_vectorstore_to_gcs, delete_vectorstore_from_gcs
 
 # Get the embedding model name from environment variables
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
@@ -74,16 +74,18 @@ def build_vector_store(state):
         print("Uploading vector store to GCS...")
         print(f"Local vector store path: {vector_store.persist_directory}")
         print(f"User ID: {config['user_id']}, DB Name: {config['db_name']}")
+
+        delete_vectorstore_from_gcs(user_id=str(config['user_id']), db_name=config['db_name'])
         
         upload_vectorstore_to_gcs(
-            local_vectorstore_path=vector_store.persist_directory,  # Changed from local_vectorstore_path
+            local_vectorstore_path=vector_store.persist_directory,
             user_id=config['user_id'],
             db_name=config['db_name']
         )
         print(f"✅ Vector store uploaded to GCS for {config['db_name']}")
     except Exception as e:
         print(f"⚠️ Warning: Failed to upload vector store to GCS: {e}")
-        # Don't fail the entire operation if GCS upload fails
-        # The vector store is still available locally
+        # Don't fail the entire operation, but keep local copy for debugging
+        # In production, you might want to raise here
 
     return state

@@ -124,46 +124,50 @@ def upload_vectorstore_to_gcs(local_vectorstore_path: str, user_id: str, db_name
 def download_vectorstore_from_gcs(user_id: str, db_name: str, local_vectorstore_path: str) -> bool:
     """
     Download vector store directory from GCS to local path
-    
-    Args:
-        user_id: User ID
-        db_name: Database name
-        local_vectorstore_path: Local path where vector store should be downloaded
-        
-    Returns:
-        True if download successful, False if vector store doesn't exist in GCS
     """
-    bucket = get_gcs_bucket()
-    gcs_prefix = f"vectorstores/{user_id}/{db_name}"
-    local_path = Path(local_vectorstore_path)
-    
-    # List all blobs with this prefix
-    blobs = bucket.list_blobs(prefix=gcs_prefix)
-    blob_list = list(blobs)
-    
-    if not blob_list:
-        print(f"⚠️ No vector store found in GCS at {gcs_prefix}")
+    try:
+        bucket = get_gcs_bucket()
+        gcs_prefix = f"vectorstores/{user_id}/{db_name}"
+        local_path = Path(local_vectorstore_path)
+        
+        # List all blobs with this prefix
+        blobs = bucket.list_blobs(prefix=gcs_prefix)
+        blob_list = list(blobs)
+        
+        if not blob_list:
+            print(f"⚠️ No vector store found in GCS at {gcs_prefix}")
+            return False
+        
+        # Create local directory if it doesn't exist
+        local_path.mkdir(parents=True, exist_ok=True)
+        
+        # Download all files
+        downloaded_count = 0
+        for blob in blob_list:
+            # Get relative path from prefix
+            relative_path = blob.name[len(gcs_prefix) + 1:]  # +1 to skip the trailing /
+            local_file_path = local_path / relative_path
+            
+            # Create parent directories if needed
+            local_file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Download file
+            blob.download_to_filename(str(local_file_path))
+            
+            # IMPORTANT: Set write permissions on downloaded files
+            # Files from GCS might be read-only, causing SQLite errors
+            os.chmod(local_file_path, 0o644)
+            
+            downloaded_count += 1
+        
+        # Set directory permissions too
+        os.chmod(local_path, 0o755)
+        
+        print(f"✅ Downloaded {downloaded_count} files from gs://{bucket.name}/{gcs_prefix} to {local_path}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Failed to download vector store from GCS: {e}")
         return False
-    
-    # Create local directory if it doesn't exist
-    local_path.mkdir(parents=True, exist_ok=True)
-    
-    # Download all files
-    downloaded_count = 0
-    for blob in blob_list:
-        # Get relative path from prefix
-        relative_path = blob.name[len(gcs_prefix) + 1:]  # +1 to skip the trailing /
-        local_file_path = local_path / relative_path
-        
-        # Create parent directories if needed
-        local_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Download file
-        blob.download_to_filename(str(local_file_path))
-        downloaded_count += 1
-    
-    print(f"✅ Downloaded {downloaded_count} files from gs://{bucket.name}/{gcs_prefix} to {local_path}")
-    return True
 
 
 def vectorstore_exists_in_gcs(user_id: str, db_name: str) -> bool:
@@ -213,3 +217,32 @@ def delete_vectorstore_from_gcs(user_id: str, db_name: str) -> bool:
     except Exception as e:
         print(f"Error deleting vector store from GCS: {e}")
         return False
+
+def replace_vectorstore_in_gcs(local_vectorstore_path: str, user_id: str, db_name: str) -> str:
+    """
+    Replace vector store in GCS by deleting old files first, then uploading new ones.
+    This ensures only one version exists at a time.
+    
+    Args:
+        local_vectorstore_path: Local path to the vector store directory
+        user_id: User ID
+        db_name: Database name
+        
+    Returns:
+        GCS path prefix (e.g., "gs://bucket/vectorstores/user_123/db_name")
+    """
+    try:
+        # First, delete old files from GCS if they exist
+        print(f"🔄 Replacing vector store in GCS for user_id={user_id}, db_name={db_name}...")
+        delete_vectorstore_from_gcs(user_id=user_id, db_name=db_name)
+        
+        # Then upload the new vector store
+        return upload_vectorstore_to_gcs(
+            local_vectorstore_path=local_vectorstore_path,
+            user_id=user_id,
+            db_name=db_name
+        )
+    except Exception as e:
+        raise Exception(
+            f"Failed to replace vector store in GCS: {str(e)}"
+        ) from e
