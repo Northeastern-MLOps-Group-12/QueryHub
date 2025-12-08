@@ -116,6 +116,8 @@ def generate_visualizations(state: AgentState) -> Dict:
     print("_____________________generate_visualizations______________________")
     """Complete visualization pipeline"""
     df = pd.DataFrame(state.query_results)
+    print(f"DataFrame shape: {df.shape}")
+    print(f"DataFrame : {df}")
     
     if df.empty:
         return {
@@ -137,6 +139,8 @@ def generate_visualizations(state: AgentState) -> Dict:
         )
     else:
         visualizations = _eda_visualizer.generate(df)
+    
+    print("Generated visualizations:", visualizations)
     
     if not visualizations:
         return {
@@ -179,6 +183,7 @@ def generate_visualizations(state: AgentState) -> Dict:
     
     if GCS_CONFIG['enabled'] and GCS_CONFIG['project_id'] and GCS_CONFIG['bucket_name']:
         try:
+            print("Uploading visualizations to GCS...")
             uploader = GCSUploader(
                 project_id=GCS_CONFIG['project_id'],
                 credentials_path=GCS_CONFIG.get('credentials_path')
@@ -191,6 +196,8 @@ def generate_visualizations(state: AgentState) -> Dict:
                 make_public=GCS_CONFIG['make_public'],
                 signed_url_expiration_hours=GCS_CONFIG['signed_url_hours']
             )
+
+            print("Cloud files", cloud_files)
             
             cloud_dashboard_path = session_path / "dashboard_cloud.html"
             _dashboard_generator.generate_cloud_dashboard(
@@ -199,6 +206,9 @@ def generate_visualizations(state: AgentState) -> Dict:
                 metadata=dashboard_metadata,
                 output_path=cloud_dashboard_path
             )
+
+            print("Cloud dashboard generated at", cloud_dashboard_path)
+
             
             from google.cloud import storage
             client = storage.Client(project=GCS_CONFIG['project_id'])
@@ -249,5 +259,7 @@ def generate_visualizations(state: AgentState) -> Dict:
         "error": error,
         "error_message": error_message
     }
+
+    print("Visualization generation result:", result)
     
     return sanitize_for_serialization(result)

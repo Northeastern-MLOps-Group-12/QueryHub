@@ -222,6 +222,7 @@ def build_visualization(user_query, user_id):
         
         # Run the workflow with global agent
         result = AGENT.invoke(input=state, config=config)
+        print(f"Result: {result}")
 
         output_file = Path("result1.json")
         
