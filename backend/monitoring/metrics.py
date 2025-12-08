@@ -163,7 +163,7 @@ sql_validation_failures = Counter(
 sql_execution_errors = Counter(
     'queryhub_sql_execution_errors_total',
     'Total SQL execution errors',
-    ['db_name', 'db_type', 'error_type']
+    ['db_name', 'db_type', 'error_type', 'complexity_type']  # ✅ Added complexity_type
 )
 
 retry_attempts = Histogram(
@@ -369,6 +369,15 @@ def track_validation_failure(failure_type: str):
     """Track SQL validation failures"""
     sql_validation_failures.labels(failure_type=failure_type).inc()
 
+def track_sql_error(db_name: str, db_type: str, error_message: str, complexity_type: str = 'unknown'):
+    """Track SQL execution errors with complexity type"""
+    error_type = 'syntax_error' if 'syntax' in error_message.lower() else 'execution_error'
+    sql_execution_errors.labels(
+        db_name=db_name,
+        db_type=db_type,
+        error_type=error_type,
+        complexity_type=complexity_type  # ✅ Added
+    ).inc()
 
 # ============================================================================
 # SQL COMPLEXITY TRACKING FUNCTIONS (NEW)
