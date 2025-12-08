@@ -1,15 +1,25 @@
 """
-Base Agent for LLM interactions - Using LangChain Chat Models
+Base Agent for LLM interactions - FIXED API Key Handling
 Supports: ChatOpenAI, ChatGoogleGenerativeAI
 Tracks: TTFT, Total time, Tokens generated, Tokens/sec, Avg time per token
 """
 
+import os
 import time
 import tiktoken
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai.chat_models import ChatOpenAI
 from langchain.schema.messages import HumanMessage
-from backend.monitoring import track_llm_generation
+
+# Try to import monitoring, but don't crash if not available
+try:
+    from backend.monitoring import track_llm_generation
+    MONITORING_ENABLED = True
+except ImportError:
+    print("⚠️ Monitoring module not available - running without metrics")
+    MONITORING_ENABLED = False
+    def track_llm_generation(*args, **kwargs):
+        pass  # No-op function
 
 
 class Agent:
@@ -18,28 +28,67 @@ class Agent:
     Uses LangChain chat models for both OpenAI and Google Gemini.
     """
     
-    def __init__(self, api_key: str, model: str = 'gpt', model_name: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str = None, model: str = 'gemini', model_name: str = None):
         """
         Initialize the agent with API credentials and model configuration.
         
         Args:
-            api_key: API key for the LLM provider
-            model: Provider type ('gpt' for OpenAI, 'gemini' for Google)
-            model_name: Specific model name (e.g., 'gpt-4', 'gemini-2.5-flash')
+            api_key: (Optional) API key - if not provided, reads from env
+            model: Provider type ('gpt'/'openai' or 'gemini'/'google')
+            model_name: Specific model name - if not provided, reads from env
         """
-        self.model = model
-        self.model_name = model_name
-        self.api_key = api_key
+        # ✅ FIX 1: Normalize model name
+        model_lower = model.lower()
         
-        # Initialize LangChain chat model
-        if model == 'gpt':
-            self.llm = ChatOpenAI(model=self.model_name, api_key=self.api_key)
-            self.provider = "openai"
-            print(f"✅ Initialized ChatOpenAI with model: {model_name}")
+        # ✅ FIX 2: Get model name from env if not provided
+        if model_name is None:
+            model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+        
+        self.model = model_lower
+        self.model_name = model_name
+        
+        # ✅ FIX 3: Get correct API key based on provider
+        if api_key:
+            # Use provided key
+            self.api_key = api_key
         else:
-            self.llm = ChatGoogleGenerativeAI(model=self.model_name, api_key=self.api_key)
+            # Read from environment based on provider
+            if model_lower in ['gpt', 'openai']:
+                self.api_key = os.getenv("OPENAI_API_KEY")
+                if not self.api_key:
+                    raise ValueError(
+                        "❌ OPENAI_API_KEY not set in .env but MODEL=gpt!\n"
+                        "Either:\n"
+                        "  1. Set OPENAI_API_KEY in .env\n"
+                        "  2. Change MODEL=gemini in .env"
+                    )
+            else:
+                self.api_key = os.getenv("LLM_API_KEY")
+                if not self.api_key:
+                    raise ValueError(
+                        "❌ LLM_API_KEY (Gemini) not set in .env!\n"
+                        "Set LLM_API_KEY=<your-gemini-key> in .env"
+                    )
+        
+        # ✅ FIX 4: Initialize correct LangChain chat model
+        if model_lower in ['gpt', 'openai']:
+            self.llm = ChatOpenAI(
+                model=self.model_name,
+                openai_api_key=self.api_key
+            )
+            self.provider = "openai"
+            print(f"✅ Initialized ChatOpenAI")
+            print(f"   Model: {model_name}")
+            print(f"   API Key: {self.api_key[:20]}...")
+        else:
+            self.llm = ChatGoogleGenerativeAI(
+                model=self.model_name,
+                google_api_key=self.api_key
+            )
             self.provider = "gemini"
-            print(f"✅ Initialized ChatGoogleGenerativeAI with model: {model_name}")
+            print(f"✅ Initialized ChatGoogleGenerativeAI")
+            print(f"   Model: {model_name}")
+            print(f"   API Key: {self.api_key[:20]}...")
         
         # Initialize tokenizer for token counting
         try:
@@ -121,14 +170,15 @@ class Agent:
             # Count tokens in response
             total_tokens = self.count_tokens(response_text)
             
-            # Track metrics in Prometheus
-            track_llm_generation(
-                operation=operation,
-                model=self.model_name,
-                time_to_first_token=time_to_first_token,
-                total_time=total_time,
-                total_tokens=total_tokens
-            )
+            # Track metrics in Prometheus (if monitoring is enabled)
+            if MONITORING_ENABLED:
+                track_llm_generation(
+                    operation=operation,
+                    model=self.model_name,
+                    time_to_first_token=time_to_first_token,
+                    total_time=total_time,
+                    total_tokens=total_tokens
+                )
             
             # Print metrics for debugging
             print(f"📊 LLM Metrics ({operation}):")
@@ -147,13 +197,14 @@ class Agent:
         except Exception as e:
             print(f"❌ Error in LLM generation ({self.provider}): {e}")
             
-            # Still track the error with zero tokens
-            end_time = time.time()
-            track_llm_generation(
-                operation=operation,
-                model=self.model_name,
-                time_to_first_token=0,
-                total_time=end_time - start_time,
-                total_tokens=0
-            )
+            # Still track the error with zero tokens (if monitoring enabled)
+            if MONITORING_ENABLED:
+                end_time = time.time()
+                track_llm_generation(
+                    operation=operation,
+                    model=self.model_name,
+                    time_to_first_token=0,
+                    total_time=end_time - start_time,
+                    total_tokens=0
+                )
             raise

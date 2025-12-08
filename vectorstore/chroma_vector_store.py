@@ -11,22 +11,68 @@ from langsmith import traceable
 from langsmith.run_helpers import trace
 import chromadb
         
-
 load_dotenv()
 
 DIR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VectorStores")
 
-LLM_API_KEY=os.environ["LLM_API_KEY"]
 
 class ChromaVectorStore:
-    def __init__(self, user_id: str, db_name: str, embedding_model: str = "text-embedding-3-large", model='gpt'):
+    def __init__(self, user_id: str, db_name: str, embedding_model: str = None, model: str = None):
+        """
+        Initialize ChromaVectorStore with proper API key handling.
+        
+        Args:
+            user_id: User identifier
+            db_name: Database name
+            embedding_model: Embedding model name (reads from env if None)
+            model: LLM provider (reads from env if None) - NOT used for embeddings!
+        """
         self.user_id = user_id
         self.db_name = db_name
         self.persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}_{user_id}")
         self.collection_name = f"chroma_{db_name}_schema_{user_id}"
-        self.embedding_function = OpenAIEmbeddings(model=embedding_model) if model == "gpt" else GoogleGenerativeAIEmbeddings(model=embedding_model, google_api_key=LLM_API_KEY)
+        
+        # ✅ FIX 1: Get embedding model from env if not provided
+        if embedding_model is None:
+            embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+        
+        # ✅ FIX 2: Get LLM provider from env if not provided (for description generation)
+        if model is None:
+            model = os.getenv("MODEL", "gemini")
+        
+        self.model = model  # This is for LLM (text generation), NOT embeddings!
+        
+        # ✅ FIX 3: Use EMBD_MODEL_PROVIDER to decide embedding provider
+        embd_provider = os.getenv("EMBD_MODEL_PROVIDER", "gemini").lower()
+        
+        if embd_provider in ['gpt', 'openai']:
+            # Use OpenAI embeddings with OpenAI API key
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                raise ValueError(
+                    "❌ OPENAI_API_KEY not set but EMBD_MODEL_PROVIDER=openai!\n"
+                    "Set OPENAI_API_KEY in .env or change EMBD_MODEL_PROVIDER=gemini"
+                )
+            self.embedding_function = OpenAIEmbeddings(
+                model=embedding_model,
+                openai_api_key=openai_key
+            )
+            print(f"✅ ChromaVectorStore using OpenAI embeddings: {embedding_model}")
+        else:
+            # Use Google/Gemini embeddings with Gemini API key
+            gemini_key = os.getenv("LLM_API_KEY")
+            if not gemini_key:
+                raise ValueError(
+                    "❌ LLM_API_KEY (Gemini) not set!\n"
+                    "Set LLM_API_KEY in .env"
+                )
+            self.embedding_function = GoogleGenerativeAIEmbeddings(
+                model=embedding_model,
+                google_api_key=gemini_key
+            )
+            print(f"✅ ChromaVectorStore using Google embeddings: {embedding_model}")
+        
         self.vector_store = None
-        self.model = model
 
     def exists(self) -> bool:
         return os.path.exists(self.persist_directory)
@@ -148,7 +194,6 @@ class ChromaVectorStore:
                 for idx in indexes
             ]
 
-
             count_result = connector.execute_query(text(f'SELECT COUNT(*) AS total_rows FROM "{table}"'))
             row_count = count_result.fetchone()[0]
 
@@ -158,21 +203,25 @@ class ChromaVectorStore:
             tables_metadata.append(table_info)
 
         table_descriptions = []
-        # print("✅stables_metadata:", tables_metadata)
         for table_meta in tables_metadata:
             table_name = table_meta["Table"]
             description = self.generate_description(table_meta)
             table_descriptions.append({"Table": table_name, "Description": description})
 
-        # with open("table_descriptions.json","w+") as f:
-        #     json.dump(table_descriptions,f)
-
         dataset_desc = self.generate_description(tables_metadata)
 
-        return tables_metadata , table_descriptions , dataset_desc
+        return tables_metadata, table_descriptions, dataset_desc
     
     def generate_description(self, table_metadata):
-        agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=self.model, model_name=os.environ.get("MODEL_NAME"))
+        """
+        Generate table description using LLM.
+        ✅ FIXED: Let Agent handle API key selection automatically
+        """
+        # ✅ FIX 4: Don't pass api_key - let Agent read from env based on model
+        agent = Agent(
+            model=self.model
+        )
+        
         prompt = """
         You are a data analyst who summarizes SQL table structures clearly and concisely.
 
@@ -199,7 +248,7 @@ class ChromaVectorStore:
             "table_metadata": table_metadata
         }
 
-        return agent.generate(prompt, prompt_placeholders)
+        return agent.generate(prompt, prompt_placeholders, operation="table_description")
     
     def get_all_vector_stores(self):
         """Get all collections data as JSON."""
@@ -255,24 +304,23 @@ class ChromaVectorStore:
             persist_directory=persist_directory
         )
 
-        # Perform similarity search (get more than top_k to allow filtering)
+        # Perform similarity search
         candidate_docs = vector_store.similarity_search(query, k=top_k)  
 
-        # Filter only table-level docs (IDs starting with 'table' or 'Table')
+        # Filter only table-level docs
         table_docs = [
             doc for doc in candidate_docs 
-            if len(doc.metadata.keys())>1
+            if len(doc.metadata.keys()) > 1
         ]
 
-        # Return only top_k filtered docs
         return table_docs[:top_k]
     
-    def form_vector_store(self, db_name , db_conn_str):
+    def form_vector_store(self, db_name, db_conn_str):
         if self.does_vectorstore_exists(db_name):
             print("Vector Store Already Exist")
             return
 
-        persist_directory = os.path.join(DIR_PATH,f"chroma_{db_name}")
+        persist_directory = os.path.join(DIR_PATH, f"chroma_{db_name}")
 
         vector_store = Chroma(
             collection_name=f"chroma_{db_name}_schema",
@@ -280,11 +328,7 @@ class ChromaVectorStore:
             persist_directory=persist_directory
         )
 
-        tables_metadata, table_descriptions , dataset_desc = self.generate_data(conn_str = db_conn_str)
-
-        # print(db_conn_str)
-
-        # print(tables_metadata,table_descriptions,dataset_desc)
+        tables_metadata, table_descriptions, dataset_desc = self.generate_data(conn_str=db_conn_str)
 
         for table_meta, table_desc in zip(tables_metadata, table_descriptions):
             vector_store.add_texts(
@@ -303,15 +347,15 @@ class ChromaVectorStore:
         vector_store.add_texts(
             texts=[f"**Dataset Details**:\n\n{dataset_desc}"],
             metadatas=[{
-                "Dataset Summary":dataset_desc
+                "Dataset Summary": dataset_desc
             }],
-            ids = [f"{db_name} Summary"]
+            ids=[f"{db_name} Summary"]
         )
 
         vector_store.persist()
         print("Vector store created and saved to:", persist_directory)
     
     def does_vectorstore_exists(self, db_name, user_id):
-        if os.path.exists(os.path.join(DIR_PATH,f"chroma_{db_name}_{user_id}")):
+        if os.path.exists(os.path.join(DIR_PATH, f"chroma_{db_name}_{user_id}")):
             return True
         return False
