@@ -2248,12 +2248,6 @@ t0_tests = PythonOperator(
     dag=dag
 )
 
-# t1 = PythonOperator(
-#     task_id='load_data',
-#     python_callable=load_data,
-#     dag=dag
-# )
-
 t1 = PythonOperator(
     task_id='load_data_from_gcs',
     python_callable=load_data_from_gcs,
