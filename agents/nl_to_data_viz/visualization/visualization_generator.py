@@ -180,6 +180,10 @@ def generate_visualizations(state: AgentState) -> Dict:
     dashboard_url = None
     error = False
     error_message = ""
+
+    print("ENABLED", GCS_CONFIG['enabled'])
+    print("PROJECT ID", GCS_CONFIG['project_id'])
+    print("BUCKET NAME", GCS_CONFIG['bucket_name'])
     
     if GCS_CONFIG['enabled'] and GCS_CONFIG['project_id'] and GCS_CONFIG['bucket_name']:
         try:
