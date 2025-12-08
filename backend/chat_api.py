@@ -266,7 +266,7 @@ async def get_visualization_url(
         "expires_in_seconds": 60
     }
     """
-    # user_id = f"user_{current_user.user_id}"
+ 
     user_id = str(current_user.user_id)
     url, expires = chat_utils.get_visualization_url(firestore_db, bucket, message_id, user_id)
     return SignedUrlResponse(url=url, expires_in_seconds=expires)
