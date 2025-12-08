@@ -10,6 +10,7 @@ import time
 
 from ..models.chat_model import ChatSummary, ChatDetail, Message
 from .agent_utils import build_visualization
+import os
 
 
 def get_current_timestamp() -> str:
@@ -532,6 +533,8 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
     if bucket is None:
         raise HTTPException(status_code=503, detail="Storage not initialized")
     
+    make_public = os.getenv('GCS_MAKE_PUBLIC', 'true').lower() == 'true'
+    
     # Check if file is Parquet
     if blob_path.endswith('.parquet'):
         try:
@@ -558,12 +561,16 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
             csv_blob.upload_from_string(csv_data, content_type='text/csv')
             
             # Generate signed URL for CSV
-            url = csv_blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expiration_seconds),
-                method="GET"
-            )
-            return url
+            if make_public:
+                return f"https://storage.googleapis.com/{bucket.name}/{csv_path}"
+            else:
+                url = csv_blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(seconds=expiration_seconds),
+                    method="GET"
+                )
+                return url
+                
             
         except ImportError:
             raise HTTPException(
@@ -582,9 +589,13 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
     if not blob.exists():
         raise HTTPException(status_code=404, detail="File not found in storage")
     
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=timedelta(seconds=expiration_seconds),
-        method="GET"
-    )
-    return url
+    if make_public:
+        # For uniform bucket-level access, just return the public URL
+        return f"https://storage.googleapis.com/{bucket.name}/{blob_path}"
+    else:
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(seconds=expiration_seconds),
+            method="GET"
+        )
+        return url
