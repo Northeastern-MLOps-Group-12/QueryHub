@@ -15,6 +15,7 @@ from .state import AgentState
 import numpy as np
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 from databases.cloudsql.crud import get_records_by_user_id
+from backend.utils.vectorstore_gcs import download_vectorstore_from_gcs
 
 
 LLM_API_KEY = os.getenv('LLM_API_KEY')
@@ -30,6 +31,36 @@ class DatabaseSelector:
         self.embedding_function = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL, google_api_key=LLM_API_KEY)
         self.vector_stores_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) / "vectorstore/VectorStores"
         self.config_path = Path("config/db_configs.json")
+
+    def ensure_vectorstore_local(self, db_name: str, user_id: str) -> bool:
+        """
+        Ensure vector store exists locally, download from GCS if needed
+        
+        Args:
+            db_name: Database name
+            user_id: User ID
+            
+        Returns:
+            True if vector store is available locally
+        """
+        local_path = self.vector_stores_dir / f"chroma_{db_name}_{user_id}"
+        
+        # If already exists locally, use it
+        # if local_path.exists():
+        #     return True
+        
+        # Try to download from GCS
+        print(f"📥 Vector store not found locally for {db_name}, downloading from GCS...")
+        try:
+            success = download_vectorstore_from_gcs(
+                user_id=user_id,
+                db_name=db_name,
+                local_vectorstore_path=str(local_path)
+            )
+            return success
+        except Exception as e:
+            print(f"⚠️ Failed to download vector store from GCS: {e}")
+            return False
     
     def load_db_configs(self, user_id: str) -> Dict:
         """Load database configurations from JSON file"""
@@ -94,6 +125,10 @@ class DatabaseSelector:
     
     def extract_dataset_description(self, db_name: str, user_id: str) -> str:
         """Extract dataset description from vector store"""
+        # Ensure vector store is available locally
+        if not self.ensure_vectorstore_local(db_name, user_id):
+            print(f"⚠️ Vector store not available for {db_name}")
+            return ""
         persist_directory = self.vector_stores_dir / f"chroma_{db_name}_{user_id}"
         collection_name = f"chroma_{db_name}_schema_{user_id}"
         print(f"Extracting description for {db_name} from {persist_directory}")

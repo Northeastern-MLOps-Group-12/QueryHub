@@ -15,6 +15,7 @@ services:
         FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
         MODE: "${MODE}"
         FIREBASE_DATABASE_ID: "queryhub-chats"
+        GCS_CREDENTIALS_PATH: "/app/backend/service-account-key.json"
         # MODE: "${MODE}"
       volumes:
         - ../:/app

@@ -23,17 +23,17 @@ class QueryResultSaver:
     def __init__(self):
         self.project_id = os.getenv('PROJECT_ID')
         self.bucket_name = os.getenv('GCS_BUCKET_NAME')
-        # self.credentials_path = os.getenv('GCS_CREDENTIALS_PATH')
+        self.credentials_path = os.getenv('GCS_CREDENTIALS_PATH')
         
-        # if self.credentials_path and os.path.exists(self.credentials_path):
-        #     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = self.credentials_path
+        if self.credentials_path and os.path.exists(self.credentials_path):
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = self.credentials_path
         
-        # if self.project_id:
-        #     self.client = storage.Client(project=self.project_id)
-        # else:
-        #     self.client = storage.Client()
+        if self.project_id:
+            self.client = storage.Client(project=self.project_id)
+        else:
+            self.client = storage.Client()
 
-        self.client = storage.Client(project=self.project_id)
+        # self.client = storage.Client(project=self.project_id)
     
     def save_query_result(self, state: AgentState) -> Dict:
         """

@@ -11,6 +11,7 @@ from backend.utils.connectors_api_utils import structure_vector_store_data
 import os
 import json
 from connectors.engines.postgres.postgres_connector import PostgresConnector
+from backend.utils.vectorstore_gcs import delete_vectorstore_from_gcs
 
 # Connector API service entrypoint: exposes endpoints to create/test connectors.
 # - ConnectorRequest: Pydantic model describing the incoming payload (engine, provider, config).
@@ -122,6 +123,11 @@ def delete_connection(user_id: int, db_name: str):
                 "db_name": db_name
             })
             connector.delete_creds()
+
+            try:
+                delete_vectorstore_from_gcs(user_id=str(user_id), db_name=db_name)
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to delete vector store from GCS: {e}")
         else:
             raise HTTPException(
                 status_code=500, 

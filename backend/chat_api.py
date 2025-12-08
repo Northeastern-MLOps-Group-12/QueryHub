@@ -38,67 +38,67 @@ AGENT = None
 MEMORY = None
 GLOBAL_SESSION_ID = None
 
-# def initialize_firestore():
-#     """Initialize Firestore with service account"""
-#     global db, bucket
-    
-#     try:
-#         print("🔑 Initializing Firestore...")
-#         cred_path = os.getenv("GCS_CREDENTIALS_PATH")
-        
-#         if not os.path.exists(cred_path):
-#             print(f"⚠️  Firestore credentials not found at {cred_path}")
-#             return
-        
-#         credentials = service_account.Credentials.from_service_account_file(cred_path)
-        
-#         project_id = os.getenv("PROJECT_ID")
-#         database_id = os.getenv("FIREBASE_DATABASE_ID")
-#         storage_bucket_name = os.getenv("GCS_BUCKET_NAME")
-        
-#         # Init Firestore
-#         db = firestore.Client(
-#             project=project_id,
-#             database=database_id,
-#             credentials=credentials
-#         )
-        
-#         # Init Storage
-#         from google.cloud import storage
-#         storage_client = storage.Client(credentials=credentials, project=project_id)
-#         bucket = storage_client.bucket(storage_bucket_name)
-        
-#         print(f"✅ Firestore initialized (Project: {project_id}, DB: {database_id})")
-        
-#     except Exception as e:
-#         print(f"❌ Firestore init error: {str(e)}")
-
-
 def initialize_firestore():
-    """Initialize Firestore with ADC"""
+    """Initialize Firestore with service account"""
     global db, bucket
     
     try:
         print("🔑 Initializing Firestore...")
+        cred_path = os.getenv("GCS_CREDENTIALS_PATH")
+        
+        if not os.path.exists(cred_path):
+            print(f"⚠️  Firestore credentials not found at {cred_path}")
+            return
+        
+        credentials = service_account.Credentials.from_service_account_file(cred_path)
         
         project_id = os.getenv("PROJECT_ID")
         database_id = os.getenv("FIREBASE_DATABASE_ID")
         storage_bucket_name = os.getenv("GCS_BUCKET_NAME")
         
-        # Use Application Default Credentials
+        # Init Firestore
         db = firestore.Client(
             project=project_id,
-            database=database_id
+            database=database_id,
+            credentials=credentials
         )
         
+        # Init Storage
         from google.cloud import storage
-        storage_client = storage.Client(project=project_id)
+        storage_client = storage.Client(credentials=credentials, project=project_id)
         bucket = storage_client.bucket(storage_bucket_name)
         
         print(f"✅ Firestore initialized (Project: {project_id}, DB: {database_id})")
         
     except Exception as e:
         print(f"❌ Firestore init error: {str(e)}")
+
+
+# def initialize_firestore():
+#     """Initialize Firestore with ADC"""
+#     global db, bucket
+    
+#     try:
+#         print("🔑 Initializing Firestore...")
+        
+#         project_id = os.getenv("PROJECT_ID")
+#         database_id = os.getenv("FIREBASE_DATABASE_ID")
+#         storage_bucket_name = os.getenv("GCS_BUCKET_NAME")
+        
+#         # Use Application Default Credentials
+#         db = firestore.Client(
+#             project=project_id,
+#             database=database_id
+#         )
+        
+#         from google.cloud import storage
+#         storage_client = storage.Client(project=project_id)
+#         bucket = storage_client.bucket(storage_bucket_name)
+        
+#         print(f"✅ Firestore initialized (Project: {project_id}, DB: {database_id})")
+        
+#     except Exception as e:
+#         print(f"❌ Firestore init error: {str(e)}")
 
 def check_firestore():
     """Check if Firestore is ready"""
