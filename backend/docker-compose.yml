@@ -13,9 +13,11 @@ services:
         MODEL_NAME: "${MODEL_NAME}"
         EMBEDDING_MODEL: "${EMBEDDING_MODEL}"
         FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
-        GCS_CREDENTIALS_PATH: "/app/backend/service-account-key.json"
         MODE: "${MODE}"
+        FIREBASE_DATABASE_ID: "queryhub-chats"
+        # MODE: "${MODE}"
       volumes:
         - ../:/app
+        - ~/.config/gcloud:/root/.config/gcloud:ro
       command: >
         sh -c "cd /app && uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app"

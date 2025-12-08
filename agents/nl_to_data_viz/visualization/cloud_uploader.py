@@ -24,14 +24,14 @@ class GCSUploader:
         """
         from google.cloud import storage
         
-        if credentials_path and os.path.exists(credentials_path):
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+        # if credentials_path and os.path.exists(credentials_path):
+        #     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
         
-        if project_id:
-            self.client = storage.Client(project=project_id)
-        else:
-            self.client = storage.Client()
-        
+        # if project_id:
+        #     self.client = storage.Client(project=project_id)
+        # else:
+        #     self.client = storage.Client()
+        self.client = storage.Client(project=project_id)
         self.project_id = project_id or self.client.project
     
     def upload_folder(self, local_path: Path, bucket_name: str, 
