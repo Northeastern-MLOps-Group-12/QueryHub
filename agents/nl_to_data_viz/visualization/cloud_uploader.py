@@ -64,8 +64,8 @@ class GCSUploader:
             blob.upload_from_filename(str(file_path), content_type=content_type)
             
             # Make public if requested
-            if make_public:
-                blob.make_public()
+            # if make_public:
+            #     blob.make_public()
             
             file_info = {
                 'filename': file_path.name,
@@ -75,7 +75,7 @@ class GCSUploader:
             
             # Add appropriate URL
             if make_public:
-                file_info['url'] = blob.public_url
+                file_info['url'] = f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
                 file_info['url_type'] = 'public'
             else:
                 file_info['url'] = blob.generate_signed_url(

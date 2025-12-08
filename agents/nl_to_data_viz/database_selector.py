@@ -32,37 +32,37 @@ class DatabaseSelector:
         self.vector_stores_dir = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))) / "vectorstore/VectorStores"
         self.config_path = Path("config/db_configs.json")
 
-        def ensure_vectorstore_local(self, db_name: str, user_id: str) -> bool:
-            """
-            Ensure vector store exists locally, download from GCS if needed
+    def ensure_vectorstore_local(self, db_name: str, user_id: str) -> bool:
+        """
+        Ensure vector store exists locally, download from GCS if needed
+        
+        Args:
+            db_name: Database name
+            user_id: User ID
             
-            Args:
-                db_name: Database name
-                user_id: User ID
-                
-            Returns:
-                True if vector store is available locally
-            """
-            print(f"Ensuring vector store is local for {db_name} and user {user_id}...")
-            local_path = self.vector_stores_dir / f"chroma_{db_name}_{user_id}"
+        Returns:
+            True if vector store is available locally
+        """
+        print(f"Ensuring vector store is local for {db_name} and user {user_id}...")
+        local_path = self.vector_stores_dir / f"chroma_{db_name}_{user_id}"
 
-            # If already exists locally, use it
-            if local_path.exists():
-                return True
+        # If already exists locally, use it
+        if local_path.exists():
+            return True
 
-            # Try to download from GCS
-            print(f"📥 Vector store not found locally for {db_name}, downloading from GCS...")
-            try:
-                success = download_vectorstore_from_gcs(
-                    user_id=user_id,
-                    db_name=db_name,
-                    local_vectorstore_path=str(local_path)
-                )
-                return success
-            except Exception as e:
-                print(f"⚠️ Failed to download vector store from GCS: {e}")
-                return False
-    
+        # Try to download from GCS
+        print(f"📥 Vector store not found locally for {db_name}, downloading from GCS...")
+        try:
+            success = download_vectorstore_from_gcs(
+                user_id=user_id,
+                db_name=db_name,
+                local_vectorstore_path=str(local_path)
+            )
+            return success
+        except Exception as e:
+            print(f"⚠️ Failed to download vector store from GCS: {e}")
+            return False
+
     def load_db_configs(self, user_id: str) -> Dict:
         """Load database configurations from JSON file"""
 

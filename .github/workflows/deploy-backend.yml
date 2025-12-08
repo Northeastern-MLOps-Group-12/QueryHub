@@ -6,6 +6,7 @@ on:
       - main
       - dev
       - nl_to_data_viz
+      - test_nl_to_viz
     # paths:
     #   - "backend/**"
     #   - "tests/**"

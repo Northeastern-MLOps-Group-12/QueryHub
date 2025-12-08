@@ -30,7 +30,7 @@ GCS_CONFIG = {
     'project_id': os.getenv('PROJECT_ID'),
     'bucket_name': os.getenv('GCS_BUCKET_NAME'),
     'credentials_path': os.getenv('GCS_CREDENTIALS_PATH'),
-    'make_public': os.getenv('GCS_MAKE_PUBLIC', 'false').lower() == 'true',
+    'make_public': os.getenv('GCS_MAKE_PUBLIC', 'true').lower() == 'true',
     'signed_url_hours': int(os.getenv('GCS_SIGNED_URL_HOURS', '24'))
 }
 
@@ -210,8 +210,8 @@ def generate_visualizations(state: AgentState) -> Dict:
             blob.upload_from_filename(str(cloud_dashboard_path), content_type='text/html')
             
             if GCS_CONFIG['make_public']:
-                blob.make_public()
-                dashboard_url = blob.public_url
+                public_url = f"https://storage.googleapis.com/{GCS_CONFIG['bucket_name']}/{blob_name}"
+                dashboard_url = public_url
             else:
                 dashboard_url = blob.generate_signed_url(
                     expiration=timedelta(hours=GCS_CONFIG['signed_url_hours']),
