@@ -33,7 +33,7 @@ jobs:
       - name: Rebuild + Restart Airflow using Docker Compose
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_IP }} << 'EOF'
-            cd ~/airflow/data-pipeline
+            cd ~/airflow1/data-pipeline
 
             echo "Pulling latest images (optional)..."
             docker compose pull || true
