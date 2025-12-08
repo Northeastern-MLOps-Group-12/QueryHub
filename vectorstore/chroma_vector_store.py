@@ -25,7 +25,7 @@ class ChromaVectorStore:
             user_id: User identifier
             db_name: Database name
             embedding_model: Embedding model name (reads from env if None)
-            model: LLM provider (reads from env if None) - NOT used for embeddings!
+            model: EMBEDDING provider (gemini/gpt) - NOT used for LLM generation!
         """
         self.user_id = user_id
         self.db_name = db_name
@@ -36,14 +36,18 @@ class ChromaVectorStore:
         if embedding_model is None:
             embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
         
-        # ✅ FIX 2: Get LLM provider from env if not provided (for description generation)
+        # ✅ FIX 2: Get EMBEDDING provider from env if not provided
         if model is None:
-            model = os.getenv("MODEL", "gemini")
+            model = os.getenv("EMBD_MODEL_PROVIDER", "gemini")
         
-        self.model = model  # This is for LLM (text generation), NOT embeddings!
+        self.embedding_provider = model  # ✅ Renamed for clarity - this is for EMBEDDINGS only
         
-        # ✅ FIX 3: Use EMBD_MODEL_PROVIDER to decide embedding provider
-        embd_provider = os.getenv("EMBD_MODEL_PROVIDER", "gemini").lower()
+        # ✅ FIX 3: Get GENERATIVE model settings separately (for description generation)
+        self.generative_model = os.getenv("MODEL", "gemini")  # ✅ NEW: Separate LLM provider
+        self.generative_model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")  # ✅ NEW: LLM model name
+        
+        # ✅ FIX 4: Use EMBD_MODEL_PROVIDER to decide embedding provider
+        embd_provider = model.lower()
         
         if embd_provider in ['gpt', 'openai']:
             # Use OpenAI embeddings with OpenAI API key
@@ -215,11 +219,12 @@ class ChromaVectorStore:
     def generate_description(self, table_metadata):
         """
         Generate table description using LLM.
-        ✅ FIXED: Let Agent handle API key selection automatically
+        ✅ FIXED: Use correct generative model, not embedding provider!
         """
-        # ✅ FIX 4: Don't pass api_key - let Agent read from env based on model
+        # ✅ FIX: Use generative model settings, NOT embedding provider
         agent = Agent(
-            model=self.model
+            model=self.generative_model,  # ✅ Use "gpt" (from MODEL env)
+            model_name=self.generative_model_name  # ✅ Use "gpt-4o" (from MODEL_NAME env)
         )
         
         prompt = """

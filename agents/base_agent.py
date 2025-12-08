@@ -37,6 +37,9 @@ class Agent:
             model: Provider type ('gpt'/'openai' or 'gemini'/'google')
             model_name: Specific model name - if not provided, reads from env
         """
+        
+        print(model.lower(),"Model lowerrr name")
+
         # ✅ FIX 1: Normalize model name
         model_lower = model.lower()
         

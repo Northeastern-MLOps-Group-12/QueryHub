@@ -16,6 +16,9 @@ from databases.cloudsql.database import get_db
 from databases.cloudsql.crud import get_records_by_user_id
 from .state import AgentState
 
+# ✅ MONITORING IMPORTS (NEW)
+from backend.monitoring import track_database_selection
+
 
 # ============================================================================
 # FIXED: Correct variable names matching generate_sql_query.py
@@ -258,6 +261,13 @@ class DatabaseSelector:
         
         # Select best match
         best_match = similarities[0]
+        
+        # ✅ TRACK DATABASE SELECTION (NEW)
+        track_database_selection(
+            db_name=best_match['db_name'],
+            user_id=state.user_id,
+            similarity=best_match['similarity']
+        )
         
         print(f"\n{'='*70}")
         print(f"📊 Database Selection Results")
