@@ -1,12 +1,9 @@
 name: Trigger Airflow DAG
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'data-pipeline/dags/**'
+  schedule:
+    - cron: '0 15 * * *'  
+  workflow_dispatch:
 
 jobs:
   trigger-dag:
@@ -37,18 +34,6 @@ jobs:
         run: |
           CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/data_pipeline_with_synthetic_v1_schema_validation/dagRuns" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{
-                  \"dag_run_id\": \"manual__${CURRENT_UTC}\",
-                  \"logical_date\": \"${CURRENT_UTC}\",
-                  \"conf\": {}
-                }"
-
-      - name: Trigger Model Training DAG
-        run: |
-          CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/vertex_ai_model_training_pipeline/dagRuns" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
