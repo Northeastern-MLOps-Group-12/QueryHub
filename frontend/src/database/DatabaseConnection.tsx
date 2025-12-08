@@ -63,7 +63,31 @@ export default function DatabaseConnection() {
       navigate("/database/connecteddatabases");
     } catch (err: any) {
       console.error("Error adding connection:", err);
-      setError(err.response?.data || "Failed to connect to database");
+
+      // 1. Try to get the specific message from the object
+      let message = "Failed to connect to database.";
+      
+      if (err.response?.data) {
+          // Check if it's the specific "detail" field (FastAPI standard)
+          if (typeof err.response.data.detail === "string") {
+              message = err.response.data.detail;
+          } 
+          // Check if it's a "message" field
+          else if (typeof err.response.data.message === "string") {
+              message = err.response.data.message;
+          }
+          // Check if the data itself is just a string
+          else if (typeof err.response.data === "string") {
+              message = err.response.data;
+          }
+      }
+
+      // 2. Clean up the message (Optional: remove technical SQL jargon)
+      // Removes things like "(psycopg2.OperationalError)"
+      const cleanMessage = message.replace(/\(psycopg2\.[^)]+\)\s*/, "");
+
+      // 3. Set the state (GUARANTEED to be a string now)
+      setError(cleanMessage);
     } finally {
       setLoading(false);
     }
@@ -224,7 +248,11 @@ export default function DatabaseConnection() {
 
                 {/* Success and Error Messages */}
                 {success && <p className="text-success">{success}</p>}
-                {error && <p className="text-danger">{error}</p>}
+                {error && (
+                  <p className="text-danger text-center">
+                    {typeof error === 'string' ? error : "An unexpected error occurred"}
+                  </p>
+                )}
 
                 {/* Submit Button */}
                 <Button type="submit" disabled={loading}>
