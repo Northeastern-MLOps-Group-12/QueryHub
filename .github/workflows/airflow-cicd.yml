@@ -27,7 +27,7 @@ jobs:
         run: |
           rsync -avz \
             -e "ssh -i ~/.ssh/id_rsa" \
-            ./data-pipelines/ \
+            ./data-pipeline/ \
             ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}:/home/${{ secrets.VM_USER }}/airflow/data-pipeline/
 
       - name: Rebuild + Restart Airflow using Docker Compose
