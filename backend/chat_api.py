@@ -14,7 +14,6 @@ from vectorstore.chroma_vector_store import ChromaVectorStore
 from backend.utils.connectors_api_utils import structure_vector_store_data
 import json
 from connectors.engines.postgres.postgres_connector import PostgresConnector
-# from agents.nl_to_data_viz.graph import build_visualization
 from google.cloud import firestore
 from google.oauth2 import service_account
 from .user_api import get_current_user
