@@ -5,14 +5,13 @@ on:
     branches:
       - main
       - dev
-      - test_nl_to_viz
-    # paths:
-      # - "backend/**"
-      # - "agents/**"
-      # - "connectors/**"
-      # - "databases/**"
-      # - "vectorstore/**"
-      # - "tests/**"
+    paths:
+      - "backend/**"
+      - "agents/**"
+      - "connectors/**"
+      - "databases/**"
+      - "vectorstore/**"
+      - "tests/**"
   workflow_dispatch:
 
 env:
