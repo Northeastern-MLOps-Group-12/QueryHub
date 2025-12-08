@@ -94,11 +94,25 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
+      - name: Debug - List files 1
+        run: |
+          echo "=== Root directory ==="
+          ls -la
+          echo "=== vectorstore directory ==="
+          ls -la vectorstore/ || echo "vectorstore not found"
+
       - name: Build and Push Backend Docker Image
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
           docker build -t $IMAGE -f ${{ env.SERVICE }}/Dockerfile .
           docker push $IMAGE
+
+      - name: Debug - List files 2
+        run: |
+          echo "=== Root directory ==="
+          ls -la
+          echo "=== vectorstore directory ==="
+          ls -la vectorstore/ || echo "vectorstore not found"
 
       - name: Deploy Backend to Cloud Run
         run: |
