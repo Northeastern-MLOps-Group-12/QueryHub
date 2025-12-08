@@ -38,8 +38,6 @@ AGENT = None
 MEMORY = None
 GLOBAL_SESSION_ID = None
 
-# ==================== Firestore Initialization ====================
-
 # def initialize_firestore():
 #     """Initialize Firestore with service account"""
 #     global db, bucket
