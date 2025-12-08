@@ -218,7 +218,7 @@ async def send_message(
         }
     }
     """
-    # user_id = f"user_{current_user.user_id}"
+   
     user_id = str(current_user.user_id)
     bot_message = chat_utils.send_message(firestore_db, chat_id, user_id, request.text)
     if isinstance(bot_message, dict):
