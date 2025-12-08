@@ -289,7 +289,7 @@ async def delete_chat(
         "chat_id": "64n6ktonTRpHZZjy4C7Y"
     }
     """
-    # user_id = f"user_{current_user.user_id}"
+    
     user_id = str(current_user.user_id)
     return chat_utils.delete_chat(firestore_db, chat_id, user_id)
  
