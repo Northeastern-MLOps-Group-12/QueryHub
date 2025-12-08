@@ -10,7 +10,7 @@ import HomePage from "./home";
 import Account from "./account";
 import ChatInterface from "./chat-interface";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Footer from "./Footer";
+// import Footer from "./Footer";
 import SignIn from "./account/SignIn";
 import SignUp from "./account/SignUp";
 import Database from "./database";

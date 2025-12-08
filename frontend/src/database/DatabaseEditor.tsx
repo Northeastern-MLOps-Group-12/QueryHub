@@ -59,7 +59,7 @@ export default function DatabaseEditor({
             {databaseName}
           </h2>
 
-          <Button
+          {/* <Button
             variant="outline-primary"
             onClick={onRefetch}
             disabled={disableEditing}
@@ -69,7 +69,7 @@ export default function DatabaseEditor({
               className={disableEditing ? "spinner-border spinner-border-sm" : ""}
             />
             {disableEditing ? "Refreshing..." : "Re-fetch Schema"}
-          </Button>
+          </Button> */}
         </div>
 
         <div

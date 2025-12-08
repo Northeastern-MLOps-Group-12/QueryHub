@@ -15,13 +15,18 @@ import {
 import NewChatModal from "./NewChatModal";
 
 export default function ChatInterface(): JSX.Element {
-  const { userData, userId } = useAuth();
+  const { userData } = useAuth();
   console.log("ChatInterface Render - UserData:", userData);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+  const [isBotTyping, setIsBotTyping] = useState(false);
+  useEffect(() => {
+    messageInputRef.current?.focus();
+  }, [selectedChat]);
 
   // ICONS
   const SendIcon = () => <i className="bi bi-send-fill"></i>;
@@ -84,6 +89,7 @@ export default function ChatInterface(): JSX.Element {
           setSelectedChat(chats[0]);
           const msgs = await getChatHistory(chats[0].chat_id);
           setMessages(msgs.history);
+          console.log("Fetched chat history:", msgs);
           saveCachedMessages(chats[0].chat_id, msgs.history);
         }
       } catch (err) {
@@ -133,7 +139,7 @@ export default function ChatInterface(): JSX.Element {
       saveCachedSessions(updatedSessions);
 
       // close sidebar on small screens so user sees the new chat
-      setSidebarOpen(false);
+      // setSidebarOpen(false);
     } catch (err) {
       console.error("Error creating new chat:", err);
     }
@@ -156,13 +162,16 @@ export default function ChatInterface(): JSX.Element {
       message_id: `temp-${Date.now()}`, // Temporary ID until refresh
       sender: "user",
       created_at: new Date().toISOString(),
-      content: { text: textToSend }
+      content: { text: textToSend },
     };
 
     // 3. Update State & Cache with User Message immediately
     const messagesWithUser = [...messages, userMsg];
     setMessages(messagesWithUser);
     saveCachedMessages(selectedChat.chat_id, messagesWithUser); // Update cache if you have this function
+
+    // --- START TYPING INDICATOR ---
+    setIsBotTyping(true);
 
     try {
       // 4. Call API (returns only the Bot's response)
@@ -172,7 +181,7 @@ export default function ChatInterface(): JSX.Element {
       setMessages((prevMessages) => {
         const updatedList = [...prevMessages, botMsg];
         // Save to cache inside here to ensure we have the full list
-        saveCachedMessages(selectedChat.chat_id, updatedList); 
+        saveCachedMessages(selectedChat.chat_id, updatedList);
         return updatedList;
       });
 
@@ -180,26 +189,29 @@ export default function ChatInterface(): JSX.Element {
       setSessions((prevSessions) => {
         // A. Update the timestamp of the current chat
         const updatedList = prevSessions.map((s) =>
-          s.chat_id === selectedChat.chat_id 
-            ? { ...s, updated_at: new Date().toISOString() } 
+          s.chat_id === selectedChat.chat_id
+            ? { ...s, updated_at: new Date().toISOString() }
             : s
         );
 
         // B. Sort the list immediately (Newest first)
-        const sortedList = updatedList.sort((a, b) => 
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        const sortedList = updatedList.sort(
+          (a, b) =>
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         );
-        
+
         // C. Update Cache
         saveCachedSessions(sortedList);
-        
+
         return sortedList;
       });
-
     } catch (err) {
       console.error("Error sending message:", err);
       // Optional: Add logic to remove the user message or show an error state
       alert("Failed to send message");
+    } finally {
+      // --- STOP TYPING INDICATOR ---
+      setIsBotTyping(false);
     }
   };
 
@@ -220,7 +232,7 @@ export default function ChatInterface(): JSX.Element {
     if (container.scrollHeight > container.clientHeight) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, isBotTyping]);
 
   // Mobile sidebar handling
   useEffect(() => {
@@ -232,7 +244,13 @@ export default function ChatInterface(): JSX.Element {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const FileAttachment = ({ msgId, fileName }: { msgId: string; fileName: string }) => {
+  const FileAttachment = ({
+    msgId,
+    fileName,
+  }: {
+    msgId: string;
+    fileName: string;
+  }) => {
     const [loading, setLoading] = useState(false);
 
     const handleDownload = async () => {
@@ -240,7 +258,7 @@ export default function ChatInterface(): JSX.Element {
         setLoading(true);
         // 1. Fetch the signed URL from your backend
         const signedUrl = await getAttachmentUrl(msgId);
-        
+
         // 2. Trigger download (create invisible link)
         const link = document.createElement("a");
         link.href = signedUrl;
@@ -257,18 +275,25 @@ export default function ChatInterface(): JSX.Element {
     };
 
     return (
-      <div 
+      <div
         className="d-flex align-items-center gap-2 p-2 mt-2 bg-white rounded border cursor-pointer hover-shadow"
         style={{ cursor: "pointer", maxWidth: "100%" }}
         onClick={handleDownload}
       >
         <div className="bg-light p-2 rounded text-primary">
-          {loading ? <Spinner size="sm" animation="border" /> : <i className="bi bi-file-earmark-text-fill fs-5"></i>}
+          {loading ? (
+            <Spinner size="sm" animation="border" />
+          ) : (
+            <i className="bi bi-file-earmark-text-fill fs-5"></i>
+          )}
         </div>
         <div className="overflow-hidden">
           <div className="fw-semibold text-truncate small">Generated Data</div>
-          <div className="text-muted small text-truncate" style={{fontSize: "0.75rem"}}>
-              {fileName || "data.csv"}
+          <div
+            className="text-muted small text-truncate"
+            style={{ fontSize: "0.75rem" }}
+          >
+            {fileName || "data.csv"}
           </div>
         </div>
         <i className="bi bi-download ms-auto text-secondary"></i>
@@ -299,14 +324,21 @@ export default function ChatInterface(): JSX.Element {
         disabled={loading}
         className="btn btn-sm btn-outline-primary w-100 mt-2 d-flex align-items-center justify-content-center gap-2"
       >
-        {loading ? <Spinner size="sm" animation="border" /> : <i className="bi bi-bar-chart-fill"></i>}
+        {loading ? (
+          <Spinner size="sm" animation="border" />
+        ) : (
+          <i className="bi bi-bar-chart-fill"></i>
+        )}
         View Dashboard
       </button>
     );
   };
 
   return (
-    <div className="d-flex mt-2" style={{ height: "calc(100vh - 60px)", overflow: "hidden" }}>
+    <div
+      className="d-flex mt-2"
+      style={{ height: "calc(100vh - 60px)", overflow: "hidden" }}
+    >
       {/* NEW CHAT MODAL */}
       <NewChatModal
         show={showNewChatModal}
@@ -322,15 +354,18 @@ export default function ChatInterface(): JSX.Element {
           maxWidth: sidebarOpen ? 400 : 0,
           minWidth: sidebarOpen ? 260 : 0,
           overflow: "hidden",
-          transition: "all 0.2s ease"
+          transition: "all 0.2s ease",
         }}
       >
-        <div className="pt-2 px-2 ms-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary" style={{paddingBottom: "0.7rem"}}>
+        <div
+          className="pt-2 px-2 ms-2 border-bottom d-flex justify-content-between align-items-center bg-body-tertiary"
+          style={{ paddingBottom: "0.7rem" }}
+        >
           <button
             className="btn btn-primary d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm"
             onClick={handleNewChat}
             aria-label="New chat"
-            style={{ fontWeight: 500, fontSize: "0.9rem"}}
+            style={{ fontWeight: 500, fontSize: "0.9rem" }}
           >
             <i className="bi bi-pencil-square"></i>
             <span>New Chat</span>
@@ -356,7 +391,7 @@ export default function ChatInterface(): JSX.Element {
             ></i>
           </button>
         </div>
-        
+
         {/* Chat sessions list */}
         <div ref={leftListRef} className="flex-grow-1 overflow-auto">
           {sessions.length === 0 ? (
@@ -492,7 +527,6 @@ export default function ChatInterface(): JSX.Element {
           className="p-3 pb-md-4 border-bottom d-flex align-items-center bg-body-tertiary"
           // style={{ position: "sticky", top: "66px", zIndex: 5 }}
         >
-
           {/* Mobile menu button */}
           {!sidebarOpen && (
             <button
@@ -582,37 +616,108 @@ export default function ChatInterface(): JSX.Element {
                       }`}
                       style={{
                         maxWidth: "75%",
-                        borderBottomRightRadius: msg.sender === "user" ? 0 : undefined,
-                        borderBottomLeftRadius: msg.sender === "bot" ? 0 : undefined,
+                        borderBottomRightRadius:
+                          msg.sender === "user" ? 0 : undefined,
+                        borderBottomLeftRadius:
+                          msg.sender === "bot" ? 0 : undefined,
                       }}
                     >
-                      {/* 1. TEXT CONTENT */}
-                      <div style={{ whiteSpace: "pre-wrap", fontWeight: `${msg.sender === "bot" ? "bold" : "normal"}` }}>
-                        {msg.sender === "user" ? msg.content.text : "I found the following results:"}
-                      </div>
-
-                      {/* 2. SQL QUERY (Optional: Show if you want debugging) */}
-                      {msg.sender === "bot" && msg.content.query && (
-                        <div className="mt-2 p-2 bg-dark bg-opacity-10 rounded font-monospace small text-muted">
-                          <code>{msg.content.query}</code>
+                      {/* ERROR HANDLING LOGIC */}
+                      {msg.sender === "bot" && msg.error ? (
+                        <div className="d-flex flex-column gap-1">
+                          <div className="d-flex align-items-center gap-2 fw-bold">
+                            <i className="bi bi-exclamation-triangle-fill"></i>
+                            <span>Error Processing Request</span>
+                          </div>
+                          <div
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            {msg.error_message || "An unknown error occurred."}
+                          </div>
                         </div>
-                      )}
+                      ) : (
+                        // SUCCESS CASE (Standard Content)
+                        <>
+                          {/* 1. TEXT CONTENT */}
+                          <div
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              fontWeight: `${
+                                msg.sender === "bot" ? "bold" : "normal"
+                              }`,
+                            }}
+                          >
+                            {msg.sender === "bot" && (msg.content.attachment?.has_attachment ? "I found the following results:" : "No data found.")}
+                            {msg.sender === "user" && msg.content.text}
+                          </div>
 
-                      {/* 3. ATTACHMENT SECTION */}
-                      {msg.sender === "bot" && msg.content.attachment?.has_attachment && (
-                        <FileAttachment 
-                          msgId={msg.message_id} 
-                          fileName={msg.content.attachment.file_name || "data.csv"} // Pass filename if available in your JSON
-                        />
-                      )}
+                          {/* 2. SQL QUERY (Optional: Show if you want debugging) */}
+                          {msg.sender === "bot" && msg.content.query && msg.content.attachment?.has_attachment && (
+                            <div className="mt-2 p-2 bg-dark bg-opacity-10 rounded font-monospace small text-muted">
+                              <code>{msg.content.query}</code>
+                            </div>
+                          )}
 
-                      {/* 4. VISUALIZATION SECTION */}
-                      {msg.sender === "bot" && msg.content.visualization?.has_visualization && (
-                        <VisualizationButton msgId={msg.message_id} />
+                          {/* 3. ATTACHMENT SECTION */}
+                          {msg.sender === "bot" &&
+                            msg.content.attachment?.has_attachment && (
+                              <FileAttachment
+                                msgId={msg.message_id}
+                                fileName={
+                                  msg.content.attachment.file_name || "data.csv"
+                                } // Pass filename if available in your JSON
+                              />
+                            )}
+
+                          {/* 4. VISUALIZATION SECTION */}
+                          {msg.sender === "bot" &&
+                            msg.content.visualization?.has_visualization && (
+                              <VisualizationButton msgId={msg.message_id} />
+                            )}
+                        </>
                       )}
                     </div>
                   </div>
                 ))}
+                {/* --- NEW: BOT TYPING INDICATOR --- */}
+                {isBotTyping && (
+                  <div className="d-flex align-items-end gap-2">
+                    {/* Bot Avatar */}
+                    <div
+                      className="rounded-circle d-flex align-items-center justify-content-center bg-primary"
+                      style={{ width: 40, height: 40 }}
+                    >
+                      <img
+                        src={botLogo}
+                        alt="Bot Avatar"
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                          backgroundColor: "#f8f9fa",
+                          border: "1px solid #dee2e6",
+                        }}
+                      />
+                    </div>
+                    {/* Loading Bubble */}
+                    <div
+                      className="p-3 rounded-4 shadow-sm bg-light text-dark border"
+                      style={{
+                        maxWidth: "75%",
+                        borderBottomLeftRadius: 0,
+                      }}
+                    >
+                      <div className="d-flex align-items-center gap-2 text-muted">
+                        <Spinner animation="grow" size="sm" />
+                        <span className="small fw-medium">Analyzing data...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div ref={messagesEndRef} />
             </div>
@@ -634,6 +739,7 @@ export default function ChatInterface(): JSX.Element {
                   placeholder="Type your message here..."
                   className="form-control form-control-lg rounded-pill"
                   style={{ paddingRight: "3rem", zIndex: 1 }}
+                  ref={messageInputRef}
                 />
                 <button
                   type="button"

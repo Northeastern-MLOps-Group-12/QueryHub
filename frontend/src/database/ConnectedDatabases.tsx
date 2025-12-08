@@ -27,6 +27,7 @@ export default function ConnectedDatabases() {
     try {
       setFetchingConnections(true);
       const data = await getUserConnections(userId);
+      console.log("Fetched connections:", data);
       setConnections(data);
     } catch (err) {
       console.error(err);
@@ -140,7 +141,7 @@ export default function ConnectedDatabases() {
                         </Button> */}
 
                         {/* 2. Delete Icon */}
-                        <Button
+                        {/* <Button
                           variant="link"
                           className="p-1 text-danger opacity-75 hover-opacity-100"
                           title="Delete Connection"
@@ -150,7 +151,7 @@ export default function ConnectedDatabases() {
                           }}
                         >
                           <FiTrash2 size={20} />
-                        </Button>
+                        </Button> */}
                       </div>
                     </div>
                   </Card.Body>

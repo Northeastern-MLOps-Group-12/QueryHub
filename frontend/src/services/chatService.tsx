@@ -37,10 +37,12 @@ export interface MessageContent {
 }
 
 export interface Message {
-  message_id: string; // Note: Backend uses 'message_id' in history, 'msg_id' in POST response. handled below.
+  message_id: string;
   sender: "user" | "bot";
   created_at: string;
   content: MessageContent;
+  error?: boolean;
+  error_message?: string;
 }
 
 // Response structure for GET /chats/{chat_id}
@@ -102,6 +104,7 @@ export async function createNewChat(title: string = "New Chat"): Promise<ChatSes
 export async function getChatHistory(chatId: string): Promise<ChatHistoryResponse> {
   // --- REAL API CALL (Commented Out) ---
   const response = await api.get<ChatHistoryResponse>(`/chats/chats/${chatId}`);
+  console.log("getChatHistory response data:", response.data);
   return response.data;
 
   // --- MOCK DATA ---
@@ -119,6 +122,7 @@ export async function sendMessage(chatId: string, text: string): Promise<Message
   const response = await api.post<any>(`/chats/chats/${chatId}/messages`, {
     text: text,
   });
+  console.log("sendMessage response data:", response.data);
   const data = response.data;
   return {
     ...data,
