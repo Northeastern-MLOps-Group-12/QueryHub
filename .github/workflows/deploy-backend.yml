@@ -109,7 +109,6 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
-            --execution-environment=gen2 \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
             --timeout=600s \
             --set-env-vars DATABASE_URL=${{ env.DATABASE_URL }},LLM_API_KEY=${{ env.LLM_API_KEY }},MODEL=${{ env.MODEL }},MODEL_NAME=${{ env.MODEL_NAME }},EMBEDDING_MODEL=${{ env.EMBEDDING_MODEL }},FRONTEND_ORIGIN=${{ env.FRONTEND_ORIGIN }},ACCESS_TOKEN_EXPIRE_MINUTES=${{ env.ACCESS_TOKEN_EXPIRE_MINUTES }},SECRET_KEY=${{ env.SECRET_KEY }},ALGORITHM=${{ env.ALGORITHM }},FIREBASE_DATABASE_ID=${{ env.FIREBASE_DATABASE_ID }},GCS_BUCKET_NAME=${{ env.GCS_BUCKET_NAME }},GCS_VECTORSTORE_BUCKET_NAME=${{ env.GCS_VECTORSTORE_BUCKET_NAME }}

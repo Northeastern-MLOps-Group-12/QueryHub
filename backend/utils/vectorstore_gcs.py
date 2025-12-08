@@ -5,8 +5,8 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional
-from google.cloud import storage
-from google.oauth2 import service_account
+# from google.cloud import storage
+# from google.oauth2 import service_account
 
 
 def get_gcs_bucket():
