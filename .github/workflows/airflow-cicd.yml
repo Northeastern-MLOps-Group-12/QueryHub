@@ -16,12 +16,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # - name: Setup SSH
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+          ssh-keyscan -H ${{ secrets.VM_IP }} >> ~/.ssh/known_hosts
 
       - name: Copy updated pipelines to VM
         run: |
