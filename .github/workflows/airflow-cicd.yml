@@ -1,0 +1,49 @@
+name: Deploy Airflow Pipelines to VM (Docker Compose)
+
+on:
+  push:
+    branches:
+      - main
+      - data-trigger
+    paths:
+      - "data-pipelines/**"    # Only trigger when this folder changes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+
+      - name: Copy updated pipelines to VM
+        run: |
+          rsync -avz \
+            -e "ssh -i ~/.ssh/id_rsa" \
+            ./data-pipelines/ \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}:/home/${{ secrets.VM_USER }}/airflow/data-pipelines/
+
+      - name: Rebuild + Restart Airflow using Docker Compose
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_IP }} << 'EOF'
+            cd ~/airflow
+
+            echo "Pulling latest images (optional)..."
+            docker compose pull || true
+
+            echo "Rebuilding containers if necessary..."
+            docker compose build || true
+
+            echo "Restarting using docker compose..."
+            docker compose up -d
+
+            echo "Cleaning old containers..."
+            docker system prune -f || true
+          EOF

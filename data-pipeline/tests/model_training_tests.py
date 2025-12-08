@@ -19,6 +19,7 @@ def mock_airflow_variables():
         "gcs_registered_models": "gs://bucket/registered_models",
         "gcs_staging_bucket": "gs://bucket/staging",
         "vertex_ai_training_image_uri": "gcr.io/test/image:latest",
+        "gcp_processed_data_path": "gs://bucket/processed_data",
         "vertex_ai_train_machine_type": "n1-standard-4",
         "vertex_ai_train_gpu_type": "NVIDIA_TESLA_T4",
         "serving_container_image_uri": "gcr.io/test/serving:latest",
@@ -158,8 +159,7 @@ class TestModelTrainingDAG:
         expected_train_kwargs = {
             "project_id": "test-project",
             "region": "us-central1",
-            "gcs_train_data": "gs://bucket/train_data.csv",
-            "gcs_val_data": "gs://bucket/val_data.csv",
+            "gcp_processed_data_path": "gs://bucket/processed_data",
             "container_image_uri": "gcr.io/test/image:latest",
             "machine_type": "n1-standard-4",
             "gpu_type": "NVIDIA_TESLA_T4",
@@ -285,6 +285,7 @@ class TestModelTrainingDAG:
         with patch('dags.model_scripts.retrain_model.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.retrain_model.start_experiment_run') as mock_start_experiment, \
             patch('dags.model_scripts.retrain_model.log_experiment_params') as mock_log_params, \
+            patch('dags.model_scripts.retrain_model.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.retrain_model.submit_vertex_training_job') as mock_submit_job:
             
             from dags.model_scripts.retrain_model import train_on_vertex_ai
@@ -302,8 +303,7 @@ class TestModelTrainingDAG:
             train_on_vertex_ai(
                 project_id="test-project",
                 region="us-central1",
-                gcs_train_data="gs://bucket/train_data.csv",
-                gcs_val_data="gs://bucket/val_data.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
@@ -371,6 +371,7 @@ class TestModelTrainingDAG:
             patch('dags.model_scripts.retrain_model.start_experiment_run') as mock_start_experiment, \
             patch('dags.model_scripts.retrain_model.log_experiment_params') as mock_log_params, \
             patch('dags.model_scripts.retrain_model.submit_vertex_training_job') as mock_submit_job, \
+            patch('dags.model_scripts.retrain_model.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.retrain_model.datetime') as mock_datetime:
             
             from dags.model_scripts.retrain_model import train_on_vertex_ai
@@ -388,8 +389,7 @@ class TestModelTrainingDAG:
             train_on_vertex_ai(
                 project_id="test-project",
                 region="us-central1",
-                gcs_train_data="gs://bucket/train.csv",
-                gcs_val_data="gs://bucket/val.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
@@ -486,6 +486,7 @@ class TestModelTrainingDAG:
     def test_launch_evaluation_job_success(self):
         """Test successful evaluation job launch"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -504,7 +505,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/eval_output",
                 model_registry_id="models/model-123",
                 run_name="run-20240101-120000",
-                test_data_path="gs://bucket/test_data.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-standard-2",
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -558,6 +559,7 @@ class TestModelTrainingDAG:
         """Test that launch_evaluation_job pushes output CSV path to XCom"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -579,7 +581,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/output",
                 model_registry_id="models/123",
                 run_name="test-run",
-                test_data_path="gs://bucket/test.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -596,6 +598,7 @@ class TestModelTrainingDAG:
         """Test that launch_evaluation_job configures CustomJob with correct specs"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -617,7 +620,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/output",
                 model_registry_id="models/123",
                 run_name="eval-run-001",
-                test_data_path="gs://bucket/test.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-highmem-8",
                 gpu_type="NVIDIA_TESLA_V100",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -636,6 +639,7 @@ class TestModelTrainingDAG:
     def test_launch_evaluation_job_raises_on_missing_variable(self):
         """Test that launch_evaluation_job raises error when Variable is missing"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -652,7 +656,7 @@ class TestModelTrainingDAG:
                     output_csv="gs://bucket/output",
                     model_registry_id="models/123",
                     run_name="test-run",
-                    test_data_path="gs://bucket/test.csv",
+                    gcp_processed_data_path="gs://bucket/processed_data",
                     machine_type="n1-standard-4",
                     gpu_type="NVIDIA_TESLA_T4",
                     gcs_staging_bucket="gs://bucket/staging",
