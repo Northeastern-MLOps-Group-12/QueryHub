@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import {
   Accordion,
   Card,
-  Button,
+  // Button,
   Form,
   Container,
   Badge,
   Row,
   Col
 } from "react-bootstrap";
-import { FiRefreshCw, FiDatabase, FiTable, FiColumns } from "react-icons/fi";
+import { FiDatabase, FiTable, FiColumns } from "react-icons/fi";
 
 //Types for Column
 interface Column {
@@ -38,8 +38,8 @@ export default function DatabaseEditor({
   databaseName,
   databaseDescription,
   tables: externalTables,
-  onRefetch,
-  disableEditing = false,
+  // onRefetch,
+  // disableEditing = false,
 }: DatabaseProps) {
   const [tables, setTables] = useState<Table[]>(externalTables);
   const [openTableIndexes, setOpenTableIndexes] = useState<string[]>(["0"]);

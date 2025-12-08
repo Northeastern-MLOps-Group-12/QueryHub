@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Row, Col, Card, Button, Spinner, Badge } from "react-bootstrap";
 import {
-  FiTrash2,
   FiDatabase,
   FiServer,
   FiArrowRight,
@@ -10,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import {
   getUserConnections,
-  deleteConnection,
+  // deleteConnection,
   type DatabaseConnection,
 } from "../services/databaseService";
 
@@ -44,21 +43,21 @@ export default function ConnectedDatabases() {
   }, [userId, isAuthenticated]);
 
   // Handle deletion of a connection
-  const handleDelete = async (dbName: string) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this connection?"
-    );
-    if (!confirmDelete || !userId) return;
+  // const handleDelete = async (dbName: string) => {
+  //   const confirmDelete = window.confirm(
+  //     "Are you sure you want to delete this connection?"
+  //   );
+  //   if (!confirmDelete || !userId) return;
 
-    try {
-      console.log("Deleting connection:", dbName);
-      console.log("For user ID:", userId);
-      await deleteConnection(dbName, Number(userId));
-      setConnections((prev) => prev.filter((conn) => conn.dbName !== dbName));
-    } catch (err) {
-      console.error("Failed to delete connection:", err);
-    }
-  };
+  //   try {
+  //     console.log("Deleting connection:", dbName);
+  //     console.log("For user ID:", userId);
+  //     await deleteConnection(dbName, Number(userId));
+  //     setConnections((prev) => prev.filter((conn) => conn.dbName !== dbName));
+  //   } catch (err) {
+  //     console.error("Failed to delete connection:", err);
+  //   }
+  // };
 
   if (authLoading || fetchingConnections) {
     return (
