@@ -36,6 +36,8 @@ data-pipeline/.dvc/tmp/
 data-pipeline/.dvc/cache/
 data-pipeline/postgres_db_volume/
 vectorstore/VectorStores/
+query_visualizations/
+result1.json
 
 # Frontend specific files/folders
 frontend/node_modules/  

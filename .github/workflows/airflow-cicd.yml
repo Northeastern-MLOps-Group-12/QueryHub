@@ -5,8 +5,8 @@ on:
     branches:
       - main
       - data-trigger
-    paths:
-      - "data-pipelines/**"    # Only trigger when this folder changes
+    # paths:
+    #   - "data-pipelines/**"    # Only trigger when this folder changes
 
 jobs:
   deploy:
