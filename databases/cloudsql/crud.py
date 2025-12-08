@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from .models.credentials import Credentials
+from sqlalchemy import and_, cast, Integer, String
 from databases.cloudsql.database import get_db
 
 def create_record(db: Session, model_class, data: dict):
@@ -72,3 +73,42 @@ def update_record(db: Session, model_class, user_id: int, connection_name: str, 
         db.refresh(record)
         return record
     return None
+
+def get_records_by_user_and_db(db: Session, user_id: int, db_name: str):
+    """
+    Retrieve all records from the Credentials table for a specific user_id and db_name.
+
+    Args:
+        db (Session): SQLAlchemy session.
+        user_id (int): The user's ID.
+        db_name (str): The database name.
+
+    Returns:
+        List of Credentials records matching the criteria.
+    """
+    records = db.query(Credentials).filter(
+        Credentials.user_id == cast(user_id, Integer),
+        Credentials.db_name == db_name
+    ).all() 
+
+    return records
+
+
+def get_records_by_user_id(db: Session, user_id: int):
+    """
+    Retrieve all records from the Credentials table for a specific user_id and db_name.
+
+    Args:
+        db (Session): SQLAlchemy session.
+        user_id (int): The user's ID.
+        db_name (str): The database name.
+
+    Returns:
+        List of Credentials records matching the criteria.
+    """
+    records = db.query(Credentials).filter(
+        Credentials.user_id == user_id
+    ).all() 
+
+    return records
+
