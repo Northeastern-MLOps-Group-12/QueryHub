@@ -6,9 +6,9 @@ on:
       - main
       - dev
       - nl_to_data_viz
-    paths:
-      - "backend/**"
-      - "tests/**"
+    # paths:
+    #   - "backend/**"
+    #   - "tests/**"
   workflow_dispatch:
 
 env:

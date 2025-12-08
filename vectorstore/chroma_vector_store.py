@@ -14,7 +14,10 @@ import chromadb
 
 load_dotenv()
 
-DIR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VectorStores")
+DIR_PATH = os.path.join(
+    "/app/vectorstore_data",
+    os.path.dirname(os.path.abspath(__file__)), "VectorStores"
+    )
 
 LLM_API_KEY=os.environ["LLM_API_KEY"]
 
@@ -204,7 +207,7 @@ class ChromaVectorStore:
     def get_all_vector_stores(self):
         """Get all collections data as JSON."""
         # client = chromadb.PersistentClient(path=self.persist_directory)
-        client = chromadb.PersistentClient(path="/app/vectorstore_data")
+        client = chromadb.PersistentClient(path=DIR_PATH)
         collections = client.list_collections()
         
         all_data = {}
