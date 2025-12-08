@@ -131,6 +131,8 @@ def query(request: ChatRequest):
         # Run workflow
         result = AGENT.invoke(input=state, config=config)
         
+        print(result)
+
         # Determine success
         success = not result.get('error', False) and result.get('execution_success', False)
         
