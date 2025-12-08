@@ -2,8 +2,11 @@ name: Deploy Frontend to Google Cloud Run
 
 on:
   push:
-    branches: ["main"]
-    paths: ["frontend/**"]
+    branches:
+      - main
+      - dev
+      - frontend-setup
+    # paths: ["frontend/**"]
   workflow_dispatch:
 
 env:
@@ -37,15 +40,27 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      - name: Create frontend .env file
-        run: |
-          echo "VITE_BACKEND_URL=${{ env.BACKEND_URL }}" > frontend/.env
+      # - name: Create frontend .env file
+      #   run: |
+      #     echo "VITE_BACKEND_URL=${{ env.BACKEND_URL }}" > frontend/.env
 
+      # - name: Build & Push Docker Image
+      #   run: |
+      #     IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+      #     echo "Building image: $IMAGE"
+      #     docker build -t "$IMAGE" -f frontend/Dockerfile frontend
+      #     docker push "$IMAGE"
+      #     echo "IMAGE=$IMAGE" >> $GITHUB_ENV
       - name: Build & Push Docker Image
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           echo "Building image: $IMAGE"
-          docker build -t "$IMAGE" -f frontend/Dockerfile frontend
+          
+          docker build \
+            --build-arg VITE_BACKEND_URL=${{ env.BACKEND_URL }} \
+            -t "$IMAGE" \
+            -f frontend/Dockerfile frontend
+            
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
