@@ -45,18 +45,27 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
-      
-      # Build Docker image for linux/amd64
-      - name: Build Docker image (linux/amd64)
+
+      - name: Build Docker image
         run: |
           cd model_fine_tuning/vertex_ai_image
+          IMAGE_PATH="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          
+          echo "Building image at: $IMAGE_PATH"
+
           docker build \
             --platform linux/amd64 \
-            -t "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest" \
-            -t "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            -t "$IMAGE_PATH:latest" \
+            -t "$IMAGE_PATH:${{ github.sha }}" \
             .
 
-      # Push image to Artifact Registry
-      - name: Push Docker image
+      - name: Push both tags explicitly
         run: |
-          docker push --all-tags "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          IMAGE_PATH="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          
+          echo "Pushing tags:"
+          echo "  - $IMAGE_PATH:latest"
+          echo "  - $IMAGE_PATH:${{ github.sha }}"
+
+          docker push "$IMAGE_PATH:latest"
+          docker push "$IMAGE_PATH:${{ github.sha }}"
