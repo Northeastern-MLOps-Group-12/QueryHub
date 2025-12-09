@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from databases.cloudsql.database import engine, Base
 from agents.nl_to_data_viz.graph import initialize_agent
 import warnings
+from backend.utils import agent_utils
 warnings.filterwarnings("ignore")
 
 
@@ -112,7 +113,7 @@ async def startup_event():
         print("📊 Initializing LangGraph agent...")
         
         agent, memory, session_id = initialize_agent()
-        chat_api.set_global_agent(agent, memory, session_id)
+        agent_utils.set_global_agent(agent, memory, session_id)
         
         agent_initialization_status.set(1)
         

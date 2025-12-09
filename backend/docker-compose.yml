@@ -23,7 +23,7 @@ services:
       ENABLE_METRICS: "true"
       PROJECT_ID: "${PROJECT_ID}"
       GCS_BUCKET_NAME: "${GCS_BUCKET_NAME}"
-      GCS_MAKE_PUBLIC: "${GCS_MAKE_PUBLIC:-false}"
+      GCS_MAKE_PUBLIC: "${GCS_MAKE_PUBLIC:-true}"
       GCS_SIGNED_URL_HOURS: "${GCS_SIGNED_URL_HOURS:-24}"
       GCS_UPLOAD_ENABLED: "${GCS_UPLOAD_ENABLED:-true}"
       FIREBASE_DATABASE_ID: "queryhub-chats"
