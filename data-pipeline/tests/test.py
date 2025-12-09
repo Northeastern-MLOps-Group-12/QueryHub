@@ -27,6 +27,7 @@ sys.modules['airflow.sdk.execution_time.task_runner'] = MagicMock()
 sys.modules['airflow.sdk.execution_time.callback_runner'] = MagicMock()
 sys.modules['airflow.sdk.bases'] = MagicMock()
 sys.modules['airflow.sdk.bases.operator'] = MagicMock()
+sys.modules['airflow.providers.standard.operators.trigger_dagrun'] = MagicMock()
 
 
 # Mock the specific classes

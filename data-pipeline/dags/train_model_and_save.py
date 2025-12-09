@@ -2,6 +2,7 @@ import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import BranchPythonOperator
 from airflow.models import Variable
 from datetime import datetime, timedelta
 from model_scripts.retrain_model import (
@@ -11,9 +12,10 @@ from model_scripts.retrain_model import (
 )
 from model_scripts.bias_detection import run_bias_detection
 from model_scripts.model_eval_job_launcher import launch_evaluation_job
-from model_scripts.syntax_validation import run_syntax_validation_task
+from model_scripts.syntax_validation import run_syntax_validation_task, choose_best_model
 from utils.test_utils import run_unit_tests
 from utils.EmailContentGenerator import notify_task_failure, notify_pipeline_success
+from model_scripts.model_deployment import deploy_model_to_endpoint
 
 # Get alert email
 ALERT_EMAIL = os.getenv('ALERT_EMAIL', Variable.get("alert_email"))
@@ -39,6 +41,7 @@ default_args = {
     'on_failure_callback': failure_callback,
 }
 
+# Define the DAG
 def create_model_training_dag():
     """
     DAG to retrain model on Vertex AI using latest Docker image and GCS data.
@@ -80,8 +83,7 @@ def create_model_training_dag():
             op_kwargs={
                 "project_id": Variable.get("gcp_project"),
                 "region": Variable.get("gcp_region"),
-                "gcs_train_data": Variable.get("gcp_train_data_path"),
-                "gcs_val_data": Variable.get("gcp_val_data_path"),
+                "gcp_processed_data_path": Variable.get("gcp_processed_data_path"),
                 "container_image_uri": Variable.get("vertex_ai_training_image_uri"),
                 "machine_type": Variable.get("vertex_ai_train_machine_type"),
                 "gpu_type": Variable.get("vertex_ai_train_gpu_type"),
@@ -101,7 +103,7 @@ def create_model_training_dag():
                 "project_id": Variable.get("gcp_project"),
                 "region": Variable.get("gcp_region"),
                 "model_artifact_path": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='trained_model_gcs') }}",
-                "serving_container_image_uri": Variable.get("serving_container_image_uri"),
+                "serving_container_image_uri": Variable.get("queryhub_serve_uri"),
             }
         )
 
@@ -115,7 +117,8 @@ def create_model_training_dag():
                 "output_csv": Variable.get("gcp_evaluation_output_csv"),
                 "model_registry_id": "{{ ti.xcom_pull(task_ids='upload_model_to_vertex_ai', key='registered_model_name') }}",
                 "run_name": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') }}",
-                "test_data_path": Variable.get("gcp_test_data_path"),
+                # "test_data_path": Variable.get("gcp_test_data_path"),
+                "gcp_processed_data_path": Variable.get("gcp_processed_data_path"),
                 "machine_type": Variable.get("vertex_ai_eval_machine_type"),
                 "gpu_type": Variable.get("vertex_ai_eval_gpu_type"),
                 "gcs_staging_bucket": Variable.get("gcs_staging_bucket"),
@@ -148,20 +151,63 @@ def create_model_training_dag():
             }
         )
 
+        # Task 7 - Model Check
+        model_check = BranchPythonOperator(
+            task_id="model_check",
+            python_callable=choose_best_model,
+            op_kwargs={
+                "project_id": Variable.get("gcp_project"),
+                "region": Variable.get("gcp_region"),
+                "run_name": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') }}"
+            },
+        )
+
+        # Task to skip deployment
+        skip_deployment = EmptyOperator(
+            task_id='skip_deployment',
+            trigger_rule='none_failed_min_one_success'
+        )
+
+        # Task 8: Deployment
+        deploy_model = PythonOperator(
+            task_id="deploy_model_to_endpoint",
+            python_callable=deploy_model_to_endpoint,
+            op_kwargs={
+                "project_id": Variable.get("gcp_project"),
+                "region": Variable.get("gcp_region"),
+                "run_name": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') }}",
+                "model_resource_name": "{{ ti.xcom_pull(task_ids='upload_model_to_vertex_ai', key='registered_model_name') }}",
+                "machine_type": Variable.get("vertex_ai_deploy_machine_type", default_var="n1-standard-4"),
+            },
+            trigger_rule='none_failed_min_one_success',
+        )
+
         # Training completion nodes
         training_completed = EmptyOperator(
             task_id='training_completed', 
-            trigger_rule='all_success',
+            trigger_rule='none_failed_min_one_success',
             on_success_callback=success_callback
         )
 
-        # Training failure node
-        training_failed = EmptyOperator(task_id='training_failed', trigger_rule='one_failed')
+        # Add this at the end before return dag
+        training_failed = EmptyOperator(
+            task_id='training_failed', 
+            trigger_rule='one_failed'
+        )
 
-        # DAG flow
-        start_pipeline >> run_model_unit_tests >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> training_completed
+        # DAG flow without branching
+        start_pipeline >> run_model_unit_tests >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> model_check
+
+        # Branching based on model check
+        model_check >> [deploy_model, skip_deployment]
+
+        # Deploy path
+        deploy_model >> training_completed
         
-        # Send any failure to training_failed
+        # Skip path
+        skip_deployment >> training_completed
+
+        # Failure path
         [run_model_unit_tests, fetch_model_task, train_model_task, upload_model_task, evaluate_model, bias_detection_task, syntax_validation] >> training_failed
 
         return dag

@@ -1,14 +1,17 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from datetime import datetime, timedelta
 from utils.EmailContentGenerator import notify_task_failure
 from utils.SQLValidator import _validate_single_sql
 import logging
 import json
 import os
-# from airflow.sdk.variable import Variable
+import pandas as pd
+from google.cloud import storage
+import io
 from airflow.models import Variable
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 # ============================================================================
 # DAG DEFAULT ARGS WITH FAILURE NOTIFICATION
@@ -65,6 +68,432 @@ def load_data():
     
     logging.info(f"Loaded {len(train_df)} train, {len(test_df)} test")
     return {'train': len(train_df), 'test': len(test_df)}
+
+def load_data_from_gcs(**context):
+    """Load train and test data from the LATEST folder in GCS based on creation time
+    
+    Expected GCS structure:
+    gs://text-to-sql-dataset-queryhub/raw_data/{folder_name}/train.csv
+    gs://text-to-sql-dataset-queryhub/raw_data/{folder_name}/test.csv
+    
+    The function automatically finds the most recently created folder using GCS metadata.
+    """
+    
+    # GCS Configuration
+    bucket_name = "text-to-sql-dataset-queryhub"
+    project_id = "queryhub-459602"
+    raw_data_prefix = "raw_data/"
+    
+    logging.info("=" * 60)
+    logging.info("LOADING DATA FROM GCS")
+    logging.info("=" * 60)
+    logging.info(f"Project: {project_id}")
+    logging.info(f"Bucket: {bucket_name}")
+    logging.info(f"Prefix: {raw_data_prefix}")
+    
+    # Initialize GCS client
+    client = storage.Client(project=project_id)
+    bucket = client.bucket(bucket_name)
+    
+    logging.info("✅ Connected to GCS")
+    
+    # Find all folders and their creation times
+    logging.info("Searching for data folders...")
+    
+    folder_creation_times = {}
+    
+    for blob in bucket.list_blobs(prefix=raw_data_prefix):
+        # Extract folder name from path like "raw_data/20251120_035946/train.csv"
+        path_parts = blob.name[len(raw_data_prefix):].split('/')
+        
+        if len(path_parts) >= 2 and path_parts[0]:
+            folder_name = path_parts[0]
+            
+            # Track the earliest created_at time for each folder
+            if folder_name not in folder_creation_times:
+                folder_creation_times[folder_name] = blob.time_created
+            else:
+                if blob.time_created < folder_creation_times[folder_name]:
+                    folder_creation_times[folder_name] = blob.time_created
+    
+    if not folder_creation_times:
+        raise ValueError(
+            f"No data folders found in gs://{bucket_name}/{raw_data_prefix}\n"
+            f"Please upload train.csv and test.csv to a subfolder."
+        )
+    
+    # Sort folders by creation time (most recent first)
+    sorted_folders = sorted(
+        folder_creation_times.items(), 
+        key=lambda x: x[1], 
+        reverse=True
+    )
+    
+    latest_folder = sorted_folders[0][0]
+    latest_created_at = sorted_folders[0][1]
+    
+    logging.info(f"\nFound {len(folder_creation_times)} folder(s):")
+    for folder_name, created_at in sorted_folders[:5]:
+        marker = " ← LATEST (using this)" if folder_name == latest_folder else ""
+        logging.info(f"   - {folder_name} (created: {created_at}){marker}")
+    if len(sorted_folders) > 5:
+        logging.info(f"   ... and {len(sorted_folders) - 5} more")
+    
+    # Define paths to train and test files
+    train_gcs_path = f"{raw_data_prefix}{latest_folder}/train.csv"
+    test_gcs_path = f"{raw_data_prefix}{latest_folder}/test.csv"
+    
+    # Load train data
+    logging.info(f"\nDownloading: gs://{bucket_name}/{train_gcs_path}")
+    train_blob = bucket.blob(train_gcs_path)
+    
+    if not train_blob.exists():
+        raise FileNotFoundError(
+            f"train.csv not found in gs://{bucket_name}/{raw_data_prefix}{latest_folder}/"
+        )
+    
+    train_content = train_blob.download_as_bytes()
+    train_df = pd.read_csv(io.BytesIO(train_content))
+    logging.info(f"✅ Loaded train.csv: {len(train_df):,} rows")
+    
+    # Load test data
+    logging.info(f"Downloading: gs://{bucket_name}/{test_gcs_path}")
+    test_blob = bucket.blob(test_gcs_path)
+    
+    if not test_blob.exists():
+        raise FileNotFoundError(
+            f"test.csv not found in gs://{bucket_name}/{raw_data_prefix}{latest_folder}/"
+        )
+    
+    test_content = test_blob.download_as_bytes()
+    test_df = pd.read_csv(io.BytesIO(test_content))
+    logging.info(f"✅ Loaded test.csv: {len(test_df):,} rows")
+    
+    # Validate required columns
+    required_columns = ['sql_prompt', 'sql_context', 'sql', 'sql_complexity']
+    
+    missing_train_cols = [col for col in required_columns if col not in train_df.columns]
+    missing_test_cols = [col for col in required_columns if col not in test_df.columns]
+    
+    if missing_train_cols:
+        raise ValueError(f"Missing columns in train.csv: {missing_train_cols}")
+    if missing_test_cols:
+        raise ValueError(f"Missing columns in test.csv: {missing_test_cols}")
+    
+    logging.info(f"✅ Schema validated")
+    
+    # Save to pickle files for downstream tasks
+    train_df.to_pickle('/tmp/train_raw.pkl')
+    test_df.to_pickle('/tmp/test_raw.pkl')
+    
+    logging.info("\n" + "=" * 60)
+    logging.info("DATA LOADING COMPLETE")
+    logging.info("=" * 60)
+    logging.info(f"Source: gs://{bucket_name}/{raw_data_prefix}{latest_folder}/")
+    logging.info(f"Created at: {latest_created_at}")
+    logging.info(f"Train: {len(train_df):,} | Test: {len(test_df):,}")
+    
+    # Push to XCom
+    context['task_instance'].xcom_push(key='source_folder', value=latest_folder)
+    context['task_instance'].xcom_push(key='source_created_at', value=str(latest_created_at))
+    
+    return {
+        'train': len(train_df), 
+        'test': len(test_df),
+        'source_folder': latest_folder
+    }
+
+def compare_datasets(**context):
+    """
+    Compare current pipeline dataset with the latest dataset from GCS.
+    Calculates:
+    1. Percentage change in distribution of sql_complexity
+    2. SQL query length change per sql_complexity
+    
+    Triggers retraining DAG if:
+    - Any sql_complexity distribution change > 10%
+    - Any sql_length mean change > 5%
+    """
+    import pandas as pd
+    from google.cloud import storage
+    import io
+    import json
+    import os
+    
+    # GCS Configuration
+    bucket_name = "text-to-sql-dataset-queryhub"
+    project_id = "queryhub-459602"
+    processed_prefix = "processed_datasets/"
+    
+    # Thresholds for triggering retraining
+    COMPLEXITY_CHANGE_THRESHOLD = 10.0  # percent
+    SQL_LENGTH_CHANGE_THRESHOLD = 5.0   # percent
+    
+    logging.info("=" * 60)
+    logging.info("COMPARING DATASETS")
+    logging.info("=" * 60)
+    
+    # -------------------------
+    # Load current pipeline dataset
+    # -------------------------
+    current_path = "/opt/airflow/data/train.csv"
+    
+    if not os.path.exists(current_path):
+        raise FileNotFoundError(f"Current train.csv not found at {current_path}")
+    
+    current_df = pd.read_csv(current_path)
+    logging.info(f"✅ Loaded current dataset: {len(current_df):,} rows")
+    
+    # -------------------------
+    # Fetch latest dataset from GCS
+    # -------------------------
+    client = storage.Client(project=project_id)
+    bucket = client.bucket(bucket_name)
+    
+    logging.info(f"Searching for latest folder in gs://{bucket_name}/{processed_prefix}")
+    
+    # Find all folders and their creation times
+    folder_creation_times = {}
+    
+    for blob in bucket.list_blobs(prefix=processed_prefix):
+        path_parts = blob.name[len(processed_prefix):].split('/')
+        
+        if len(path_parts) >= 2 and path_parts[0] and path_parts[0] != "latest.json":
+            folder_name = path_parts[0]
+            
+            if folder_name not in folder_creation_times:
+                folder_creation_times[folder_name] = blob.time_created
+            else:
+                if blob.time_created < folder_creation_times[folder_name]:
+                    folder_creation_times[folder_name] = blob.time_created
+    
+    if not folder_creation_times:
+        logging.warning("No previous datasets found in GCS. Skipping comparison.")
+        context['task_instance'].xcom_push(key='data_drift_detected', value=False)
+        return {"comparison_skipped": True, "reason": "No previous datasets in GCS"}
+    
+    # Sort by creation time and get latest
+    sorted_folders = sorted(
+        folder_creation_times.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+    
+    latest_folder = sorted_folders[0][0]
+    latest_created_at = sorted_folders[0][1]
+    
+    logging.info(f"✅ Found latest GCS folder: {latest_folder} (created: {latest_created_at})")
+    
+    # Download previous train.csv
+    previous_gcs_path = f"{processed_prefix}{latest_folder}/train.csv"
+    previous_blob = bucket.blob(previous_gcs_path)
+    
+    if not previous_blob.exists():
+        logging.warning(f"train.csv not found in {latest_folder}. Skipping comparison.")
+        context['task_instance'].xcom_push(key='data_drift_detected', value=False)
+        return {"comparison_skipped": True, "reason": "train.csv not found in latest GCS folder"}
+    
+    previous_content = previous_blob.download_as_bytes()
+    previous_df = pd.read_csv(io.BytesIO(previous_content))
+    logging.info(f"✅ Loaded previous dataset: {len(previous_df):,} rows")
+    
+    # -------------------------
+    # Calculate SQL query length
+    # -------------------------
+    current_df['sql_length'] = current_df['sql'].str.len()
+    previous_df['sql_length'] = previous_df['sql'].str.len()
+    
+    # Track trigger reasons
+    trigger_reasons = []
+    
+    # -------------------------
+    # 1. SQL Complexity Distribution Change
+    # -------------------------
+    logging.info("\n📊 SQL COMPLEXITY DISTRIBUTION COMPARISON")
+    logging.info("-" * 50)
+    
+    current_complexity_dist = current_df['sql_complexity'].value_counts(normalize=True) * 100
+    previous_complexity_dist = previous_df['sql_complexity'].value_counts(normalize=True) * 100
+    
+    # Get all complexity types
+    all_complexities = set(current_complexity_dist.index) | set(previous_complexity_dist.index)
+    
+    complexity_comparison = []
+    for complexity in sorted(all_complexities):
+        current_pct = current_complexity_dist.get(complexity, 0)
+        previous_pct = previous_complexity_dist.get(complexity, 0)
+        
+        if previous_pct > 0:
+            pct_change = ((current_pct - previous_pct) / previous_pct) * 100
+        else:
+            pct_change = 100.0 if current_pct > 0 else 0.0
+        
+        complexity_comparison.append({
+            'sql_complexity': complexity,
+            'previous_pct': round(previous_pct, 2),
+            'current_pct': round(current_pct, 2),
+            'pct_point_change': round(current_pct - previous_pct, 2),
+            'pct_change': round(pct_change, 2)
+        })
+        
+        # Check threshold
+        if abs(pct_change) > COMPLEXITY_CHANGE_THRESHOLD:
+            trigger_reasons.append(f"sql_complexity '{complexity}' changed by {pct_change:+.2f}% (threshold: ±{COMPLEXITY_CHANGE_THRESHOLD}%)")
+        
+        change_indicator = "↑" if pct_change > 0 else "↓" if pct_change < 0 else "="
+        threshold_marker = " ⚠️ EXCEEDS THRESHOLD" if abs(pct_change) > COMPLEXITY_CHANGE_THRESHOLD else ""
+        logging.info(f"   {complexity}: {previous_pct:.2f}% → {current_pct:.2f}% ({change_indicator} {pct_change:+.2f}%){threshold_marker}")
+    
+    # -------------------------
+    # 2. SQL Query Length Change per Complexity
+    # -------------------------
+    logging.info("\n📏 SQL QUERY LENGTH COMPARISON (per complexity)")
+    logging.info("-" * 50)
+    
+    current_length_stats = current_df.groupby('sql_complexity')['sql_length'].agg(['mean', 'median', 'std', 'min', 'max'])
+    previous_length_stats = previous_df.groupby('sql_complexity')['sql_length'].agg(['mean', 'median', 'std', 'min', 'max'])
+    
+    length_comparison = []
+    for complexity in sorted(all_complexities):
+        current_stats = current_length_stats.loc[complexity] if complexity in current_length_stats.index else None
+        previous_stats = previous_length_stats.loc[complexity] if complexity in previous_length_stats.index else None
+        
+        if current_stats is not None and previous_stats is not None:
+            mean_change = ((current_stats['mean'] - previous_stats['mean']) / previous_stats['mean']) * 100
+            median_change = ((current_stats['median'] - previous_stats['median']) / previous_stats['median']) * 100
+            
+            length_comparison.append({
+                'sql_complexity': complexity,
+                'previous_mean_length': round(previous_stats['mean'], 2),
+                'current_mean_length': round(current_stats['mean'], 2),
+                'mean_pct_change': round(mean_change, 2),
+                'previous_median_length': round(previous_stats['median'], 2),
+                'current_median_length': round(current_stats['median'], 2),
+                'median_pct_change': round(median_change, 2)
+            })
+            
+            # Check threshold for mean length change
+            if abs(mean_change) > SQL_LENGTH_CHANGE_THRESHOLD:
+                trigger_reasons.append(f"sql_length for '{complexity}' changed by {mean_change:+.2f}% (threshold: ±{SQL_LENGTH_CHANGE_THRESHOLD}%)")
+            
+            change_indicator = "↑" if mean_change > 0 else "↓" if mean_change < 0 else "="
+            threshold_marker = " ⚠️ EXCEEDS THRESHOLD" if abs(mean_change) > SQL_LENGTH_CHANGE_THRESHOLD else ""
+            logging.info(f"   {complexity}:")
+            logging.info(f"      Mean: {previous_stats['mean']:.1f} → {current_stats['mean']:.1f} chars ({change_indicator} {mean_change:+.2f}%){threshold_marker}")
+            logging.info(f"      Median: {previous_stats['median']:.1f} → {current_stats['median']:.1f} chars ({change_indicator} {median_change:+.2f}%)")
+    
+    # -------------------------
+    # 3. Overall Dataset Size Change
+    # -------------------------
+    logging.info("\n📈 OVERALL DATASET SIZE")
+    logging.info("-" * 50)
+    
+    size_change = ((len(current_df) - len(previous_df)) / len(previous_df)) * 100
+    logging.info(f"   Previous: {len(previous_df):,} rows")
+    logging.info(f"   Current: {len(current_df):,} rows")
+    logging.info(f"   Change: {size_change:+.2f}%")
+    
+    # -------------------------
+    # Determine if data drift detected
+    # -------------------------
+    data_drift_detected = len(trigger_reasons) > 0
+    
+    logging.info("\n" + "=" * 60)
+    if data_drift_detected:
+        logging.info("🚨 DATA DRIFT DETECTED: YES")
+        logging.info("=" * 60)
+        logging.info(f"Found {len(trigger_reasons)} reason(s):")
+        for reason in trigger_reasons:
+            logging.info(f"   • {reason}")
+        logging.info("\n→ Will upload to GCS and trigger retraining DAG")
+    else:
+        logging.info("✅ DATA DRIFT DETECTED: NO")
+        logging.info("=" * 60)
+        logging.info("All metrics within acceptable thresholds.")
+        logging.info("→ Skipping upload and retraining")
+    
+    # -------------------------
+    # Save comparison report
+    # -------------------------
+    comparison_report = {
+        'timestamp': str(context.get('execution_date', datetime.now())),
+        'previous_dataset': {
+            'gcs_folder': latest_folder,
+            'created_at': str(latest_created_at),
+            'row_count': len(previous_df)
+        },
+        'current_dataset': {
+            'path': current_path,
+            'row_count': len(current_df)
+        },
+        'size_change_pct': round(size_change, 2),
+        'complexity_distribution_comparison': complexity_comparison,
+        'sql_length_comparison': length_comparison,
+        'thresholds': {
+            'complexity_change': COMPLEXITY_CHANGE_THRESHOLD,
+            'sql_length_change': SQL_LENGTH_CHANGE_THRESHOLD
+        },
+        'data_drift_detected': data_drift_detected,
+        'trigger_reasons': trigger_reasons
+    }
+    
+    output_dir = "/opt/airflow/data"
+    report_path = f"{output_dir}/dataset_comparison_report.json"
+    
+    with open(report_path, 'w') as f:
+        json.dump(comparison_report, f, indent=2)
+    
+    logging.info(f"\n✅ Comparison report saved to {report_path}")
+    
+    # Push to XCom for branching
+    context['task_instance'].xcom_push(key='comparison_report', value=comparison_report)
+    context['task_instance'].xcom_push(key='data_drift_detected', value=data_drift_detected)
+    context['task_instance'].xcom_push(key='trigger_reasons', value=trigger_reasons)
+    
+    logging.info("\n" + "=" * 60)
+    logging.info("DATASET COMPARISON COMPLETE")
+    logging.info("=" * 60)
+    
+    return {
+        'comparison_completed': True,
+        'previous_folder': latest_folder,
+        'previous_rows': len(previous_df),
+        'current_rows': len(current_df),
+        'size_change_pct': round(size_change, 2),
+        'data_drift_detected': data_drift_detected,
+        'trigger_reasons': trigger_reasons,
+        'report_path': report_path
+    }
+
+def check_data_drift(**context):
+    """
+    Branch function to decide whether to upload and trigger retraining or skip.
+    """
+    data_drift_detected = context['task_instance'].xcom_pull(
+        task_ids='compare_datasets',
+        key='data_drift_detected'
+    )
+    
+    if data_drift_detected:
+        logging.info("🚨 Data drift detected → Proceeding to upload and trigger retraining")
+        return 'upload_to_gcp'
+    else:
+        logging.info("✅ No data drift → Skipping upload and retraining")
+        return 'skip_upload'
+
+def skip_upload(**context):
+    """
+    Log that upload and retraining were skipped due to no data drift.
+    """
+    logging.info("=" * 60)
+    logging.info("UPLOAD & RETRAINING SKIPPED")
+    logging.info("=" * 60)
+    logging.info("No significant data drift detected.")
+    logging.info("Dataset changes within acceptable thresholds:")
+    logging.info("   • sql_complexity distribution change ≤ 10%")
+    logging.info("   • sql_length mean change ≤ 5%")
+    
+    return {'skipped': True, 'reason': 'No data drift detected'}
 
 def validate_sql():
     import pandas as pd
@@ -1787,6 +2216,8 @@ def upload_to_gcp(**context):
     logging.info(f"GCP UPLOAD COMPLETE - Folder: {timestamp}")
     logging.info("=" * 60)
 
+    logging.info(f"🚀 Triggered downstream DAG: your_downstream_dag_id")
+
     return {
         "uploaded": len(uploaded_files),
         "timestamp": timestamp,
@@ -1814,8 +2245,8 @@ t0_tests = PythonOperator(
 )
 
 t1 = PythonOperator(
-    task_id='load_data',
-    python_callable=load_data,
+    task_id='load_data_from_gcs',
+    python_callable=load_data_from_gcs,
     dag=dag
 )
 
@@ -1873,16 +2304,59 @@ t6c = PythonOperator(
     dag=dag
 )
 
+compare = PythonOperator(
+    task_id='compare_datasets',
+    python_callable=compare_datasets,
+    dag=dag
+)
+
+check_drift_branch = BranchPythonOperator(
+    task_id='check_data_drift',
+    python_callable=check_data_drift,
+    dag=dag
+)
+
 t6d = PythonOperator(
     task_id='upload_to_gcp',
     python_callable=upload_to_gcp,
+    dag=dag,
+    trigger_rule='none_failed_min_one_success',
+)
+
+trigger_training = TriggerDagRunOperator(
+    task_id='trigger_vertex_ai_training',
+    trigger_dag_id='vertex_ai_model_training_pipeline',
+    conf={
+        "gcs_folder": "{{ ti.xcom_pull(task_ids='upload_to_gcp', key='gcs_folder') }}"
+    },
+    wait_for_completion=False,
+    trigger_rule='none_failed_min_one_success',
+)
+
+skip_upload = PythonOperator(
+    task_id='skip_upload',
+    python_callable=skip_upload,
+    trigger_rule='none_failed_min_one_success',
     dag=dag
 )
 
 t7 = PythonOperator(
     task_id='send_success_notification',
     python_callable=send_pipeline_success_notification,
+    trigger_rule='none_failed_min_one_success',
     dag=dag
 )
 
-t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> t6d >> t7
+# t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> compare >> check_data_drift >> t6d >> trigger_training >> skip_upload >> t7
+
+# Update your task dependencies:
+t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> compare >> check_drift_branch
+
+# Branch paths
+check_drift_branch >> [t6d, skip_upload]
+
+# Continue from upload path
+t6d >> trigger_training >> t7
+
+# Continue from skip path  
+skip_upload >> t7

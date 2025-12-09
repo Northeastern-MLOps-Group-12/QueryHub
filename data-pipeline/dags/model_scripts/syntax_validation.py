@@ -44,21 +44,21 @@ def run_syntax_validation_task(project_id, region, run_name, gcs_csv_path, gcs_o
     print(f"Per Complexity Validation evaluation path = {gcs_output_path}")
     log_experiment_metrics(run, {"per_complexity_validation": gcs_output_path})
 
-    # Re-initialize with the experiment name
-    print(f"Resuming and ending experiment run: {run_name}")
-    aiplatform.init(
-        project=project_id, 
-        location=region, 
-        experiment="queryhub-experiments"
-    )
+    # # Re-initialize with the experiment name
+    # print(f"Resuming and ending experiment run: {run_name}")
+    # aiplatform.init(
+    #     project=project_id, 
+    #     location=region, 
+    #     experiment="queryhub-experiments"
+    # )
     
-    # Resume the run to make it active
-    run = aiplatform.start_run(run=run_name, resume=True)
+    # # Resume the run to make it active
+    # run = aiplatform.start_run(run=run_name, resume=True)
     
-    # End the (now active) run
-    aiplatform.end_run()
+    # # End the (now active) run
+    # aiplatform.end_run()
     
-    print("✅ Experiment run ended.")
+    # print("✅ Experiment run ended.")
     print("✅ Syntax validation completed.")
 
 def syntax_validation_from_gcs(gcs_path, dialect="mysql"):
@@ -121,3 +121,163 @@ def syntax_validation_from_gcs(gcs_path, dialect="mysql"):
     )
 
     return syntax_overall, per_complexity_valid
+
+
+def get_model_id_from_latest_endpoint(project_id: str, region: str) -> str:
+    """Get the model ID from the most recently created endpoint in Vertex AI."""
+    
+    aiplatform.init(project=project_id, location=region)
+    
+    # List all endpoints, sorted by create_time descending
+    endpoints = aiplatform.Endpoint.list(
+        order_by="create_time desc",
+    )
+    
+    if not endpoints:
+        raise ValueError("No endpoints found in the project")
+    
+    latest_endpoint = endpoints[0]
+    print(f"Latest endpoint: {latest_endpoint.display_name}")
+    print(f"Endpoint resource name: {latest_endpoint.resource_name}")
+    
+    # Get deployed models on this endpoint
+    deployed_models = latest_endpoint.gca_resource.deployed_models
+    
+    if not deployed_models:
+        raise ValueError(f"No models deployed to endpoint {latest_endpoint.display_name}")
+    
+    # Get the model ID from the first deployed model
+    model_resource_name = deployed_models[0].model
+    model_id = model_resource_name.split("/")[-1]
+    
+    print(f"Model resource name: {model_resource_name}")
+    print(f"Model ID: {model_id}")
+    
+    return model_id
+
+def get_metrics_from_experiment_by_model_id(project_id: str, region: str, model_id: str) -> dict:
+    """
+    Fetch metrics from experiment runs that match the given model_id.
+    Looks for model_id within the vertex_model_resource parameter.
+    """
+    
+    aiplatform.init(project=project_id, location=region)
+    
+    # List all experiments
+    experiments = aiplatform.Experiment.list()
+    
+    if not experiments:
+        raise ValueError("No experiments found in the project")
+    
+    print(f"Found {len(experiments)} experiments")
+    
+    for experiment in experiments:
+        print(f"\nChecking experiment: {experiment.name}")
+        
+        # Get all runs for this experiment
+        runs = aiplatform.ExperimentRun.list(experiment=experiment.name)
+        
+        for run in runs:
+            # Get run parameters
+            params = run.get_params()
+            
+            # Check if vertex_model_resource contains our model_id
+            vertex_model_resource = params.get("vertex_model_resource", "")
+            
+            if model_id in vertex_model_resource:
+                print(f"\nFound matching run: {run.name}")
+                print(f"vertex_model_resource: {vertex_model_resource}")
+                
+                # Get metrics
+                metrics = run.get_metrics()
+                
+                exact_match = metrics.get("exact_match")
+                f1_score = metrics.get("f1_score")
+                
+                print(f"exact_match: {exact_match}")
+                print(f"f1_score: {f1_score}")
+                
+                return {
+                    "experiment_name": experiment.name,
+                    "run_name": run.name,
+                    "exact_match": exact_match,
+                    "f1_score": f1_score,
+                    "all_metrics": metrics,
+                    "all_params": params
+                }
+    
+    raise ValueError(f"No experiment run found with model_id: {model_id}")
+
+
+
+def get_metrics_from_experiment_run(
+    project_id: str, 
+    region: str, 
+    run_name: str,
+) -> dict:
+    """
+    Fetch metrics from a specific experiment run by run name.
+    """
+    aiplatform.init(project=project_id, location=region)
+    
+    # Get the experiment run directly by name
+    run = aiplatform.ExperimentRun(experiment="queryhub-experiments", run_name=run_name)
+    
+    metrics = run.get_metrics()
+    
+    return {
+        "exact_match": metrics.get("exact_match"),
+        "f1_score": metrics.get("f1_score"),
+    }
+
+
+def choose_best_model(project_id, region, run_name, **kwargs):
+    """
+    Compare new model metrics with currently deployed model metrics.
+    Returns task_id to branch to.
+    """
+    ti = kwargs["ti"]
+    
+    aiplatform.init(project=project_id, location=region)
+    
+    # Get metrics from the NEW model (from the current training run)
+    print(f"Fetching metrics for new model from run: {run_name}")
+    new_metrics = get_metrics_from_experiment_run(project_id, region, run_name)
+    new_exact_match = new_metrics.get("exact_match", 0)
+    new_f1_score = new_metrics.get("f1_score", 0)
+    
+    print(f"New Model Metrics:")
+    print(f"  Exact Match: {new_exact_match}")
+    print(f"  F1 Score: {new_f1_score}")
+    
+    # Get metrics from the OLD model (currently deployed)
+    try:
+        model_id = get_model_id_from_latest_endpoint(project_id, region)
+        old_metrics = get_metrics_from_experiment_by_model_id(project_id, region, model_id)
+        old_exact_match = old_metrics.get("exact_match", 0)
+        old_f1_score = old_metrics.get("f1_score", 0)
+        
+        print(f"\nOld Model Metrics (Model ID: {model_id}):")
+        print(f"  Exact Match: {old_exact_match}")
+        print(f"  F1 Score: {old_f1_score}")
+        
+    except ValueError as e:
+        # No existing endpoint/model - new model wins by default
+        print(f"No existing deployed model found: {e}")
+        print("New model will be deployed as the first model.")
+        return "ensure_vertex_endpoint"
+    
+    # Compare metrics - new model is better if F1 score is higher and exact_match not worse
+    is_new_model_better = (new_f1_score > old_f1_score) and (new_exact_match >= old_exact_match)
+    
+    print(f"\n--- Comparison ---")
+    print(f"F1 Score: {new_f1_score} (new) vs {old_f1_score} (old)")
+    print(f"Exact Match: {new_exact_match} (new) vs {old_exact_match} (old)")
+    print(f"New model is better: {is_new_model_better}")
+    
+    if is_new_model_better:
+        print("✅ New model is better - proceeding to deployment")
+        return "deploy_model_to_endpoint"
+    else:
+        print("⏭️ Old model is better - skipping deployment")
+        return "skip_deployment"

@@ -44,8 +44,39 @@ def fetch_latest_model(project_id, gcs_bucket_name, region, **kwargs):
 
     return latest_model_path
 
+def get_latest_subfolder(gcs_path):
+    """
+    Returns the latest subfolder under a GCS prefix by inspecting blob names.
+    """
+    if not gcs_path.startswith("gs://"):
+        raise ValueError("Invalid GCS path")
+    
+    bucket_name, prefix = gcs_path.replace("gs://", "").split("/", 1)
+    prefix = prefix.rstrip("/") + "/"
 
-def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, container_image_uri, machine_type, gpu_type, gcs_staging_bucket, gcs_registered_models, train_samples, val_samples, num_train_epochs, **kwargs):
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+
+    blobs = bucket.list_blobs(prefix=prefix)
+
+    folder_names = set()
+    for blob in blobs:
+        # blob.name e.g. processed_datasets/20251208_152334/train.csv
+        relative = blob.name[len(prefix):]
+
+        # only folders have a "/" in the relative path
+        if "/" in relative:
+            folder = relative.split("/")[0]
+            folder_names.add(folder)
+
+    if not folder_names:
+        raise AirflowException(f"No subfolders found under {gcs_path}")
+
+    latest_folder = sorted(folder_names)[-1]
+
+    return f"gs://{bucket_name}/{prefix}{latest_folder}"
+
+def train_on_vertex_ai(project_id, region, gcp_processed_data_path, container_image_uri, machine_type, gpu_type, gcs_staging_bucket, gcs_registered_models, train_samples, val_samples, num_train_epochs, **kwargs):
     """
     Submit Vertex AI Custom Training Job using latest model files + image.
     """
@@ -54,6 +85,11 @@ def train_on_vertex_ai(project_id, region, gcs_train_data, gcs_val_data, contain
 
     if not gcs_model_dir or not container_image_uri:
         raise AirflowException("Missing GCS model path or container image URI from XCom")
+    
+    latest_dataset_folder = get_latest_subfolder(gcp_processed_data_path)
+
+    gcs_train_data = f"{latest_dataset_folder}/train.csv"
+    gcs_val_data = f"{latest_dataset_folder}/val.csv"
     
     # Start experiment run
     print("Starting experiment run...")
@@ -116,6 +152,9 @@ def register_model_in_vertex_ai(project_id, region, model_artifact_path, serving
         display_name=f"queryhub-model-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
         artifact_uri=model_artifact_path,
         serving_container_image_uri=serving_container_image_uri,
+        serving_container_predict_route="/predict",
+        serving_container_health_route="/health",
+        serving_container_ports=[9090],
     )
     print(f"✅ Model uploaded to Vertex AI Model Registry: {model.resource_name}")
 

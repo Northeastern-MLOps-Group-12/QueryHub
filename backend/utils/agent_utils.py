@@ -246,15 +246,6 @@ def build_visualization(user_query, user_id):
         result = AGENT.invoke(input=state, config=config)
         print(f"Result: {result}")
 
-        output_file = Path("result1.json")
-        
-        # Save dictionary as JSON
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-
-        print(f"Saved dictionary to {output_file}")
-
-
         # Determine success
         success = not result.get('error', False) and result.get('execution_success', False)
         

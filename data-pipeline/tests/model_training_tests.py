@@ -19,6 +19,7 @@ def mock_airflow_variables():
         "gcs_registered_models": "gs://bucket/registered_models",
         "gcs_staging_bucket": "gs://bucket/staging",
         "vertex_ai_training_image_uri": "gcr.io/test/image:latest",
+        "gcp_processed_data_path": "gs://bucket/processed_data",
         "vertex_ai_train_machine_type": "n1-standard-4",
         "vertex_ai_train_gpu_type": "NVIDIA_TESLA_T4",
         "serving_container_image_uri": "gcr.io/test/serving:latest",
@@ -80,21 +81,31 @@ class TestModelTrainingDAG:
         task_ids = [task.task_id for task in tasks]
         
         expected_tasks = [
-            'start_pipeline', 'run_model_unit_tests', 'fetch_latest_model',
-            'train_on_vertex_ai', 'upload_model_to_vertex_ai',
-            'evaluate_model_on_vertex_ai', 'bias_detection',
-            'syntax_validation', 'training_completed', 'training_failed'
+            'start_pipeline', 
+            'run_model_unit_tests', 
+            'fetch_latest_model',
+            'train_on_vertex_ai', 
+            'upload_model_to_vertex_ai',
+            'evaluate_model_on_vertex_ai', 
+            'bias_detection',
+            'syntax_validation', 
+            'model_check',
+            'skip_deployment',
+            'ensure_vertex_endpoint',
+            'deploy_model_to_vertex_endpoint',
+            'training_completed',
+            'training_failed',
         ]
         
-        assert set(task_ids) == set(expected_tasks)
-        assert len(tasks) == len(expected_tasks)
+        assert set(task_ids) == set(expected_tasks), f"Missing or extra tasks: {set(task_ids) ^ set(expected_tasks)}"
+        assert len(tasks) == len(expected_tasks), f"Expected {len(expected_tasks)} tasks, got {len(tasks)}"
     
     def test_task_dependencies(self):
         """Test task dependencies are correctly set"""
         from dags.train_model_and_save import create_model_training_dag
         dag = create_model_training_dag()
         
-        # Test main success path
+        # Get all tasks
         start = dag.get_task('start_pipeline')
         run_model_unit_tests = dag.get_task('run_model_unit_tests')
         fetch_model = dag.get_task('fetch_latest_model')
@@ -103,38 +114,52 @@ class TestModelTrainingDAG:
         evaluate_model = dag.get_task('evaluate_model_on_vertex_ai')
         bias_detection = dag.get_task('bias_detection')
         syntax_validation = dag.get_task('syntax_validation')
+        model_check = dag.get_task('model_check')
+        skip_deployment = dag.get_task('skip_deployment')
+        ensure_endpoint = dag.get_task('ensure_vertex_endpoint')
+        deploy_model = dag.get_task('deploy_model_to_vertex_endpoint')
         training_completed = dag.get_task('training_completed')
         training_failed = dag.get_task('training_failed')
         
-        # Check downstream dependencies (including failure routing)
-        assert start.downstream_task_ids == {'run_model_unit_tests'}
-        assert run_model_unit_tests.downstream_task_ids == {'fetch_latest_model', 'training_failed'}
-        assert fetch_model.downstream_task_ids == {'train_on_vertex_ai', 'training_failed'}
-        assert train_model.downstream_task_ids == {'upload_model_to_vertex_ai', 'training_failed'}
-        assert upload_model.downstream_task_ids == {'evaluate_model_on_vertex_ai', 'training_failed'}
-        assert evaluate_model.downstream_task_ids == {'bias_detection', 'training_failed'}
-        assert bias_detection.downstream_task_ids == {'syntax_validation', 'training_failed'}
-        assert syntax_validation.downstream_task_ids == {'training_completed', 'training_failed'}
+        # Check main pipeline flow
+        assert start.downstream_task_ids == {'run_model_unit_tests'}, \
+            f"start_pipeline should flow to run_model_unit_tests, got {start.downstream_task_ids}"
+        assert run_model_unit_tests.downstream_task_ids == {'fetch_latest_model', 'training_failed'}, \
+            f"run_model_unit_tests should flow to fetch_latest_model and training_failed, got {run_model_unit_tests.downstream_task_ids}"
+        assert fetch_model.downstream_task_ids == {'train_on_vertex_ai', 'training_failed'}, \
+            f"fetch_latest_model should flow to train_on_vertex_ai and training_failed, got {fetch_model.downstream_task_ids}"
+        assert train_model.downstream_task_ids == {'upload_model_to_vertex_ai', 'training_failed'}, \
+            f"train_on_vertex_ai should flow to upload_model_to_vertex_ai and training_failed, got {train_model.downstream_task_ids}"
+        assert upload_model.downstream_task_ids == {'evaluate_model_on_vertex_ai', 'training_failed'}, \
+            f"upload_model_to_vertex_ai should flow to evaluate_model_on_vertex_ai and training_failed, got {upload_model.downstream_task_ids}"
+        assert evaluate_model.downstream_task_ids == {'bias_detection', 'training_failed'}, \
+            f"evaluate_model_on_vertex_ai should flow to bias_detection and training_failed, got {evaluate_model.downstream_task_ids}"
+        assert bias_detection.downstream_task_ids == {'syntax_validation', 'training_failed'}, \
+            f"bias_detection should flow to syntax_validation and training_failed, got {bias_detection.downstream_task_ids}"
+        assert syntax_validation.downstream_task_ids == {'model_check', 'training_failed'}, \
+            f"syntax_validation should flow to model_check and training_failed, got {syntax_validation.downstream_task_ids}"
         
-        # training_completed and training_failed have no downstream tasks
-        assert training_completed.downstream_task_ids == set()
-        assert training_failed.downstream_task_ids == set()
+        # Check branching from model_check
+        assert model_check.downstream_task_ids == {'ensure_vertex_endpoint', 'skip_deployment'}, \
+            f"model_check should branch to ensure_vertex_endpoint and skip_deployment, got {model_check.downstream_task_ids}"
+        
+        # Check deploy path
+        assert ensure_endpoint.downstream_task_ids == {'deploy_model_to_vertex_endpoint'}, \
+            f"ensure_vertex_endpoint should flow to deploy_model_to_vertex_endpoint, got {ensure_endpoint.downstream_task_ids}"
+        assert deploy_model.downstream_task_ids == {'training_completed'}, \
+            f"deploy_model_to_vertex_endpoint should flow to training_completed, got {deploy_model.downstream_task_ids}"
+        
+        # Check skip path
+        assert skip_deployment.downstream_task_ids == {'training_completed'}, \
+            f"skip_deployment should flow to training_completed, got {skip_deployment.downstream_task_ids}"
+        
+        # Check terminal nodes
+        assert training_completed.downstream_task_ids == set(), \
+            f"training_completed should have no downstream tasks, got {training_completed.downstream_task_ids}"
+        assert training_failed.downstream_task_ids == set(), \
+            f"training_failed should have no downstream tasks, got {training_failed.downstream_task_ids}"
     
-    def test_failure_handler_dependencies(self):
-        """Test that all tasks point to training_failed on failure"""
-        from dags.train_model_and_save import create_model_training_dag
-        dag = create_model_training_dag()
 
-        training_failed = dag.get_task('training_failed')
-        
-        # All tasks except start_pipeline and training_completed should point to training_failed
-        expected_failure_sources = {
-            'run_model_unit_tests', 'fetch_latest_model', 'train_on_vertex_ai',
-            'upload_model_to_vertex_ai', 'evaluate_model_on_vertex_ai',
-            'bias_detection', 'syntax_validation'
-        }
-        
-        assert training_failed.upstream_task_ids == expected_failure_sources
     
     def test_task_configurations(self):
         """Test individual task configurations"""
@@ -158,8 +183,7 @@ class TestModelTrainingDAG:
         expected_train_kwargs = {
             "project_id": "test-project",
             "region": "us-central1",
-            "gcs_train_data": "gs://bucket/train_data.csv",
-            "gcs_val_data": "gs://bucket/val_data.csv",
+            "gcp_processed_data_path": "gs://bucket/processed_data",
             "container_image_uri": "gcr.io/test/image:latest",
             "machine_type": "n1-standard-4",
             "gpu_type": "NVIDIA_TESLA_T4",
@@ -285,6 +309,7 @@ class TestModelTrainingDAG:
         with patch('dags.model_scripts.retrain_model.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.retrain_model.start_experiment_run') as mock_start_experiment, \
             patch('dags.model_scripts.retrain_model.log_experiment_params') as mock_log_params, \
+            patch('dags.model_scripts.retrain_model.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.retrain_model.submit_vertex_training_job') as mock_submit_job:
             
             from dags.model_scripts.retrain_model import train_on_vertex_ai
@@ -302,8 +327,7 @@ class TestModelTrainingDAG:
             train_on_vertex_ai(
                 project_id="test-project",
                 region="us-central1",
-                gcs_train_data="gs://bucket/train_data.csv",
-                gcs_val_data="gs://bucket/val_data.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
@@ -371,6 +395,7 @@ class TestModelTrainingDAG:
             patch('dags.model_scripts.retrain_model.start_experiment_run') as mock_start_experiment, \
             patch('dags.model_scripts.retrain_model.log_experiment_params') as mock_log_params, \
             patch('dags.model_scripts.retrain_model.submit_vertex_training_job') as mock_submit_job, \
+            patch('dags.model_scripts.retrain_model.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.retrain_model.datetime') as mock_datetime:
             
             from dags.model_scripts.retrain_model import train_on_vertex_ai
@@ -388,8 +413,7 @@ class TestModelTrainingDAG:
             train_on_vertex_ai(
                 project_id="test-project",
                 region="us-central1",
-                gcs_train_data="gs://bucket/train.csv",
-                gcs_val_data="gs://bucket/val.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 container_image_uri="gcr.io/test/image:latest",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
@@ -486,6 +510,7 @@ class TestModelTrainingDAG:
     def test_launch_evaluation_job_success(self):
         """Test successful evaluation job launch"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -504,7 +529,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/eval_output",
                 model_registry_id="models/model-123",
                 run_name="run-20240101-120000",
-                test_data_path="gs://bucket/test_data.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-standard-2",
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -558,6 +583,7 @@ class TestModelTrainingDAG:
         """Test that launch_evaluation_job pushes output CSV path to XCom"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -579,7 +605,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/output",
                 model_registry_id="models/123",
                 run_name="test-run",
-                test_data_path="gs://bucket/test.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-standard-4",
                 gpu_type="NVIDIA_TESLA_T4",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -596,6 +622,7 @@ class TestModelTrainingDAG:
         """Test that launch_evaluation_job configures CustomJob with correct specs"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.build_output_csv_path') as mock_build_path:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -617,7 +644,7 @@ class TestModelTrainingDAG:
                 output_csv="gs://bucket/output",
                 model_registry_id="models/123",
                 run_name="eval-run-001",
-                test_data_path="gs://bucket/test.csv",
+                gcp_processed_data_path="gs://bucket/processed_data",
                 machine_type="n1-highmem-8",
                 gpu_type="NVIDIA_TESLA_V100",
                 gcs_staging_bucket="gs://bucket/staging",
@@ -636,6 +663,7 @@ class TestModelTrainingDAG:
     def test_launch_evaluation_job_raises_on_missing_variable(self):
         """Test that launch_evaluation_job raises error when Variable is missing"""
         with patch('dags.model_scripts.model_eval_job_launcher.aiplatform') as mock_aiplatform, \
+            patch('dags.model_scripts.model_eval_job_launcher.get_latest_subfolder') as mock_get_latest, \
             patch('dags.model_scripts.model_eval_job_launcher.Variable') as mock_variable:
             
             from dags.model_scripts.model_eval_job_launcher import launch_evaluation_job
@@ -652,7 +680,7 @@ class TestModelTrainingDAG:
                     output_csv="gs://bucket/output",
                     model_registry_id="models/123",
                     run_name="test-run",
-                    test_data_path="gs://bucket/test.csv",
+                    gcp_processed_data_path="gs://bucket/processed_data",
                     machine_type="n1-standard-4",
                     gpu_type="NVIDIA_TESLA_T4",
                     gcs_staging_bucket="gs://bucket/staging",
@@ -890,9 +918,6 @@ class TestModelTrainingDAG:
         """Test successful syntax validation execution"""
         with patch('google.cloud.storage.Client') as mock_storage_client, \
             patch('dags.model_scripts.syntax_validation.upload_to_gcs') as mock_upload_gcs, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.init') as mock_init, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.start_run') as mock_start_run, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.end_run') as mock_end_run, \
             patch('dags.model_scripts.syntax_validation.get_experiment_run') as mock_get_experiment, \
             patch('dags.model_scripts.syntax_validation.log_experiment_metrics') as mock_log_metrics, \
             patch('dags.model_scripts.syntax_validation.pd.read_csv') as mock_read_csv, \
@@ -900,7 +925,7 @@ class TestModelTrainingDAG:
             
             from dags.model_scripts.syntax_validation import run_syntax_validation_task
             
-            # Mock dependencies
+            # Mock TaskInstance
             mock_ti = MagicMock()
             mock_ti.xcom_pull.return_value = "bias-20240101120000"
             
@@ -924,7 +949,6 @@ class TestModelTrainingDAG:
             # Mock experiment run
             mock_run = MagicMock()
             mock_get_experiment.return_value = mock_run
-            mock_start_run.return_value = mock_run
             
             # Execute function
             run_syntax_validation_task(
@@ -937,21 +961,30 @@ class TestModelTrainingDAG:
             )
             
             # Verify GCS operations
-            assert mock_storage_client.called
-            assert mock_blob.download_to_filename.called
-            assert mock_upload_gcs.called
+            mock_storage_client.assert_called_once()
+            mock_blob.download_to_filename.assert_called_once()
+            mock_upload_gcs.assert_called_once()
             
             # Verify pandas operations
-            assert mock_read_csv.called
+            mock_read_csv.assert_called_once()
+            
+            # Verify SQL parsing was called for each row
+            assert mock_parse_one.call_count == 2
             
             # Verify experiment operations
-            assert mock_log_metrics.called
-            assert mock_init.called
-            assert mock_start_run.called
-            assert mock_end_run.called
+            mock_get_experiment.assert_called_once_with(
+                "run-20240101-120000",
+                experiment_name="queryhub-experiments",
+                project_id="test-project",
+                region="us-central1"
+            )
+            assert mock_log_metrics.call_count == 2  # Called twice: syntax_overall and per_complexity_validation
             
             # Verify XCom pull was called
-            mock_ti.xcom_pull.assert_called_with(key='bias_and_syntax_validation_folder', task_ids='bias_detection')
+            mock_ti.xcom_pull.assert_called_with(
+                key='bias_and_syntax_validation_folder', 
+                task_ids='bias_detection'
+            )
 
     def test_syntax_validation_from_gcs(self):
         """Test the syntax_validation_from_gcs helper function"""
@@ -1077,53 +1110,7 @@ class TestModelTrainingDAG:
             
             with pytest.raises(ValueError, match="predicted_sql"):
                 syntax_validation_from_gcs("gs://bucket/eval.csv")
-
-    def test_run_syntax_validation_ends_experiment_run(self):
-        """Test run_syntax_validation_task properly ends the experiment run"""
-        with patch('google.cloud.storage.Client') as mock_storage_client, \
-            patch('dags.model_scripts.syntax_validation.upload_to_gcs') as mock_upload_gcs, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.init') as mock_init, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.start_run') as mock_start_run, \
-            patch('dags.model_scripts.syntax_validation.aiplatform.end_run') as mock_end_run, \
-            patch('dags.model_scripts.syntax_validation.get_experiment_run') as mock_get_experiment, \
-            patch('dags.model_scripts.syntax_validation.log_experiment_metrics') as mock_log_metrics, \
-            patch('dags.model_scripts.syntax_validation.pd.read_csv') as mock_read_csv, \
-            patch('dags.model_scripts.syntax_validation.parse_one') as mock_parse_one:
-            
-            from dags.model_scripts.syntax_validation import run_syntax_validation_task
-            import pandas as pd
-            
-            mock_df = pd.DataFrame({
-                'predicted_sql': ['SELECT 1'],
-                'sql_complexity': ['simple']
-            })
-            mock_read_csv.return_value = mock_df
-            mock_parse_one.return_value = True
-            
-            mock_bucket = MagicMock()
-            mock_blob = MagicMock()
-            mock_storage_client.return_value.bucket.return_value = mock_bucket
-            mock_bucket.blob.return_value = mock_blob
-            
-            mock_run = MagicMock()
-            mock_get_experiment.return_value = mock_run
-            mock_start_run.return_value = mock_run
-            
-            mock_ti = MagicMock()
-            mock_ti.xcom_pull.return_value = "bias-123"
-            
-            run_syntax_validation_task(
-                project_id="test-project",
-                region="us-central1",
-                run_name="test-run",
-                gcs_csv_path="gs://bucket/eval.csv",
-                gcs_output_path="gs://bucket/output",
-                ti=mock_ti
-            )
-            
-            # Verify experiment was ended
-            mock_end_run.assert_called_once()
-
+                
     def test_task_retry_configuration(self):
         """Test task retry configuration"""
         from dags.train_model_and_save import create_model_training_dag
