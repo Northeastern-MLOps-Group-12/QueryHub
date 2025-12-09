@@ -1,307 +1,49 @@
-# name: Deploy Prometheus & Grafana to Cloud Run
+name: Deploy Monitoring to VM
 
-# on:
-#   workflow_dispatch:
-#   workflow_call:
-#     inputs:
-#       backend_host:
-#         required: false
-#         type: string
-#         description: "Backend host without https:// (e.g., backend-xxx.run.app)"
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "backend/monitoring/**"
 
-# env:
-#   PROJECT_ID: ${{ secrets.PROJECT_ID }}
-#   REGION: ${{ secrets.REGION }}
-#   REPOSITORY: ${{ secrets.REPOSITORY }}
-#   GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
-#   GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-# jobs:
-#   deploy-monitoring:
-#     name: Deploy Prometheus & Grafana
-#     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VM_IP }} >> ~/.ssh/known_hosts
 
-#       - name: Authenticate to GCP
-#         uses: google-github-actions/auth@v2
-#         with:
-#           credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Copy entire project to VM
+        run: |
+          rsync -avz --exclude='.git' \
+            -e "ssh -i ~/.ssh/id_rsa" \
+            ./ \
+            ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}:/home/${{ secrets.VM_USER }}/monitoring/
 
-#       - name: Set up gcloud SDK
-#         uses: google-github-actions/setup-gcloud@v1
-#         with:
-#           project_id: ${{ env.PROJECT_ID }}
+      - name: Rebuild + Restart Docker Compose in backend
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.VM_USER }}@${{ secrets.VM_IP }} << 'EOF'
+            cd ~/monitoring/backend
 
-#       - name: Configure Docker for Artifact Registry
-#         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+            echo "Pulling latest images (optional)..."
+            docker compose pull || true
 
-#       # ========================================================================
-#       # GET BACKEND INFO
-#       # ========================================================================
-#       - name: Get Backend Host
-#         id: backend-info
-#         run: |
-#           if [ -n "${{ inputs.backend_host }}" ]; then
-#             echo "host=${{ inputs.backend_host }}" >> $GITHUB_OUTPUT
-#           else
-#             URL=$(gcloud run services describe backend --region=${{ env.REGION }} --format='value(status.url)' 2>/dev/null || echo "")
-#             if [ -n "$URL" ]; then
-#               HOST=$(echo "$URL" | sed 's|https://||')
-#               echo "host=$HOST" >> $GITHUB_OUTPUT
-#             else
-#               echo "Error: Backend URL not found. Deploy backend first or provide backend_host input."
-#               exit 1
-#             fi
-#           fi
-#           echo "Backend host: $(cat $GITHUB_OUTPUT | grep host | cut -d= -f2)"
+            echo "Rebuilding containers if necessary..."
+            docker compose build || true
 
-#       # ========================================================================
-#       # DEPLOY PROMETHEUS
-#       # ========================================================================
-#       - name: Create Prometheus Config
-#         run: |
-#           mkdir -p monitoring/prometheus-cloudrun
-#           cat > monitoring/prometheus-cloudrun/prometheus.yml << EOF
-#           global:
-#             scrape_interval: 15s
-#             evaluation_interval: 15s
+            echo "Restarting using docker compose..."
+            docker compose up -d
 
-#           scrape_configs:
-#             - job_name: 'prometheus'
-#               static_configs:
-#                 - targets: ['localhost:9090']
-
-#             - job_name: 'queryhub-backend'
-#               scheme: https
-#               static_configs:
-#                 - targets: ['${{ steps.backend-info.outputs.host }}']
-#               metrics_path: /metrics
-#               scrape_interval: 30s
-#               scrape_timeout: 10s
-#           EOF
-
-#       - name: Create Prometheus Dockerfile
-#         run: |
-#           cat > monitoring/prometheus-cloudrun/Dockerfile << 'EOF'
-#           FROM prom/prometheus:latest
-#           COPY prometheus.yml /etc/prometheus/prometheus.yml
-#           EXPOSE 9090
-#           CMD ["--config.file=/etc/prometheus/prometheus.yml", \
-#                "--storage.tsdb.path=/prometheus", \
-#                "--web.enable-lifecycle", \
-#                "--storage.tsdb.retention.time=15d", \
-#                "--web.listen-address=0.0.0.0:9090"]
-#           EOF
-
-#       - name: Build and Push Prometheus Image
-#         run: |
-#           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/prometheus"
-#           docker build -t $IMAGE monitoring/prometheus-cloudrun/
-#           docker push $IMAGE
-
-#       - name: Deploy Prometheus to Cloud Run
-#         run: |
-#           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/prometheus"
-#           gcloud run deploy prometheus \
-#             --image=$IMAGE \
-#             --region=${{ env.REGION }} \
-#             --platform=managed \
-#             --allow-unauthenticated \
-#             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
-#             --port=9090 \
-#             --memory=512Mi \
-#             --cpu=1 \
-#             --min-instances=1 \
-#             --max-instances=2
-
-#       - name: Get Prometheus URL
-#         id: prometheus-url
-#         run: |
-#           URL=$(gcloud run services describe prometheus --region=${{ env.REGION }} --format='value(status.url)')
-#           echo "url=$URL" >> $GITHUB_OUTPUT
-#           echo "Prometheus deployed at: $URL"
-
-#       # ========================================================================
-#       # DEPLOY GRAFANA
-#       # ========================================================================
-#       - name: Create Grafana Directory Structure
-#         run: |
-#           mkdir -p monitoring/grafana-cloudrun/provisioning/datasources
-#           mkdir -p monitoring/grafana-cloudrun/provisioning/dashboards
-#           mkdir -p monitoring/grafana-cloudrun/dashboards
-
-#       - name: Create Grafana Datasource Config
-#         run: |
-#           cat > monitoring/grafana-cloudrun/provisioning/datasources/datasources.yml << EOF
-#           apiVersion: 1
-#           datasources:
-#             - name: Prometheus
-#               type: prometheus
-#               access: proxy
-#               url: ${{ steps.prometheus-url.outputs.url }}
-#               isDefault: true
-#               editable: true
-#               jsonData:
-#                 timeInterval: "15s"
-#                 httpMethod: "POST"
-#           EOF
-
-#       - name: Create Grafana Dashboard Provisioning Config
-#         run: |
-#           cat > monitoring/grafana-cloudrun/provisioning/dashboards/dashboards.yml << EOF
-#           apiVersion: 1
-#           providers:
-#             - name: 'default'
-#               orgId: 1
-#               folder: ''
-#               type: file
-#               disableDeletion: false
-#               editable: true
-#               options:
-#                 path: /var/lib/grafana/dashboards
-#           EOF
-
-#       - name: Copy Existing Dashboards
-#         run: |
-#           if [ -d "monitoring/grafana/dashboards" ]; then
-#             cp -r monitoring/grafana/dashboards/* monitoring/grafana-cloudrun/dashboards/ 2>/dev/null || true
-#           fi
-
-#       - name: Create QueryHub Dashboard
-#         run: |
-#           cat > monitoring/grafana-cloudrun/dashboards/queryhub-overview.json << 'EOF'
-#           {
-#             "annotations": { "list": [] },
-#             "editable": true,
-#             "fiscalYearStartMonth": 0,
-#             "graphTooltip": 0,
-#             "id": null,
-#             "links": [],
-#             "panels": [
-#               {
-#                 "datasource": { "type": "prometheus", "uid": "prometheus" },
-#                 "fieldConfig": {
-#                   "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
-#                 },
-#                 "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-#                 "id": 1,
-#                 "targets": [
-#                   { "expr": "rate(http_requests_total[5m])", "legendFormat": "{{method}} {{endpoint}}", "refId": "A" }
-#                 ],
-#                 "title": "HTTP Request Rate",
-#                 "type": "timeseries"
-#               },
-#               {
-#                 "datasource": { "type": "prometheus", "uid": "prometheus" },
-#                 "fieldConfig": {
-#                   "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" }
-#                 },
-#                 "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-#                 "id": 2,
-#                 "targets": [
-#                   { "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))", "legendFormat": "p95", "refId": "A" }
-#                 ],
-#                 "title": "Request Latency (p95)",
-#                 "type": "timeseries"
-#               },
-#               {
-#                 "datasource": { "type": "prometheus", "uid": "prometheus" },
-#                 "fieldConfig": { "defaults": { "mappings": [{"options": {"0": {"text": "DOWN"}, "1": {"text": "UP"}}, "type": "value"}] } },
-#                 "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
-#                 "id": 3,
-#                 "targets": [
-#                   { "expr": "up{job=\"queryhub-backend\"}", "refId": "A" }
-#                 ],
-#                 "title": "Backend Status",
-#                 "type": "stat"
-#               },
-#               {
-#                 "datasource": { "type": "prometheus", "uid": "prometheus" },
-#                 "fieldConfig": { "defaults": { "unit": "bytes" } },
-#                 "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-#                 "id": 4,
-#                 "targets": [
-#                   { "expr": "process_resident_memory_bytes", "legendFormat": "Memory", "refId": "A" }
-#                 ],
-#                 "title": "Memory Usage",
-#                 "type": "timeseries"
-#               }
-#             ],
-#             "refresh": "30s",
-#             "schemaVersion": 38,
-#             "tags": ["queryhub"],
-#             "time": { "from": "now-1h", "to": "now" },
-#             "title": "QueryHub Overview",
-#             "uid": "queryhub-overview"
-#           }
-#           EOF
-
-#       - name: Create Grafana Dockerfile
-#         run: |
-#           cat > monitoring/grafana-cloudrun/Dockerfile << 'EOF'
-#           FROM grafana/grafana:latest
-#           USER root
-#           RUN mkdir -p /etc/grafana/provisioning/datasources \
-#               && mkdir -p /etc/grafana/provisioning/dashboards \
-#               && mkdir -p /var/lib/grafana/dashboards
-#           COPY provisioning/datasources/ /etc/grafana/provisioning/datasources/
-#           COPY provisioning/dashboards/ /etc/grafana/provisioning/dashboards/
-#           COPY dashboards/ /var/lib/grafana/dashboards/
-#           RUN chown -R grafana:root /etc/grafana /var/lib/grafana \
-#               && chmod -R 755 /etc/grafana /var/lib/grafana
-#           USER grafana
-#           ENV GF_SERVER_HTTP_PORT=3000
-#           ENV GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-#           EXPOSE 3000
-#           EOF
-
-#       - name: Build and Push Grafana Image
-#         run: |
-#           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/grafana"
-#           docker build -t $IMAGE monitoring/grafana-cloudrun/
-#           docker push $IMAGE
-
-#       - name: Deploy Grafana to Cloud Run
-#         run: |
-#           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/grafana"
-#           gcloud run deploy grafana \
-#             --image=$IMAGE \
-#             --region=${{ env.REGION }} \
-#             --platform=managed \
-#             --allow-unauthenticated \
-#             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
-#             --port=3000 \
-#             --memory=512Mi \
-#             --cpu=1 \
-#             --min-instances=0 \
-#             --max-instances=2 \
-#             --set-env-vars "GF_SECURITY_ADMIN_USER=${{ env.GRAFANA_ADMIN_USER }},GF_SECURITY_ADMIN_PASSWORD=${{ env.GRAFANA_ADMIN_PASSWORD }},GF_USERS_ALLOW_SIGN_UP=false,GF_AUTH_ANONYMOUS_ENABLED=false,GF_SECURITY_COOKIE_SECURE=true,GF_SECURITY_COOKIE_SAMESITE=none"
-
-#       - name: Update Grafana ROOT_URL
-#         run: |
-#           GRAFANA_URL=$(gcloud run services describe grafana --region=${{ env.REGION }} --format='value(status.url)')
-#           gcloud run services update grafana \
-#             --region=${{ env.REGION }} \
-#             --update-env-vars "GF_SERVER_ROOT_URL=${GRAFANA_URL}"
-
-#       # ========================================================================
-#       # OUTPUT SUMMARY
-#       # ========================================================================
-#       - name: Deployment Summary
-#         run: |
-#           PROMETHEUS_URL=$(gcloud run services describe prometheus --region=${{ env.REGION }} --format='value(status.url)')
-#           GRAFANA_URL=$(gcloud run services describe grafana --region=${{ env.REGION }} --format='value(status.url)')
-#           echo "=============================================="
-#           echo "        MONITORING DEPLOYMENT COMPLETE        "
-#           echo "=============================================="
-#           echo "Backend:    https://${{ steps.backend-info.outputs.host }}"
-#           echo "Prometheus: ${PROMETHEUS_URL}"
-#           echo "Grafana:    ${GRAFANA_URL}"
-#           echo ""
-#           echo "Grafana Credentials:"
-#           echo "  Username: ${{ env.GRAFANA_ADMIN_USER }}"
-#           echo "  Password: (from secrets)"
-#           echo "=============================================="
+            echo "Cleaning old containers..."
+            docker system prune -f || true
+          EOF
