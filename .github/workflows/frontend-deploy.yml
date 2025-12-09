@@ -6,7 +6,8 @@ on:
       - main
       - dev
       # - frontend-setup
-    paths: ["frontend/**"]
+    paths:
+      - "frontend/**"
   workflow_dispatch:
 
 env:

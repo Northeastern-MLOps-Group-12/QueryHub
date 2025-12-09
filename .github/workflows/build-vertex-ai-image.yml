@@ -5,9 +5,8 @@ on:
     branches:
       - main
       - dev
-      - data-trigger
     paths:
-      - 'model_fine_tuning/vertex_ai_image/**'
+      - "model_fine_tuning/vertex_ai_image/**"
   workflow_dispatch:
 
 env:
