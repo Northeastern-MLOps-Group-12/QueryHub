@@ -41,9 +41,39 @@ def deploy_model_to_vertex_endpoint(project_id: str, region: str, run_name, endp
     model = aiplatform.Model(model_resource_name)
     endpoint = aiplatform.Endpoint(endpoint_name)
 
-    endpoint.deploy(model=model, machine_type=machine_type, min_replica_count=min_replica_count, max_replica_count=max_replica_count, traffic_percentage=traffic_percentage, sync=True)
+    # Get all currently deployed models
+    deployed_models = endpoint.list_models()
+    print(f"Currently deployed models: {len(deployed_models)}")
 
-    print(f"✅ Model {model.display_name} deployed to endpoint: {endpoint.display_name}")
+    # Check if our target model is already deployed
+    target_model_deployed = False
+
+    for dm in deployed_models:
+        if dm.model == model.resource_name:
+            target_model_deployed = True
+            print(f"    ✅ This is our target model!")
+
+    if not target_model_deployed:
+        if deployed_models:
+            print(f"🗑️  Undeploying {len(deployed_models)} existing model(s)...")
+            
+            for dm in deployed_models:
+                print(f"   Undeploying: {dm.id}")
+                try:
+                    endpoint.undeploy(deployed_model_id=dm.id)
+                    print(f"   ✅ Undeployed: {dm.id}")
+                except Exception as e:
+                    print(f"   ⚠️  Warning: Failed to undeploy {dm.id}: {e}")
+            
+            print(f"✅ All old models undeployed")
+        else:
+            print(f"📭 Endpoint is empty - no models to undeploy")
+
+        print(f"\n🚀 Deploying new model: {model.display_name}")
+
+        endpoint.deploy(model=model, machine_type=machine_type, min_replica_count=min_replica_count, max_replica_count=max_replica_count, traffic_percentage=traffic_percentage, sync=True)
+
+        print(f"✅ Model {model.display_name} deployed to endpoint: {endpoint.display_name}")
 
         # Log to Vertex AI Experiment
     run = get_experiment_run(run_name, experiment_name="queryhub-experiments", project_id=project_id, region=region)

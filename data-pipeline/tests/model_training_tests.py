@@ -94,6 +94,7 @@ class TestModelTrainingDAG:
             'ensure_vertex_endpoint',
             'deploy_model_to_vertex_endpoint',
             'training_completed',
+            'training_failed',
         ]
         
         assert set(task_ids) == set(expected_tasks), f"Missing or extra tasks: {set(task_ids) ^ set(expected_tasks)}"
@@ -118,29 +119,47 @@ class TestModelTrainingDAG:
         ensure_endpoint = dag.get_task('ensure_vertex_endpoint')
         deploy_model = dag.get_task('deploy_model_to_vertex_endpoint')
         training_completed = dag.get_task('training_completed')
+        training_failed = dag.get_task('training_failed')
         
         # Check main pipeline flow
-        assert start.downstream_task_ids == {'run_model_unit_tests'}
-        assert run_model_unit_tests.downstream_task_ids == {'fetch_latest_model'}
-        assert fetch_model.downstream_task_ids == {'train_on_vertex_ai'}
-        assert train_model.downstream_task_ids == {'upload_model_to_vertex_ai'}
-        assert upload_model.downstream_task_ids == {'evaluate_model_on_vertex_ai'}
-        assert evaluate_model.downstream_task_ids == {'bias_detection'}
-        assert bias_detection.downstream_task_ids == {'syntax_validation'}
-        assert syntax_validation.downstream_task_ids == {'model_check'}
+        assert start.downstream_task_ids == {'run_model_unit_tests'}, \
+            f"start_pipeline should flow to run_model_unit_tests, got {start.downstream_task_ids}"
+        assert run_model_unit_tests.downstream_task_ids == {'fetch_latest_model', 'training_failed'}, \
+            f"run_model_unit_tests should flow to fetch_latest_model and training_failed, got {run_model_unit_tests.downstream_task_ids}"
+        assert fetch_model.downstream_task_ids == {'train_on_vertex_ai', 'training_failed'}, \
+            f"fetch_latest_model should flow to train_on_vertex_ai and training_failed, got {fetch_model.downstream_task_ids}"
+        assert train_model.downstream_task_ids == {'upload_model_to_vertex_ai', 'training_failed'}, \
+            f"train_on_vertex_ai should flow to upload_model_to_vertex_ai and training_failed, got {train_model.downstream_task_ids}"
+        assert upload_model.downstream_task_ids == {'evaluate_model_on_vertex_ai', 'training_failed'}, \
+            f"upload_model_to_vertex_ai should flow to evaluate_model_on_vertex_ai and training_failed, got {upload_model.downstream_task_ids}"
+        assert evaluate_model.downstream_task_ids == {'bias_detection', 'training_failed'}, \
+            f"evaluate_model_on_vertex_ai should flow to bias_detection and training_failed, got {evaluate_model.downstream_task_ids}"
+        assert bias_detection.downstream_task_ids == {'syntax_validation', 'training_failed'}, \
+            f"bias_detection should flow to syntax_validation and training_failed, got {bias_detection.downstream_task_ids}"
+        assert syntax_validation.downstream_task_ids == {'model_check', 'training_failed'}, \
+            f"syntax_validation should flow to model_check and training_failed, got {syntax_validation.downstream_task_ids}"
         
         # Check branching from model_check
-        assert model_check.downstream_task_ids == {'ensure_vertex_endpoint', 'skip_deployment'}
+        assert model_check.downstream_task_ids == {'ensure_vertex_endpoint', 'skip_deployment'}, \
+            f"model_check should branch to ensure_vertex_endpoint and skip_deployment, got {model_check.downstream_task_ids}"
         
         # Check deploy path
-        assert ensure_endpoint.downstream_task_ids == {'deploy_model_to_vertex_endpoint'}
-        assert deploy_model.downstream_task_ids == {'training_completed'}
+        assert ensure_endpoint.downstream_task_ids == {'deploy_model_to_vertex_endpoint'}, \
+            f"ensure_vertex_endpoint should flow to deploy_model_to_vertex_endpoint, got {ensure_endpoint.downstream_task_ids}"
+        assert deploy_model.downstream_task_ids == {'training_completed'}, \
+            f"deploy_model_to_vertex_endpoint should flow to training_completed, got {deploy_model.downstream_task_ids}"
         
         # Check skip path
-        assert skip_deployment.downstream_task_ids == {'training_completed'}
+        assert skip_deployment.downstream_task_ids == {'training_completed'}, \
+            f"skip_deployment should flow to training_completed, got {skip_deployment.downstream_task_ids}"
         
-        # training_completed has no downstream tasks
-        assert training_completed.downstream_task_ids == set()
+        # Check terminal nodes
+        assert training_completed.downstream_task_ids == set(), \
+            f"training_completed should have no downstream tasks, got {training_completed.downstream_task_ids}"
+        assert training_failed.downstream_task_ids == set(), \
+            f"training_failed should have no downstream tasks, got {training_failed.downstream_task_ids}"
+    
+
     
     def test_task_configurations(self):
         """Test individual task configurations"""

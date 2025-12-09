@@ -205,6 +205,12 @@ def create_model_training_dag():
             on_success_callback=success_callback
         )
 
+        # Add this at the end before return dag
+        training_failed = EmptyOperator(
+            task_id='training_failed', 
+            trigger_rule='one_failed'
+        )
+
         # DAG flow
         start_pipeline >> run_model_unit_tests >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> model_check
 
@@ -216,6 +222,9 @@ def create_model_training_dag():
         
         # Skip path
         skip_deployment >> training_completed
+
+        # Failure path
+        [run_model_unit_tests, fetch_model_task, train_model_task, upload_model_task, evaluate_model, bias_detection_task, syntax_validation] >> training_failed
 
         return dag
 

@@ -1,12 +1,12 @@
-name: Deploy Airflow Pipelines to VM (Docker Compose)
+name: Deploy Airflow Pipelines to VM
 
 on:
   push:
     branches:
       - main
       - data-trigger
-    # paths:
-    #   - "data-pipelines/**"    # Only trigger when this folder changes
+    paths:
+      - "data-pipelines/**"
 
 jobs:
   deploy:

@@ -1,4 +1,4 @@
-name: Trigger Airflow DAG
+name: Trigger Data Pipeline DAG
 
 on:
   schedule:

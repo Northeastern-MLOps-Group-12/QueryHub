@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import argparse
 import os
 import gc
@@ -13,6 +15,84 @@ from transformers import (
 )
 from peft import LoraConfig, TaskType, get_peft_model
 from google.cloud import storage
+
+HANDLER_CODE = r"""
+import json
+import logging
+import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from ts.torch_handler.base_handler import BaseHandler
+
+logger = logging.getLogger(__name__)
+
+class Text2SQLHandler(BaseHandler):
+    def initialize(self, context):
+        properties = context.system_properties
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model_dir = properties.get("model_dir")
+
+        logger.info(f"Initializing Text2SQLHandler with model_dir={self.model_dir}")
+
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_dir)
+        self.model.to(self.device)
+        self.model.eval()
+
+    def preprocess(self, data):
+        texts = []
+
+        for row in data:
+            body = row.get("body") or row.get("data")
+
+            if isinstance(body, (bytes, bytearray)):
+                body = body.decode("utf-8")
+
+            if isinstance(body, str):
+                body = json.loads(body)
+
+            text = body.get("query") or body.get("input_text")
+            if text is None:
+                raise ValueError("Request body must contain 'query' or 'input_text'")
+
+            texts.append(text)
+
+        encodings = self.tokenizer(
+            texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512,
+        )
+        encodings = {k: v.to(self.device) for k, v in encodings.items()}
+        return encodings
+
+    def inference(self, inputs):
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_length=256,
+                num_beams=4,
+                early_stopping=True,
+            )
+        return outputs
+
+    def postprocess(self, inference_output):
+        decoded = self.tokenizer.batch_decode(
+            inference_output,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+        return [{"sql": text} for text in decoded]
+"""
+
+def write_handler_file(output_dir: str):
+    """
+    Writes handler.py into the given directory so it can be packaged with the model.
+    """
+    handler_path = os.path.join(output_dir, "handler.py")
+    with open(handler_path, "w", encoding="utf-8") as f:
+        f.write(HANDLER_CODE)
+    print(f"✅ handler.py written to: {handler_path}")
 
 def download_from_gcs_if_needed(path):
     """
@@ -75,6 +155,18 @@ def upload_to_gcs(local_path, gcs_path):
             blob.upload_from_filename(local_file_path)
             print(f"Uploaded: {blob_path}")
 
+def install_torch_model_archiver():
+    try:
+        subprocess.check_call(["torch-model-archiver", "--version"])
+        print("✅ torch-model-archiver already installed")
+    except Exception:
+        print("📦 Installing torch-model-archiver...")
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "torch-model-archiver", "torchserve"
+        ])
+        print("✅ torch-model-archiver installed successfully")
+
 def main():
     """
     Main function to fine-tune a Hugging Face model with LoRA and upload to GCS.
@@ -88,8 +180,8 @@ def main():
     parser.add_argument("--output_dir", type=str, required=True)
     
     # Tokenizer / model settings
-    parser.add_argument("--max_source_length", type=int, default=512)
-    parser.add_argument("--max_target_length", type=int, default=256)
+    parser.add_argument("--max_source_length", type=int, default=128)
+    parser.add_argument("--max_target_length", type=int, default=128)
     
     # Training hyperparameters
     parser.add_argument("--train_samples", type=int, default=10000)
@@ -259,22 +351,200 @@ def main():
     
     # Calling .merge_and_unload() to get the merged base model.
     merged_model = model.merge_and_unload()
-    print("✅ Merge complete.")
+    print("Merge complete.")
 
     # Save merged model locally
     print(f"Saving merged model to: {merged_model_dir}")
     merged_model.save_pretrained(merged_model_dir)
     tokenizer.save_pretrained(merged_model_dir)
-    print(f"✅ Merged model saved locally at: {merged_model_dir}")
+    model_pt_path = os.path.join(merged_model_dir, "model.pt")
+    torch.save(merged_model.state_dict(), model_pt_path)
+    print("model.pt saved successfully")
+    print(f"Merged model saved locally at: {merged_model_dir}")
+    write_handler_file(merged_model_dir)
+
+    # ============================================
+    # ADD THIS DEBUGGING SECTION HERE
+    # ============================================
+    print("\n" + "="*70)
+    print("📋 DEBUGGING: Checking merged_model_dir contents")
+    print("="*70)
+    print(f"Directory: {merged_model_dir}")
+    print(f"Exists: {os.path.exists(merged_model_dir)}")
+    print(f"Is directory: {os.path.isdir(merged_model_dir)}")
+
+    if os.path.exists(merged_model_dir):
+        print("\n📁 All files in merged_model_dir:")
+        all_files = sorted(os.listdir(merged_model_dir))
+        for item in all_files:
+            item_path = os.path.join(merged_model_dir, item)
+            if os.path.isfile(item_path):
+                size = os.path.getsize(item_path)
+                print(f"  ✓ {item:<45} {size:>15,} bytes")
+            elif os.path.isdir(item_path):
+                print(f"  📁 {item}/")
+        
+        print(f"\nTotal files: {len([f for f in all_files if os.path.isfile(os.path.join(merged_model_dir, f))])}")
+        print(f"Total directories: {len([f for f in all_files if os.path.isdir(os.path.join(merged_model_dir, f))])}")
+        
+        # Check specific required files
+        print("\n🔍 Checking critical files:")
+        critical_files = [
+            "model.pt",
+            "handler.py", 
+            "config.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+            "vocab.json",
+            "merges.txt",
+            "generation_config.json"
+        ]
+        
+        for filename in critical_files:
+            filepath = os.path.join(merged_model_dir, filename)
+            if os.path.exists(filepath):
+                size = os.path.getsize(filepath)
+                print(f"  ✅ {filename:<45} {size:>15,} bytes")
+            else:
+                print(f"  ❌ {filename:<45} NOT FOUND")
+        
+        # Check if model.pt is valid
+        print("\n🔍 Validating model.pt:")
+        model_pt_path = os.path.join(merged_model_dir, "model.pt")
+        if os.path.exists(model_pt_path):
+            try:
+                size = os.path.getsize(model_pt_path)
+                print(f"  - Size: {size:,} bytes ({size / (1024**2):.2f} MB)")
+                
+                # Try to load it
+                test_load = torch.load(model_pt_path, map_location='cpu')
+                print(f"  - Loadable: ✅ YES")
+                print(f"  - Type: {type(test_load)}")
+                if isinstance(test_load, dict):
+                    print(f"  - Keys count: {len(test_load)}")
+                del test_load  # Free memory
+            except Exception as e:
+                print(f"  - Loadable: ❌ NO - {e}")
+        else:
+            print(f"  ❌ model.pt does not exist!")
+        
+        # Check handler.py
+        print("\n🔍 Validating handler.py:")
+        handler_path = os.path.join(merged_model_dir, "handler.py")
+        if os.path.exists(handler_path):
+            with open(handler_path, 'r') as f:
+                handler_content = f.read()
+                lines = len(handler_content.split('\n'))
+                print(f"  ✅ handler.py exists ({lines} lines, {len(handler_content)} chars)")
+        else:
+            print(f"  ❌ handler.py does not exist!")
+
+    print("="*70 + "\n")
+    # ============================================
+    # END DEBUGGING SECTION
+    # ============================================
+
+    if args.output_dir.startswith("gs://"):
+        print(f"Merged model uploaded to GCS: {args.output_dir}")
+    else:
+        print(f"Warning: Output dir {args.output_dir} is not a GCS path. Data may be lost.")
+
+    install_torch_model_archiver()
+
+    # Build TorchServe .mar file using torch-model-archiver
+    export_path = merged_model_dir
+
+    possible_extra_files = [
+    "config.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+    "special_tokens_map.json",]
+
+    existing_extra_files = [
+        f for f in possible_extra_files
+        if os.path.exists(os.path.join(merged_model_dir, f))
+    ]
+
+    print(f"Extra files to include: {existing_extra_files}")
+
+    if not existing_extra_files:
+        raise FileNotFoundError("No extra files found!")
+
+    extra_files_str = ",".join(existing_extra_files)
+
+    cmd = [
+    "torch-model-archiver",
+    "--model-name", "model",
+    "--version", "1.0",
+    "--serialized-file", "model.pt",
+    "--handler", "handler.py",
+    "--extra-files", extra_files_str,
+    "--export-path", ".",
+    "--force",
+    ]
+
+    print(f"\n{'='*70}")
+    print("🚀 Running torch-model-archiver")
+    print(f"{'='*70}")
+    print(f"Command: {' '.join(cmd)}")
+    print(f"Working directory: {merged_model_dir}")
+    print(f"Export path: {export_path}")
+    print(f"{'='*70}\n")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=merged_model_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        
+        print("✅ torch-model-archiver completed successfully!")
+        
+        if result.stdout:
+            print(f"\n📄 STDOUT:\n{result.stdout}")
+        
+        if result.stderr:
+            print(f"\n📄 STDERR:\n{result.stderr}")
+        
+        # Verify .mar file
+        mar_file = os.path.join(merged_model_dir, "model.mar")
+        if os.path.exists(mar_file):
+            mar_size = os.path.getsize(mar_file)
+            print(f"\n✅ .mar file created: {mar_file}")
+            print(f"   Size: {mar_size:,} bytes ({mar_size / (1024**2):.2f} MB)")
+        else:
+            print(f"\n⚠️ Warning: .mar file not found at {mar_file}")
+            print("\n📁 Files in merged_model_dir after archiver:")
+            for f in os.listdir(merged_model_dir):
+                print(f"  - {f}")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"\n{'='*70}")
+        print("❌ TORCH-MODEL-ARCHIVER FAILED")
+        print(f"{'='*70}")
+        print(f"Exit code: {e.returncode}")
+        print(f"\n📄 STDOUT:\n{e.stdout if e.stdout else '(empty)'}")
+        print(f"\n📄 STDERR:\n{e.stderr if e.stderr else '(empty)'}")
+        print(f"{'='*70}\n")
+        raise
+
+    except subprocess.TimeoutExpired:
+        print("❌ torch-model-archiver timed out after 10 minutes")
+        raise
+
 
     # Upload merged model to GCS
     if args.output_dir.startswith("gs://"):
         upload_to_gcs(merged_model_dir, args.output_dir)
-        print(f"✅ Merged model uploaded to GCS: {args.output_dir}")
+        print(f"Merged model uploaded to GCS: {args.output_dir}")
     else:
         print(f"Warning: Output dir {args.output_dir} is not a GCS path. Data may be lost.")
 
-    print("✅ Training and upload completed.")
+    print("Training and upload completed.")
 
 if __name__ == "__main__":
     main()

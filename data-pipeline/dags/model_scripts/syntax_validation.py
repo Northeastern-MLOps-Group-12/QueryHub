@@ -213,7 +213,7 @@ def get_metrics_from_experiment_by_model_id(project_id: str, region: str, model_
 def get_metrics_from_experiment_run(
     project_id: str, 
     region: str, 
-    run_name: str
+    run_name: str,
 ) -> dict:
     """
     Fetch metrics from a specific experiment run by run name.
@@ -221,7 +221,7 @@ def get_metrics_from_experiment_run(
     aiplatform.init(project=project_id, location=region)
     
     # Get the experiment run directly by name
-    run = aiplatform.ExperimentRun(run_name=run_name)
+    run = aiplatform.ExperimentRun(experiment="queryhub-experiments", run_name=run_name)
     
     metrics = run.get_metrics()
     
@@ -265,7 +265,7 @@ def choose_best_model(project_id, region, run_name, **kwargs):
         # No existing endpoint/model - new model wins by default
         print(f"No existing deployed model found: {e}")
         print("New model will be deployed as the first model.")
-        return "deploy_model"
+        return "ensure_vertex_endpoint"
     
     # Compare metrics - new model is better if F1 score is higher and exact_match not worse
     is_new_model_better = (new_f1_score > old_f1_score) and (new_exact_match >= old_exact_match)
