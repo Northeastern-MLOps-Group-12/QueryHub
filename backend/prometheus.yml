@@ -1,43 +1,25 @@
-# Prometheus Configuration for QueryHub - Docker Compose
-# This version is for when Prometheus runs alongside the backend in Docker Compose
-
 global:
-  scrape_interval: 5s      # Scrape metrics every 15 seconds
-  evaluation_interval: 5s   # Evaluate rules every 15 seconds
+  scrape_interval: 30s
+  evaluation_interval: 30s
   
   external_labels:
     monitor: 'queryhub-monitor'
     environment: 'production'
 
-# Scrape configurations
 scrape_configs:
-  # QueryHub FastAPI application
   - job_name: 'queryhub-api'
-    metrics_path: '/metrics'
+    scheme: https
+    metrics_path: '/metrics/'
     static_configs:
-      # When running in Docker Compose, use service name
-      - targets: ['backend:8080']  # Docker service name and internal port
+      - targets: ['backend-312485410499.us-east1.run.app']
         labels:
           service: 'queryhub-api'
           instance: 'main'
-    
-    # Scrape every 15 seconds
-    scrape_interval: 5s
-    scrape_timeout: 5s
+    scrape_interval: 30s
+    scrape_timeout: 10s
 
-  # Prometheus itself (self-monitoring)
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
         labels:
           service: 'prometheus'
-
-# Optional: Rule files for alerting
-# rule_files:
-#   - 'alerts/*.yml'
-
-# Optional: Alertmanager configuration
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['alertmanager:9093']
