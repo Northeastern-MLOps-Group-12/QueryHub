@@ -5,13 +5,14 @@ on:
     branches:
       - main
       - dev
-    paths:
-      - "backend/**"
-      - "agents/**"
-      - "connectors/**"
-      - "databases/**"
-      - "vectorstore/**"
-      - "tests/**"
+      - merging-jay-ved
+    # paths:
+    #   - "backend/**"
+    #   - "agents/**"
+    #   - "connectors/**"
+    #   - "databases/**"
+    #   - "vectorstore/**"
+    #   - "tests/**"
   workflow_dispatch:
 
 env:
