@@ -14,3 +14,6 @@ langchain-openai==0.3.35
 langchain_google_genai==2.1.12
 chromadb==1.1.1
 langgraph==0.6.10
+tiktoken
+langgraph
+pytest-mock
