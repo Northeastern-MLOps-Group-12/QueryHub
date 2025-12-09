@@ -363,9 +363,6 @@ def main():
     print(f"Merged model saved locally at: {merged_model_dir}")
     write_handler_file(merged_model_dir)
 
-    # ============================================
-    # ADD THIS DEBUGGING SECTION HERE
-    # ============================================
     print("\n" + "="*70)
     print("📋 DEBUGGING: Checking merged_model_dir contents")
     print("="*70)
@@ -441,9 +438,6 @@ def main():
             print(f"  ❌ handler.py does not exist!")
 
     print("="*70 + "\n")
-    # ============================================
-    # END DEBUGGING SECTION
-    # ============================================
 
     if args.output_dir.startswith("gs://"):
         print(f"Merged model uploaded to GCS: {args.output_dir}")
