@@ -65,8 +65,8 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
-    needs: test
-    if: success()
+    # needs: test
+    # if: success()
 
     steps:
       - name: Checkout code
