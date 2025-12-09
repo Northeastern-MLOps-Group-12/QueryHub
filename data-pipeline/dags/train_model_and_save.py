@@ -41,6 +41,7 @@ default_args = {
     'on_failure_callback': failure_callback,
 }
 
+# Define the DAG
 def create_model_training_dag():
     """
     DAG to retrain model on Vertex AI using latest Docker image and GCS data.
