@@ -1,4 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter
+"""
+Chat API - Query Processing Endpoint - COMPLETE
+Handles user queries with comprehensive monitoring
+"""
+
+from fastapi import APIRouter, HTTPException, Depends
 from .models.chat_request import ChatRequest
 from pydantic import BaseModel
 from typing import Optional
@@ -28,15 +33,9 @@ from .models.chat_model import (
     ChatDetail,
 )
 from backend.utils import chat_utils
-from pathlib import Path
 
 # Router for chat/query endpoints
 router = APIRouter()
-
-# Global references (will be set by main.py on startup)
-AGENT = None
-MEMORY = None
-GLOBAL_SESSION_ID = None
 
 # def initialize_firestore():
 #     """Initialize Firestore with service account"""

@@ -1,23 +1,102 @@
 services:
+  # ============================================================================
+  # QUERYHUB BACKEND SERVICE
+  # ============================================================================
   backend:
-      build:
-        context: ../
-        dockerfile: backend/Dockerfile
-      container_name: queryhub-backend
-      ports:
-        - "8081:8080"
-      environment:
-        DATABASE_URL: "${DATABASE_URL}"
-        LLM_API_KEY: "${LLM_API_KEY}"
-        MODEL: "${MODEL}"
-        MODEL_NAME: "${MODEL_NAME}"
-        EMBEDDING_MODEL: "${EMBEDDING_MODEL}"
-        FRONTEND_ORIGIN: "${FRONTEND_ORIGIN}"
-        MODE: "${MODE}"
-        FIREBASE_DATABASE_ID: "queryhub-chats"
-        # MODE: "${MODE}"
-      volumes:
-        - ../:/app
-        - ~/.config/gcloud:/root/.config/gcloud:ro
-      command: >
-        sh -c "cd /app && uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app"
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile
+    container_name: queryhub-backend
+    ports:
+      - "8081:8080"
+    environment:
+      DATABASE_URL: "${DATABASE_URL}"
+      LLM_API_KEY: "${LLM_API_KEY}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      MODEL: "${MODEL}"
+      MODEL_NAME: "${MODEL_NAME}"
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL}"
+      EMBD_MODEL_PROVIDER: "${EMBD_MODEL_PROVIDER:-gemini}"
+      FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
+      GCS_CREDENTIALS_PATH: "/app/backend/service-account-key.json"
+      MODE: "${MODE}"
+      ENABLE_METRICS: "true"
+      PROJECT_ID: "${PROJECT_ID}"
+      GCS_BUCKET_NAME: "${GCS_BUCKET_NAME}"
+      GCS_MAKE_PUBLIC: "${GCS_MAKE_PUBLIC:-true}"
+      GCS_SIGNED_URL_HOURS: "${GCS_SIGNED_URL_HOURS:-24}"
+      GCS_UPLOAD_ENABLED: "${GCS_UPLOAD_ENABLED:-true}"
+      FIREBASE_DATABASE_ID: "queryhub-chats"
+      # MODE: "${MODE}"
+    volumes:
+      - ../:/app
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    command: >
+      sh -c "cd /app && uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ============================================================================
+  # PROMETHEUS - METRICS COLLECTION
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: queryhub-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=15d'
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # ============================================================================
+  # GRAFANA - VISUALIZATION DASHBOARDS
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: queryhub-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  monitoring:
+    driver: bridge
+    name: queryhub-monitoring

@@ -1,3 +1,8 @@
+"""
+Load Database Credentials and Build Vector Store - FIXED
+Corrected variable names for embedding model provider
+"""
+
 from connectors.connector import Connector
 from vectorstore.chroma_vector_store import ChromaVectorStore
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
@@ -6,8 +11,15 @@ from langsmith import traceable
 from langsmith.run_helpers import trace
 from backend.utils.vectorstore_gcs import upload_vectorstore_to_gcs, delete_vectorstore_from_gcs
 
-# Get the embedding model name from environment variables
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+# ============================================================================
+# FIXED: Correct variable names
+# ============================================================================
+
+# Embedding model name (e.g., "text-embedding-004" or "text-embedding-3-large")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+
+# Embedding model provider (e.g., "gemini" or "gpt")
+EMBD_MODEL_PROVIDER = os.getenv("EMBD_MODEL_PROVIDER", "gemini")
 
 
 @traceable(name="save_creds_to_gcp")
@@ -36,6 +48,7 @@ def save_creds_to_gcp(state):
     state.creds = config
     return state
 
+
 @traceable(name="build_vector_store")
 def build_vector_store(state):
     """
@@ -53,12 +66,14 @@ def build_vector_store(state):
     # Create a connector to interact with the database
     connector = Connector.get_connector(engine=engine, config=config)
 
-    # Initialize the Chroma vector store
+    # ========================================================================
+    # FIXED: Use correct variable names
+    # ========================================================================
     vector_store = ChromaVectorStore(
         user_id=config['user_id'], 
-        db_name=config['db_name'],        # Name of the database
-        embedding_model=EMBEDDING_MODEL,  # Embedding model to use
-        model='gemini'                    # Model type
+        db_name=config['db_name'],
+        embedding_model=EMBEDDING_MODEL,  # Model name: text-embedding-004
+        model=EMBD_MODEL_PROVIDER  # Provider: gemini or gpt (FIXED!)
     )
 
     if vector_store.exists():
@@ -69,6 +84,8 @@ def build_vector_store(state):
     vector_store.build(connector=connector)
     
     print(f"✅ Vector store built for {config['db_name']}")
+    print(f"   Using embedding provider: {EMBD_MODEL_PROVIDER}")
+    print(f"   Using embedding model: {EMBEDDING_MODEL}")
 
         # Upload to GCS after building
     try:

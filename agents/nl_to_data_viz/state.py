@@ -1,3 +1,7 @@
+"""
+AgentState - COMPLETE with SQL Complexity Field
+"""
+
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 
@@ -7,7 +11,7 @@ class AgentState(BaseModel):
     session_id: str = Field(default="", description="Session/thread ID from LangGraph")
     
     # Database & Query Info
-    db_config : Dict = Field(default={}, description="Database configuration")
+    db_config: Dict = Field(default={}, description="Database configuration")
     db_name: str = Field(default="", description="The company DB name")
     user_query: str = Field(default="", description="The Natural Language query to be converted to SQL")
     rephrased_query: str = Field(default="", description="Rephrased user query containing more technical and data terms")
@@ -26,6 +30,12 @@ class AgentState(BaseModel):
     generated_sql: str = Field(default="", description="Generated SQL Query")
     prev_sqls: List[str] = Field(default=[], description="Previous Incorrect SQL queries")
     prev_errors: List[str] = Field(default=[], description="Previous Incorrect SQL's corresponding errors")
+    
+    # SQL Complexity Analysis (NEW)
+    sql_complexity: Dict = Field(
+        default={}, 
+        description="SQL complexity analysis with primary_complexity, all_complexities, details, complexity_score"
+    )
     
     # SQL Execution
     query_results: List[Dict] = Field(default=[], description="Results from SQL query execution as list of dicts")
@@ -49,11 +59,12 @@ class AgentState(BaseModel):
     result_url: str = Field(default="", description="URL to access saved parquet file")
     result_metadata_path: str = Field(default="", description="GCS path to metadata JSON")
 
-    database_metadata: Dict = Field(default={}, description="...")
-    available_databases: List[str] = Field(default=[], description="...")
-    selected_db_similarity: float = Field(default=0.0, description="...")
-    database_selection_ranking: List[Dict] = Field(default=[], description="...")
-    db_config: Dict = Field(default={}, description="...")
+    # Database Selection
+    database_metadata: Dict = Field(default={}, description="Metadata about available databases")
+    available_databases: List[str] = Field(default=[], description="List of available database names")
+    selected_db_similarity: float = Field(default=0.0, description="Similarity score for selected database")
+    database_selection_ranking: List[Dict] = Field(default=[], description="Ranking of database selection candidates")
 
-    error:bool = Field(default=False, description="An error occured between the process")
+    # Error Handling
+    error: bool = Field(default=False, description="An error occurred between the process")
     error_message: str = Field(default="", description="Error message shown to user")

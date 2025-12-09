@@ -17,6 +17,14 @@ from .viz_renderer import VisualizationRenderer
 from .cloud_uploader import GCSUploader
 from .dashboard_generator import DashboardGenerator
 
+# ✅ MONITORING IMPORTS (NEW)
+from backend.monitoring import (
+    track_visualization_intent,
+    track_charts_generated,
+    time_block,
+    visualization_generation_duration
+)
+
 load_dotenv()
 
 _analyzer = ColumnAnalyzer()
@@ -116,11 +124,11 @@ def generate_visualizations(state: AgentState) -> Dict:
     print("_____________________generate_visualizations______________________")
     """Complete visualization pipeline"""
     df = pd.DataFrame(state.query_results)
-    print(f"DataFrame shape: {df.shape}")
-    print(f"DataFrame : {df}")
     
     if df.empty:
         return {
+            "error": True,
+            "error_message": "No data to visualize",
             "generated_visualizations": [],
             "visualization_metadata": {"error": "No data to visualize"},
             "visualization_intent": "bi",
@@ -131,19 +139,25 @@ def generate_visualizations(state: AgentState) -> Dict:
     
     intent = detect_intent(state, df)
     
-    if intent == "bi":
-        visualizations = _bi_visualizer.generate(
-            df, 
-            state.generated_sql, 
-            state.final_necessary_table_details
-        )
-    else:
-        visualizations = _eda_visualizer.generate(df)
+    # ✅ TRACK INTENT (NEW)
+    track_visualization_intent(intent)
+    print(f"📊 Visualization intent: {intent}")
     
-    print("Generated visualizations:", visualizations)
+    # ✅ TRACK VISUALIZATION GENERATION TIME (NEW)
+    with time_block(visualization_generation_duration, intent=intent):
+        if intent == "bi":
+            visualizations = _bi_visualizer.generate(
+                df, 
+                state.generated_sql, 
+                state.final_necessary_table_details
+            )
+        else:
+            visualizations = _eda_visualizer.generate(df)
     
     if not visualizations:
         return {
+            "error": True,
+            "error_message": "No suitable data for visualization",
             "visualization_intent": intent,
             "generated_visualizations": [],
             "visualization_metadata": {"error": "No suitable columns for visualization"},
@@ -151,6 +165,11 @@ def generate_visualizations(state: AgentState) -> Dict:
             "cloud_viz_files": [],
             "upload_success": False
         }
+    
+    # ✅ TRACK NUMBER OF CHARTS (NEW)
+    chart_count = len(visualizations)
+    track_charts_generated(chart_count)
+    print(f"📈 Generated {chart_count} visualizations")
     
     session_path = _renderer.create_session_folder(
         user_id=state.user_id,

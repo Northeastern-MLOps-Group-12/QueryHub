@@ -9,6 +9,13 @@ import re
 from typing import Dict
 from .state import AgentState
 
+# ✅ MONITORING IMPORTS (NEW)
+from backend.monitoring import (
+    track_validation_failure,
+    time_block,
+    sql_validation_duration
+)
+
 
 # List of dangerous SQL commands that modify data or schema
 DANGEROUS_COMMANDS = [
@@ -43,22 +50,32 @@ def validate_sql_query(state: AgentState) -> Dict:
     # Convert to uppercase for case-insensitive checking
     sql_upper = sql.upper()
     
-    # Check for dangerous commands
-    for command in DANGEROUS_COMMANDS:
-        pattern = r'\b' + re.escape(command) + r'\b'
-        if re.search(pattern, sql_upper):
-            return {
-                "error": True,
-                "error_message": "Operation not allowed"
-            }
-    
-    # Check for dangerous functions
-    for func in DANGEROUS_FUNCTIONS:
-        if func.upper() in sql_upper:
-            return {
-                "error": True,
-                "error_message": "Operation not allowed"
-            }
+    # ✅ TRACK VALIDATION TIME (NEW)
+    with time_block(sql_validation_duration):
+        # Check for dangerous commands
+        for command in DANGEROUS_COMMANDS:
+            pattern = r'\b' + re.escape(command) + r'\b'
+            if re.search(pattern, sql_upper):
+                # ✅ TRACK VALIDATION FAILURE (NEW)
+                track_validation_failure(f"dangerous_command_{command.lower()}")
+                
+                print(f"❌ Validation failed: {command} not allowed")
+                return {
+                    "error": True,
+                    "error_message": "Operation not allowed"
+                }
+        
+        # Check for dangerous functions
+        for func in DANGEROUS_FUNCTIONS:
+            if func.upper() in sql_upper:
+                # ✅ TRACK VALIDATION FAILURE (NEW)
+                track_validation_failure(f"dangerous_function_{func.lower()}")
+                
+                print(f"❌ Validation failed: {func} not allowed")
+                return {
+                    "error": True,
+                    "error_message": "Operation not allowed"
+                }
     
     # All checks passed
     print(f"✓ SQL query passed security validation")

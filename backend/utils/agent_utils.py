@@ -5,6 +5,16 @@ from typing import Optional
 import os
 import json
 from pathlib import Path
+from backend.monitoring import (
+    track_query_request,
+    track_retry_count,
+    query_processing_duration,
+    active_sessions,
+    update_system_metrics,
+    record_request
+)
+from pathlib import Path
+import time
 
 # Router for chat/query endpoints
 router = APIRouter()
@@ -30,14 +40,15 @@ class QueryResponse(BaseModel):
     db_name: str
     generated_sql: str
     result_url: Optional[str] = None
-    result_gcs_path: Optional[str] = None
+    result_gcs_path: str
+    cloud_viz_files: Optional[list] = None
     dashboard_url: Optional[str] = None
-    cloud_viz_files: Optional[list[dict]] = None
     execution_success: bool
     selected_db_similarity: float
     error: bool
     error_message: str
     message: str
+    sql_complexity: Optional[dict] = None
 
 # @router.post("/chats/messages")
 def query(request: ChatRequest):
@@ -169,6 +180,16 @@ def build_visualization(user_query, user_id):
     
     Uses global agent, memory, and session_id initialized at startup.
     """
+    # Record request for RPS calculation
+    current_rps = record_request()
+    
+    # Track start time
+    start_time = time.time()
+    success = False
+    
+    # Update system metrics
+    update_system_metrics()
+
     try:
         # Ensure agent is initialized
         if AGENT is None or GLOBAL_SESSION_ID is None:
@@ -214,7 +235,8 @@ def build_visualization(user_query, user_id):
             "database_selection_ranking": [],
             "execution_success": False,
             "error": False,
-            "error_message": ""
+            "error_message": "",
+            "sql_complexity": {}
         }
         
         # Configure agent with global session ID
@@ -231,13 +253,19 @@ def build_visualization(user_query, user_id):
             json.dump(result, f, indent=2, ensure_ascii=False)
 
         print(f"Saved dictionary to {output_file}")
+
+
+        # Determine success
+        success = not result.get('error', False) and result.get('execution_success', False)
         
-        print(f"\n{'='*60}")
-        print(f"Query Results")
-        print(f"{'='*60}")
+        # Track retry count
+        retry_count = len(result.get('prev_errors', []))
+        track_retry_count(retry_count)
+        
+        print(f"\n{'='*70}")
+        print(f"📤 Query Results")
+        print(f"{'='*70}")
         print(f"User ID: {result.get('user_id', 'N/A')}")
-        print(f"Result URL: {result.get('result_url', 'N/A')}")
-        print(f"Cloud Viz Files: {result.get('cloud_viz_files', 'N/A')}")
         print(f"Error: {result.get('error', False)}")
         if result.get('error'):
             print(f"Error Message: {result.get('error_message', 'Unknown error')}")
@@ -245,6 +273,8 @@ def build_visualization(user_query, user_id):
             print(f"Selected DB: {result.get('db_name', 'N/A')}")
             print(f"Similarity: {result.get('selected_db_similarity', 0):.3f}")
             print(f"Execution Success: {result.get('execution_success', False)}")
+            print(f"Retry Attempts: {retry_count}")
+            print(f"SQL Complexity: {result.get('sql_complexity', {}).get('primary_complexity', 'N/A')}")
             print(f"Generated SQL:\n{result.get('generated_sql', 'N/A')}")
         
         # Build response
@@ -272,10 +302,33 @@ def build_visualization(user_query, user_id):
         return response
         
     except Exception as e:
-        print(f"Error processing query: {str(e)}")
+        print(f"❌ Error processing query: {str(e)}")
         import traceback
         traceback.print_exc()
+        success = False
         raise HTTPException(status_code=500, detail=str(e))
+        
+    finally:
+        # ALWAYS track metrics
+        duration = time.time() - start_time
+        
+        # Record query duration
+        query_processing_duration.labels(user_id=user_id).observe(duration)
+        
+        # Track request count
+        track_query_request(user_id, success)
+        
+        # Decrement active sessions
+        active_sessions.dec()
+        
+        # Print final metrics
+        print(f"\n{'='*70}")
+        print(f"📊 Request Metrics")
+        print(f"{'='*70}")
+        print(f"Total Duration: {duration:.3f}s")
+        print(f"Success: {success}")
+        print(f"Current RPS: {current_rps:.2f}")
+        print(f"{'='*70}\n")
 
 @router.get("/chats/session/info")
 def get_session_info():
