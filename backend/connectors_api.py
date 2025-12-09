@@ -32,6 +32,9 @@ MODEL = os.getenv("MODEL")
 
 router = APIRouter()
 
+EMBEDDING_MODEL = os.getenv('EMBD_MODEL_PROVIDER', 'gpt')
+MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-004')
+
 @router.post("/connect/addConnection")
 def connect(request: ConnectorRequest):
     """
@@ -78,6 +81,7 @@ def get_all_connections(user_id: str):
         vector_stores_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "vectorstore", "VectorStores")
         
         all_connections = {}
+        
         
         if os.path.exists(vector_stores_dir):
             for folder in os.listdir(vector_stores_dir):

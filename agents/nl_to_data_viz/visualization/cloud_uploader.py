@@ -10,6 +10,13 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Dict
 
+# ✅ MONITORING IMPORTS (NEW)
+from backend.monitoring import (
+    time_block,
+    gcs_upload_duration,
+    gcs_upload_status
+)
+
 
 class GCSUploader:
     """Upload visualizations to Google Cloud Storage"""
@@ -52,40 +59,53 @@ class GCSUploader:
         folder_name = local_path.name
         gcs_prefix = f"visualizations/{user_id}/{folder_name}"
         
-        for file_path in local_path.glob("*"):
-            if not file_path.is_file():
-                continue
+        # ✅ TRACK UPLOAD TIME (NEW)
+        try:
+            with time_block(gcs_upload_duration):
+                for file_path in local_path.glob("*"):
+                    if not file_path.is_file():
+                        continue
+                    
+                    blob_name = f"{gcs_prefix}/{file_path.name}"
+                    blob = bucket.blob(blob_name)
+                    
+                    # Set content type
+                    content_type = self._get_content_type(file_path)
+                    blob.upload_from_filename(str(file_path), content_type=content_type)
+                    
+                    # Make public if requested
+                    # if make_public:
+                    #     blob.make_public()
+                    
+                    file_info = {
+                        'filename': file_path.name,
+                        'gcs_path': f"gs://{bucket_name}/{blob_name}",
+                        'blob_name': blob_name
+                    }
+                    
+                    # Add appropriate URL
+                    if make_public:
+                        file_info['url'] = f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
+                        file_info['url_type'] = 'public'
+                    else:
+                        file_info['url'] = blob.generate_signed_url(
+                            expiration=timedelta(hours=signed_url_expiration_hours),
+                            method='GET'
+                        )
+                        file_info['url_type'] = 'signed'
+                        file_info['expires_hours'] = signed_url_expiration_hours
+                    
+                    uploaded_files.append(file_info)
             
-            blob_name = f"{gcs_prefix}/{file_path.name}"
-            blob = bucket.blob(blob_name)
+            # ✅ TRACK SUCCESS (NEW)
+            gcs_upload_status.labels(status="success").inc()
+            print(f"✅ Uploaded {len(uploaded_files)} files to GCS")
             
-            # Set content type
-            content_type = self._get_content_type(file_path)
-            blob.upload_from_filename(str(file_path), content_type=content_type)
-            
-            # Make public if requested
-            # if make_public:
-            #     blob.make_public()
-            
-            file_info = {
-                'filename': file_path.name,
-                'gcs_path': f"gs://{bucket_name}/{blob_name}",
-                'blob_name': blob_name
-            }
-            
-            # Add appropriate URL
-            if make_public:
-                file_info['url'] = f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
-                file_info['url_type'] = 'public'
-            else:
-                file_info['url'] = blob.generate_signed_url(
-                    expiration=timedelta(hours=signed_url_expiration_hours),
-                    method='GET'
-                )
-                file_info['url_type'] = 'signed'
-                file_info['expires_hours'] = signed_url_expiration_hours
-            
-            uploaded_files.append(file_info)
+        except Exception as e:
+            # ✅ TRACK FAILURE (NEW)
+            gcs_upload_status.labels(status="failure").inc()
+            print(f"❌ GCS upload failed: {e}")
+            raise
         
         return uploaded_files
     
@@ -119,4 +139,3 @@ class GCSUploader:
         bucket.add_lifecycle_delete_rule(age=days)
         bucket.patch()
         print(f"✓ Lifecycle set: delete files older than {days} days")
-

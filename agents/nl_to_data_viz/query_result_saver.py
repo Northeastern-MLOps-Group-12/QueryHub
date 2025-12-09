@@ -68,6 +68,7 @@ class QueryResultSaver:
             
             metadata = {
                 "user_query": state.user_query,
+                "result_saved": True,
                 "generated_sql": state.generated_sql,
                 "rephrased_query": state.rephrased_query,
                 "db_name": state.db_name,

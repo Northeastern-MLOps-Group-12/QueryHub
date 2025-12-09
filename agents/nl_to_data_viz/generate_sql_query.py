@@ -1,22 +1,71 @@
+"""
+SQL Query Generation - COMPLETE with Monitoring
+Tracks: SQL generation time, retry attempts
+"""
+
 from .state import AgentState
 from vectorstore.chroma_vector_store import ChromaVectorStore
 from langchain_openai import ChatOpenAI
 import json
-from typing import TypedDict
+from typing import TypedDict, Dict
 from langchain_core.prompts import ChatPromptTemplate
 from ..base_agent import Agent
 import os
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
-MODEL = os.getenv("MODEL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-# llm = ChatOpenAI(model="gpt-4.1-nano")
+# ============================================================================
+# ✅ MONITORING IMPORTS (COMPLETE)
+# ============================================================================
+from backend.monitoring import (
+    track_retry_count,
+    time_block,
+    sql_generation_duration
+)
+
+# ============================================================================
+# FIXED: Separate variables and API keys
+# ============================================================================
+
+# Embedding model settings
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+EMBD_MODEL_PROVIDER = os.getenv("EMBD_MODEL_PROVIDER", "gemini")
+
+# Generative model settings  
+GENERATIVE_MODEL = os.getenv("MODEL", "gemini")
+GENERATIVE_MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+
+# API Keys - FIXED: Use correct key based on provider
+GEMINI_API_KEY = os.getenv("LLM_API_KEY")  # Gemini uses LLM_API_KEY
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # OpenAI uses OPENAI_API_KEY
+
+
+def get_api_key_for_model(model_provider: str) -> str:
+    """
+    Get the correct API key based on the model provider.
+    
+    Args:
+        model_provider: 'gpt', 'openai', 'gemini', or 'google'
+    
+    Returns:
+        Appropriate API key
+    """
+    model_lower = model_provider.lower()
+    
+    if model_lower in ['gpt', 'openai']:
+        # Use OpenAI API key
+        api_key = OPENAI_API_KEY or GEMINI_API_KEY  # Fallback to LLM_API_KEY if not set
+        if api_key == GEMINI_API_KEY and OPENAI_API_KEY is None:
+            print("⚠️  OPENAI_API_KEY not set, using LLM_API_KEY (may cause errors)")
+        return api_key
+    else:
+        # Use Gemini/Google API key
+        return GEMINI_API_KEY
+
 
 def restructure_docs_with_seperate_keys(docs):
     restructured_docs = []
 
     for meta, text in zip(docs["metadatas"], docs["documents"]):
-        if len(meta.keys()) > 1:  # table-level metadata
+        if len(meta.keys()) > 1:
             restructured_docs.append({
                 "table_name": meta["table_name"],
                 "primary_key": meta["primary_key"],
@@ -45,26 +94,26 @@ def restructure_docs(docs):
     
     return restructured_docs
 
-def get_initial_details(state:AgentState):
+
+def get_initial_details(state: AgentState):
     print("_____________________get_initial_details______________________")
-    if state.dataset_description!="":
+    if state.dataset_description != "":
         return {
-            "dataset_description":state.dataset_description,
-            "all_table_details":state.all_table_details
+            "dataset_description": state.dataset_description,
+            "all_table_details": state.all_table_details
         }
     else:
         vector_store = ChromaVectorStore(
             user_id=state.user_id, 
             db_name=state.db_name,        
-            embedding_model=EMBEDDING_MODEL,  
-            model=MODEL                 
+            embedding_model=EMBEDDING_MODEL,
+            model=EMBD_MODEL_PROVIDER
         )
         
         vector_db = vector_store.get_store()
-
         docs = vector_db.get()
 
-        desc = [doc for doc in docs["metadatas"] if len(doc.keys())==1][0]["Dataset Summary"]
+        desc = [doc for doc in docs["metadatas"] if len(doc.keys()) == 1][0]["Dataset Summary"]
         
         restructured_all_tables = restructure_docs_with_seperate_keys(docs=docs)
 
@@ -73,22 +122,28 @@ def get_initial_details(state:AgentState):
             "all_table_details": restructured_all_tables
         }
 
-def get_inital_necessary_tables(state:AgentState):
+
+def get_inital_necessary_tables(state: AgentState):
     print("_____________________get_inital_necessary_tables______________________")
 
     vector_store = ChromaVectorStore(
         user_id=state.user_id, 
         db_name=state.db_name,        
-        embedding_model=EMBEDDING_MODEL,  
-        model=MODEL                 
+        embedding_model=EMBEDDING_MODEL,
+        model=EMBD_MODEL_PROVIDER
     )
 
-    docs = vector_store.search_vector_store(db_name=state.db_name , query=state.user_query, top_k=state.initial_top_k, user_id=state.user_id)
+    docs = vector_store.search_vector_store(
+        db_name=state.db_name,
+        query=state.user_query,
+        top_k=state.initial_top_k,
+        user_id=state.user_id
+    )
 
     restructured_inital_necesssary_tables = restructure_docs(docs=docs)
 
     return {
-        "initial_necessary_table_details":restructured_inital_necesssary_tables
+        "initial_necessary_table_details": restructured_inital_necesssary_tables
     }
 
 
@@ -97,21 +152,25 @@ def rephrase_user_query(state: AgentState):
     """
     Rephrases the user's natural language query into a technical, database-aware form
     and estimates how many tables are needed to answer it.
-    Returns: {"rephrased_query": "", "top_k": int}
     """
 
-    agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=MODEL, model_name=MODEL_NAME)
+    # FIXED: Use correct API key based on model provider
+    api_key = get_api_key_for_model(GENERATIVE_MODEL)
+    
+    agent = Agent(
+        api_key=api_key,
+        model=GENERATIVE_MODEL,
+        model_name=GENERATIVE_MODEL_NAME
+    )
+    
     db_type = state.db_config["db_type"]
     user_query = state.user_query
     dataset_description = state.dataset_description
     tables_descriptions = [doc["description"] for doc in state.initial_necessary_table_details]
 
-    # Format table descriptions
     formatted_tables = "\n\n".join(
         [f"Table {i+1}:\n{desc}" for i, desc in enumerate(tables_descriptions)]
     )
-
-
 
     prompt = """
     You are an expert data analyst with deep knowledge of relational databases, SQL, 
@@ -167,7 +226,7 @@ def rephrase_user_query(state: AgentState):
         "user_query": user_query
     }
 
-    response = agent.generate(prompt, prompt_placeholders)
+    response = agent.generate(prompt, prompt_placeholders, operation="query_rephrase")
 
     raw_output = response.strip()
 
@@ -176,7 +235,6 @@ def rephrase_user_query(state: AgentState):
     except Exception:
         result = {"rephrased_query": raw_output, "top_k": 3}
 
-    # Ensure top_k is int
     try:
         result["top_k"] = int(result.get("top_k", 3))
     except:
@@ -188,20 +246,24 @@ def rephrase_user_query(state: AgentState):
     }
 
 
-def get_final_required_tables(state:AgentState):
+def get_final_required_tables(state: AgentState):
     print("_____________________get_final_required_tables______________________")
     rephrased_query = state.rephrased_query
-
     top_k = state.top_k
 
     vector_store = ChromaVectorStore(
         user_id=state.user_id, 
         db_name=state.db_name,        
-        embedding_model=EMBEDDING_MODEL,  
-        model=MODEL                 
+        embedding_model=EMBEDDING_MODEL,
+        model=EMBD_MODEL_PROVIDER
     )
     
-    docs = vector_store.search_vector_store(db_name=state.db_name , query = rephrased_query , top_k=top_k, user_id=state.user_id)
+    docs = vector_store.search_vector_store(
+        db_name=state.db_name,
+        query=rephrased_query,
+        top_k=top_k,
+        user_id=state.user_id
+    )
 
     final_necessary_table_details = restructure_docs(docs=docs) 
 
@@ -209,18 +271,15 @@ def get_final_required_tables(state:AgentState):
         "final_necessary_table_details": final_necessary_table_details
     }
 
+
 def format_table_details(final_tables: list) -> str:
-    """
-    Format table details from your specific data structure.
-    Handles JSON strings for columns, primary_key, foreign_keys, and indexes.
-    """
+    """Format table details from your specific data structure"""
     formatted = []
     
     for table_info in final_tables:
         table_name = table_info.get("table_name", "Unknown")
         description = table_info.get("description", "")
         
-        # Parse JSON strings
         try:
             columns = json.loads(table_info.get("columns", "[]"))
             primary_key = json.loads(table_info.get("primary_key", "[]"))
@@ -230,19 +289,15 @@ def format_table_details(final_tables: list) -> str:
             print(f"Error parsing JSON for table {table_name}: {e}")
             continue
         
-        # Start building table string
         table_str = f"\n{'='*80}\n**Table: {table_name}**\n{'='*80}"
         
-        # Add description if available
         if description:
             table_str += f"\n\n{description}\n"
         
-        # Add Primary Key
         if primary_key:
             pk_str = ", ".join(primary_key)
             table_str += f"\n**Primary Key:** {pk_str}"
         
-        # Add Foreign Keys with relationships
         if foreign_keys:
             table_str += "\n\n**Foreign Keys:**"
             for fk in foreign_keys:
@@ -251,7 +306,6 @@ def format_table_details(final_tables: list) -> str:
                 ref_cols = ", ".join(fk.get("referred_columns", []))
                 table_str += f"\n  - {fk_cols} → {ref_table}({ref_cols})"
         
-        # Add Columns with details
         table_str += "\n\n**Columns:**"
         for col in columns:
             col_name = col.get("name", "")
@@ -272,7 +326,6 @@ def format_table_details(final_tables: list) -> str:
             
             table_str += col_str
         
-        # Add indexes (optional, for reference)
         if indexes:
             table_str += "\n\n**Indexes:**"
             for idx in indexes:
@@ -298,30 +351,44 @@ def format_error_history(prev_sqls: list, prev_errors: list) -> str:
     
     return "\n".join(history)
 
+
 def clean_sql_query(sql: str) -> str:
     """Remove markdown formatting and extra whitespace from SQL query"""
-    # Remove markdown code blocks
     sql = sql.replace("```sql", "").replace("```", "")
-    
-    # Remove leading/trailing whitespace
     sql = sql.strip()
     
-    # Ensure query ends with semicolon
     if not sql.endswith(";"):
         sql += ";"
     
     return sql
 
-def generate_sql_from_tables(state: AgentState) -> AgentState:
+
+def generate_sql_from_tables(state: AgentState) -> Dict:
     print("_____________________generate_sql_from_tables______________________")
     """
     Generate SQL query from final necessary tables using LLM.
-    Provides comprehensive, dialect-aware instructions to minimize errors.
-    Handles error correction and intelligently uses SELECT * if user asks for full table.
+    UPDATED: Tracks retry attempts and SQL generation time
     """
 
-    # Extract state variables
-    agent = Agent(api_key=os.environ.get("LLM_API_KEY"), model=MODEL, model_name=MODEL_NAME)
+    # ============================================================================
+    # ✅ TRACK RETRY COUNT (NEW)
+    # ============================================================================
+    retry_attempt = len(state.prev_errors)
+    
+    if retry_attempt > 0:
+        track_retry_count(retry_attempt)
+        print(f"🔄 Retry attempt #{retry_attempt}")
+        print(f"📝 Previous errors: {len(state.prev_errors)}")
+
+    # FIXED: Get correct API key for the model provider
+    api_key = get_api_key_for_model(GENERATIVE_MODEL)
+    
+    agent = Agent(
+        api_key=api_key,
+        model=GENERATIVE_MODEL,
+        model_name=GENERATIVE_MODEL_NAME
+    )
+    
     user_query = state.user_query
     rephrased_query = state.rephrased_query
     final_tables = state.final_necessary_table_details
@@ -330,10 +397,8 @@ def generate_sql_from_tables(state: AgentState) -> AgentState:
     db_name = state.db_name
     db_type = state.db_config.get("db_type", "postgres").lower()
 
-    # Format table details
     table_details_str = format_table_details(final_tables)
 
-    # Dialect-specific instructions
     dialect_instr = ""
     if db_type == "postgres":
         dialect_instr = (
@@ -353,7 +418,6 @@ def generate_sql_from_tables(state: AgentState) -> AgentState:
     else:
         dialect_instr = "Use standard SQL syntax appropriate for the database."
 
-    # Comprehensive instruction template
     if len(prev_errors) == 0:
         prompt = """
 You are an expert SQL query generator with extensive knowledge of {db_type}.
@@ -381,7 +445,6 @@ You are an expert SQL query generator with extensive knowledge of {db_type}.
 10. Return ONLY the SQL query. Do NOT include explanations, markdown, comments, or extra text.
 """
     else:
-        # Error correction mode
         prompt = """
 You are an expert SQL query generator with extensive knowledge of {db_type}. 
 A previous SQL query attempt failed. Correct it.
@@ -421,10 +484,25 @@ A previous SQL query attempt failed. Correct it.
         "db_type": db_type
     }
 
-    # Call LLM
-    response = agent.generate(prompt, prompt_placeholders)
+    # ============================================================================
+    # ✅ TRACK SQL GENERATION TIME (ALREADY THERE - GOOD!)
+    # ============================================================================
+    with time_block(sql_generation_duration, retry_attempt=str(retry_attempt)):
+        response = agent.generate(
+            prompt,
+            prompt_placeholders,
+            operation=f"sql_generation_retry{retry_attempt}"
+        )
+    
     generated_sql = clean_sql_query(response.strip())
+    
+    print(f"✅ SQL generated successfully")
+    if retry_attempt > 0:
+        print(f"✅ Retry #{retry_attempt} completed")
 
     return {
         "generated_sql": generated_sql
     }
+
+
+

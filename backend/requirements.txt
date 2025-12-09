@@ -21,7 +21,6 @@ passlib[bcrypt]
 firebase-admin
 
 
-
 # Jay
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.0
@@ -181,3 +180,5 @@ xxhash==3.6.0
 yarl==1.22.0
 zipp==3.23.0
 zstandard==0.25.0
+prometheus-client
+prometheus-fastapi-instrumentator

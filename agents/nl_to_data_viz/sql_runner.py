@@ -9,6 +9,14 @@ from databases.cloudsql.crud import get_records_by_user_and_db
 from databases.cloudsql.database import get_db
 from urllib.parse import quote_plus
 
+# ✅ MONITORING IMPORTS (NEW)
+from backend.monitoring import (
+    track_sql_error,
+    track_query_result_size,
+    time_block,
+    sql_execution_duration
+)
+
 
 # Conditional edge function for retry logic
 def should_retry_sql_generation(state: AgentState) -> str:
@@ -90,6 +98,16 @@ def execute_sql_query(state: AgentState):
     prev_sqls = state.prev_sqls
     prev_errors = state.prev_errors
     
+    # ✅ GET DB TYPE FOR MONITORING
+    db_type = "unknown"
+    try:
+        db = next(get_db())
+        creds = get_records_by_user_and_db(db, state.user_id, state.db_name)
+        if creds:
+            db_type = creds[0].db_type
+    except:
+        pass
+    
     try:
         # Get database connection string
         conn_str = get_conn_str(state.user_id, state.db_name)
@@ -98,21 +116,28 @@ def execute_sql_query(state: AgentState):
         # Create database engine
         engine = create_engine(conn_str)
         
-        # Execute query and fetch results
-        with engine.connect() as connection:
-            print(f"Executing SQL:\n{generated_sql}")
-            result = connection.execute(text(generated_sql))
-            print("SQL executed successfully.")
-            
-            # Fetch all results as a list of dictionaries
-            columns = result.keys()
-            rows = result.fetchall()
-            
-            # Convert to list of dicts for easier handling
-            query_results = [dict(zip(columns, row)) for row in rows]
-            
-            # CRITICAL: Sanitize to convert Decimal/numpy types to native Python types
-            query_results = sanitize_for_serialization(query_results)  # ADD THIS LINE
+        # ✅ TRACK SQL EXECUTION TIME
+        with time_block(sql_execution_duration, db_name=state.db_name, db_type=db_type):
+            # Execute query and fetch results
+            with engine.connect() as connection:
+                print(f"Executing SQL:\n{generated_sql}")
+                result = connection.execute(text(generated_sql))
+                print("SQL executed successfully.")
+                
+                # Fetch all results as a list of dictionaries
+                columns = result.keys()
+                rows = result.fetchall()
+                
+                # Convert to list of dicts for easier handling
+                query_results = [dict(zip(columns, row)) for row in rows]
+                
+                # CRITICAL: Sanitize to convert Decimal/numpy types to native Python types
+                query_results = sanitize_for_serialization(query_results)
+        
+        # ✅ TRACK RESULT SIZE
+        row_count = len(query_results)
+        track_query_result_size(row_count)
+        print(f"📊 Returned {row_count} rows")
         
         # Return only updated fields as dict
         return {
@@ -127,6 +152,21 @@ def execute_sql_query(state: AgentState):
         # Capture the error
         print(f"Error executing SQL: {e}")
         error_message = str(e)
+        
+        # ✅ GET COMPLEXITY TYPE FROM STATE (NEW - CRITICAL FIX)
+        complexity_type = 'unknown'
+        if state.sql_complexity and isinstance(state.sql_complexity, dict):
+            complexity_type = state.sql_complexity.get('primary_complexity', 'unknown')
+        
+        print(f"📊 Error occurred in {complexity_type} query")
+        
+        # ✅ TRACK SQL ERROR WITH COMPLEXITY TYPE (UPDATED)
+        track_sql_error(
+            db_name=state.db_name,
+            db_type=db_type,
+            error_message=error_message,
+            complexity_type=complexity_type  # ✅ NOW INCLUDES COMPLEXITY TYPE
+        )
         
         # Append to error history
         updated_prev_sqls = prev_sqls + [generated_sql]
