@@ -11,6 +11,8 @@
 
 # Sensitive files
 gcs_creds.json
+service-account-key.json
+application_default_credentials.json
 
 # Virtual environments
 **/env/
@@ -41,3 +43,7 @@ result1.json
 
 # Frontend specific files/folders
 frontend/node_modules/  
+/queryhub
+/temp_results
+
+/backend/service-account-key.json

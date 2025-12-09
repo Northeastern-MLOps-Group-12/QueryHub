@@ -1,0 +1,78 @@
+name: Deploy Frontend to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      # - frontend-setup
+    paths: ["frontend/**"]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  REGION: ${{ secrets.REGION }}
+  REPOSITORY: ${{ secrets.REPOSITORY }}
+  IMAGE_NAME: queryhub-frontend-image
+  SERVICE: queryhub-frontend-service
+  BACKEND_URL: ${{ secrets.BACKEND_URL }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # - name: Create frontend .env file
+      #   run: |
+      #     echo "VITE_BACKEND_URL=${{ env.BACKEND_URL }}" > frontend/.env
+
+      # - name: Build & Push Docker Image
+      #   run: |
+      #     IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+      #     echo "Building image: $IMAGE"
+      #     docker build -t "$IMAGE" -f frontend/Dockerfile frontend
+      #     docker push "$IMAGE"
+      #     echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Building image: $IMAGE"
+          
+          docker build \
+            --build-arg VITE_BACKEND_URL=${{ env.BACKEND_URL }} \
+            -t "$IMAGE" \
+            -f frontend/Dockerfile frontend
+            
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image $IMAGE \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout=300s \
+            --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
+            --quiet
