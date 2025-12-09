@@ -9,6 +9,7 @@ from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
 import os
 from langsmith import traceable
 from langsmith.run_helpers import trace
+from backend.utils.vectorstore_gcs import upload_vectorstore_to_gcs, delete_vectorstore_from_gcs
 
 # ============================================================================
 # FIXED: Correct variable names
@@ -81,8 +82,26 @@ def build_vector_store(state):
 
     # Build the vector store from the database schema and data
     vector_store.build(connector=connector)
+    
     print(f"✅ Vector store built for {config['db_name']}")
     print(f"   Using embedding provider: {EMBD_MODEL_PROVIDER}")
     print(f"   Using embedding model: {EMBEDDING_MODEL}")
+
+        # Upload to GCS after building
+    try:
+        print("Uploading vector store to GCS...")
+        print(f"Local vector store path: {vector_store.persist_directory}")
+        print(f"User ID: {config['user_id']}, DB Name: {config['db_name']}")
+
+        delete_vectorstore_from_gcs(user_id=str(config['user_id']), db_name=config['db_name'])
+
+        upload_vectorstore_to_gcs(
+            local_vectorstore_path=vector_store.persist_directory,
+            user_id=config['user_id'],
+            db_name=config['db_name']
+        )
+        print(f"✅ Vector store uploaded to GCS for {config['db_name']}")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to upload vector store to GCS: {e}")
 
     return state

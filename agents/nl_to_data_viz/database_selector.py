@@ -1,7 +1,6 @@
-"""
-Database Selector - FIXED with Correct Variable Names
-Automatically chooses embedding model based on EMBD_MODEL_PROVIDER environment variable
-"""
+# ============================================================================
+# FILE: AgentFiles/DatabaseSelector/database_selector.py
+# ============================================================================
 
 import os
 import json
@@ -94,15 +93,24 @@ class DatabaseSelector:
             config["databases"].append(db_config)
 
         return config
+        
+        # if not self.config_path.exists():
+        #     raise FileNotFoundError(f"Database config file not found: {self.config_path}")
+        
+        # with open(self.config_path, 'r') as f:
+        #     return json.load(f)
+        
+
     
     def get_all_vector_stores(self, user_id: str) -> List[str]:
-        """Get list of all available vector store database names for user"""
-        if not self.vector_stores_dir.exists():
-            return []
-        
-        user_id_str = str(user_id)
+        """Get list of all available vector store database names"""
+        # Ensure local directory exists so downloads have a place to land
+        self.vector_stores_dir.mkdir(parents=True, exist_ok=True)
+
+        user_id_str = user_id
         db_names = []
 
+        # 1) First, try to discover any locally available vector stores
         for folder in self.vector_stores_dir.iterdir():
             if not folder.is_dir():
                 continue
@@ -117,15 +125,34 @@ class DatabaseSelector:
                 continue
 
             # Remove "chroma_" prefix and "_userid" suffix
-            core = name[len("chroma_"):]
-            dbname = core[: -(len(user_id_str) + 1)]
+            core = name[len("chroma_"):]                   # remove chroma_
+            dbname = core[: -(len(user_id_str) + 1)]       # remove "_userid"
             db_names.append(dbname)
-        
-        print(f"Found {len(db_names)} vector stores for user {user_id_str}")
+
+        # 2) If nothing local (or to fill missing ones), attempt to fetch from GCS
+        try:
+            configs = self.load_db_configs(user_id)
+            for cfg in configs.get("databases", []):
+                dbname = cfg.get("db_name")
+                if not dbname:
+                    continue
+                if dbname in db_names:
+                    continue
+                # ensure_vectorstore_local will download from GCS if missing
+                if self.ensure_vectorstore_local(dbname, user_id):
+                    db_names.append(dbname)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch vector stores from GCS: {e}")
+
         return db_names
     
     def extract_dataset_description(self, db_name: str, user_id: str) -> str:
         """Extract dataset description from vector store"""
+        # Ensure vector store is available locally
+        print(f"Extracting dataset description for {db_name}...")
+        if not self.ensure_vectorstore_local(db_name, user_id):
+            print(f"⚠️ Vector store not available for {db_name}")
+            return ""
         persist_directory = self.vector_stores_dir / f"chroma_{db_name}_{user_id}"
         collection_name = f"chroma_{db_name}_schema_{user_id}"
         print(f"Extracting description for {db_name} from {persist_directory}")
@@ -162,10 +189,13 @@ class DatabaseSelector:
                 "available_databases": state.available_databases
             }
         
-        print(f"🔄 Computing database embeddings (Provider: {self.embedding_provider})...")
+        print("Computing database embeddings for the first time...")
         
         db_configs = self.load_db_configs(state.user_id)
         available_dbs = self.get_all_vector_stores(state.user_id)
+
+        print(available_dbs, "_____________________HERE_____________________")
+        print(db_configs, "_____________________HERE_____________________")
         
         database_metadata = []
         
@@ -181,7 +211,7 @@ class DatabaseSelector:
                     break
             
             if not db_config:
-                print(f"⚠️  Warning: No config found for {db_name}, skipping")
+                print(f"Warning: No config found for {db_name}, skipping")
                 continue
             
             # Compute embedding for description ONCE
@@ -311,18 +341,18 @@ _db_selector = DatabaseSelector()
 
 
 def compute_database_embeddings(state: AgentState) -> Dict:
+    print("_________________________________compute_database_embeddings called_________________________________")
     """
     Workflow node: Compute database embeddings ONCE
     Cached in state for entire session
     """
-    print("_____________________compute_database_embeddings______________________")
     return _db_selector.compute_database_embeddings(state)
 
 
 def select_best_database(state: AgentState) -> Dict:
+    print("_________________________________select_best_database called_________________________________")
     """
     Workflow node: Select best database for CURRENT query
     Query embedding computed fresh, compared to cached DB embeddings
     """
-    print("_____________________select_best_database______________________")
     return _db_selector.select_best_database(state)

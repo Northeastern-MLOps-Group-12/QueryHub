@@ -23,15 +23,17 @@ class QueryResultSaver:
     def __init__(self):
         self.project_id = os.getenv('PROJECT_ID')
         self.bucket_name = os.getenv('GCS_BUCKET_NAME')
-        self.credentials_path = os.getenv('GCS_CREDENTIALS_PATH')
+        # self.credentials_path = os.getenv('GCS_CREDENTIALS_PATH')
         
-        if self.credentials_path and os.path.exists(self.credentials_path):
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = self.credentials_path
+        # if self.credentials_path and os.path.exists(self.credentials_path):
+        #     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = self.credentials_path
         
-        if self.project_id:
-            self.client = storage.Client(project=self.project_id)
-        else:
-            self.client = storage.Client()
+        # if self.project_id:
+        #     self.client = storage.Client(project=self.project_id)
+        # else:
+        #     self.client = storage.Client()
+
+        self.client = storage.Client(project=self.project_id)
     
     def save_query_result(self, state: AgentState) -> Dict:
         """
@@ -96,13 +98,11 @@ class QueryResultSaver:
             metadata_blob = bucket.blob(metadata_blob_name)
             metadata_blob.upload_from_filename(str(local_metadata_path), content_type='application/json')
             
-            make_public = os.getenv('GCS_MAKE_PUBLIC', 'false').lower() == 'true'
+            make_public = os.getenv('GCS_MAKE_PUBLIC', 'true').lower() == 'true'
             
             if make_public:
-                parquet_blob.make_public()
-                metadata_blob.make_public()
-                result_url = parquet_blob.public_url
-                metadata_url = metadata_blob.public_url
+                result_url = f"https://storage.googleapis.com/{self.bucket_name}/{parquet_blob_name}"
+                metadata_url = f"https://storage.googleapis.com/{self.bucket_name}/{metadata_blob_name}"
             else:
                 signed_hours = int(os.getenv('GCS_SIGNED_URL_HOURS', '24'))
                 result_url = parquet_blob.generate_signed_url(

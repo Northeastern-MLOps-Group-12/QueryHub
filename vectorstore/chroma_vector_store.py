@@ -257,6 +257,7 @@ class ChromaVectorStore:
     
     def get_all_vector_stores(self):
         """Get all collections data as JSON."""
+        # client = chromadb.PersistentClient(path=self.persist_directory)
         client = chromadb.PersistentClient(path=self.persist_directory)
         collections = client.list_collections()
         

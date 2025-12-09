@@ -26,8 +26,11 @@ services:
       GCS_MAKE_PUBLIC: "${GCS_MAKE_PUBLIC:-false}"
       GCS_SIGNED_URL_HOURS: "${GCS_SIGNED_URL_HOURS:-24}"
       GCS_UPLOAD_ENABLED: "${GCS_UPLOAD_ENABLED:-true}"
+      FIREBASE_DATABASE_ID: "queryhub-chats"
+      # MODE: "${MODE}"
     volumes:
       - ../:/app
+      - ~/.config/gcloud:/root/.config/gcloud:ro
     command: >
       sh -c "cd /app && uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload --reload-dir /app"
     networks:

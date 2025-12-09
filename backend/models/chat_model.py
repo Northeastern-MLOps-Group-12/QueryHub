@@ -105,6 +105,8 @@ class Message(BaseModel):
     sender: MessageSender
     created_at: int  # Unix timestamp in milliseconds
     content: MessageContent
+    error: Optional[bool] = False
+    error_message: Optional[str] = None
     
     class Config:
         json_schema_extra = {
@@ -140,16 +142,18 @@ class CreateChatResponse(BaseModel):
 
 class SendMessageResponse(BaseModel):
     """Response model after sending a message (bot's reply)"""
-    message_id: int
+    message_id: str
     sender: MessageSender
     created_at: str  
     content: MessageContent
+    error: Optional[bool] = False
+    error_message: Optional[str] = None
     
     class Config:
         exclude_none = True
         json_schema_extra = {
             "example": {
-                "message_id": 1765024422022,
+                "message_id": "1765024422022",
                 "sender": "bot",
                 "created_at": 1765024422022,
                 "content": {
@@ -166,7 +170,9 @@ class SendMessageResponse(BaseModel):
                         "has_visualization": True,
                         "gcs_storage_path": "visualizations/111/chinook_d9297a9e/dashboard.html"
                     }
-                }
+                },
+                "error": False,
+                "error_message": None
             }
         }
 
@@ -216,6 +222,28 @@ class ChatDetail(BaseModel):
                         "content": {
                             "text": "Show me sales data for November"
                         }
+                    },
+                    {
+                        "message_id": "37877976-e1be-4853-8e69-f4f424bb741d",
+                        "sender": "bot",
+                        "created_at": 1765024422022,
+                        "content": {
+                            "text": "I found 14,500 records matching your query.",
+                            "query": "SELECT * FROM sales WHERE date >= '2025-11-01'",
+                            "attachment": {
+                                "has_attachment": True,
+                                "file_name": "data.parquet",
+                                "file_type": "application/octet-stream",
+                                "file_size_bytes": 4503200,
+                                "gcs_storage_path": "query_results/111/1764976697/data.parquet"
+                            },
+                            "visualization": {
+                                "has_visualization": True,
+                                "gcs_storage_path": "visualizations/111/chinook_d9297a9e/dashboard.html"
+                            }
+                        },
+                        "error": False,
+                        "error_message": None
                     }
                 ]
             }

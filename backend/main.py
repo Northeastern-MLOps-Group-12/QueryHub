@@ -1,13 +1,15 @@
 import os
 import time
 import asyncio
-from backend import user_api, connectors_api, chat_api
+from backend import user_api, connectors_api, chat_api, utils
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from databases.cloudsql.database import engine, Base
 from agents.nl_to_data_viz.graph import initialize_agent
 import warnings
+warnings.filterwarnings("ignore")
+
 
 # Prometheus imports
 from prometheus_client import make_asgi_app
@@ -31,11 +33,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ============================================================================
-# CORS CONFIGURATION
-# ============================================================================
-
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+# CORS configuration
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 MODE = os.getenv("MODE", "API")
 
 app.add_middleware(
@@ -130,6 +129,13 @@ async def startup_event():
         print("="*70)
         print("✨ QueryHub API is ready to accept requests!")
         print("="*70)
+
+        try:
+            print("🔑 Initializing Firebase for chat functionality...")
+            chat_api.initialize_firestore()
+            print("✓ Firebase initialized for chat functionality")
+        except Exception as e:
+            print(f"⚠ Firebase initialization skipped: {e}")
         
     except Exception as e:
         print(f"❌ Failed to initialize agent: {e}")
@@ -267,12 +273,12 @@ async def metrics_info():
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "backend.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(
+#         "backend.main:app",
+#         host="0.0.0.0",
+#         port=8000,
+#         reload=True,
+#         log_level="info"
+#     )

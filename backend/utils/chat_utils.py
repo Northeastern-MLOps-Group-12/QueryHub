@@ -9,12 +9,26 @@ from fastapi import HTTPException
 import time
 
 from ..models.chat_model import ChatSummary, ChatDetail, Message
-from agents.nl_to_data_viz.graph import build_visualization
+from .agent_utils import build_visualization
+import os
 
 
 def get_current_timestamp() -> str:
     """Get current timestamp in ISO format"""
     return datetime.utcnow().isoformat() + "Z"
+
+# Helper function to safely convert to milliseconds
+def to_ms(val):
+    if isinstance(val, int): return val
+    if hasattr(val, 'timestamp'): return int(val.timestamp() * 1000)
+    if isinstance(val, str):
+        # Handle 'Z' or standard ISO
+        val = val.replace('Z', '+00:00')
+        try:
+            return int(datetime.fromisoformat(val).timestamp() * 1000)
+        except ValueError:
+            return 0 # or some default
+    return 0
 
 # def get_current_timestamp() -> int:
 #     """Get current timestamp in milliseconds"""
@@ -50,17 +64,11 @@ def list_user_chats(db, user_id: str) -> List[ChatSummary]:
             created_at = chat_data['created_at']
             updated_at = chat_data['updated_at']
             
-            # If timestamps are Firestore DatetimeWithNanoseconds, convert them
-            if hasattr(created_at, 'timestamp'):
-                created_at = int(created_at.timestamp() * 1000)
-            if hasattr(updated_at, 'timestamp'):
-                updated_at = int(updated_at.timestamp() * 1000)
-            
             chat_list.append(ChatSummary(
                 chat_id=chat_data['chat_id'],
                 chat_title=chat_data['chat_title'],
-                created_at=created_at,
-                updated_at=updated_at
+                created_at=to_ms(created_at),
+                updated_at=to_ms(updated_at)
             ))
         
         return chat_list
@@ -140,15 +148,20 @@ def get_chat_detail(db, chat_id: str, user_id: str) -> ChatDetail:
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Convert Firestore timestamps to milliseconds
-        if hasattr(chat_data['created_at'], 'timestamp'):
-            chat_data['created_at'] = int(chat_data['created_at'].timestamp() * 1000)
-        if hasattr(chat_data['updated_at'], 'timestamp'):
-            chat_data['updated_at'] = int(chat_data['updated_at'].timestamp() * 1000)
+        chat_data['created_at'] = to_ms(chat_data['created_at'])
+        chat_data['updated_at'] = to_ms(chat_data['updated_at'])
         
         # Convert timestamps in history messages
-        for message in chat_data.get('history', []):
-            if hasattr(message['created_at'], 'timestamp'):
-                message['created_at'] = int(message['created_at'].timestamp() * 1000)
+        history = chat_data.get('history', [])
+        for msg in history:
+            # Convert 'created_at' for each message using your helper
+            msg['created_at'] = to_ms(msg.get('created_at'))
+            
+            # Ensure message_id is a string (to fix previous errors)
+            msg['message_id'] = str(msg.get('message_id'))
+
+        # Update the dictionary with the processed history
+        chat_data['history'] = history
         
         return ChatDetail(**chat_data)
     
@@ -305,11 +318,12 @@ def generate_bot_response(user_id: str, chat_id: str, user_query: str) -> Dict[s
     bot_message_id = int(datetime.utcnow().timestamp() * 1000) + 1
     current_time = get_current_timestamp()
     
-    # MOCK RESPONSE - Replace with actual implementation
     result = build_visualization(user_query, user_id)
-    sql_query = result.get('generated_sql', '')
-    attachment_path = result.get('result_gcs_path', '')
-    cloud_viz_files = result.get("cloud_viz_files", {})
+    sql_query = result.generated_sql  or ''
+    attachment_path = result.result_gcs_path  or ''
+    cloud_viz_files = result.cloud_viz_files or List[Dict]
+    error = result.error or False
+    error_message = result.error_message or ""
     
     # Check if attachment is available
     has_attachment = bool(attachment_path and attachment_path.strip())
@@ -335,7 +349,7 @@ def generate_bot_response(user_id: str, chat_id: str, user_query: str) -> Dict[s
     
     # Build bot message
     bot_message = {
-        'message_id': bot_message_id,
+        'message_id': str(bot_message_id),
         'sender': 'bot',
         'created_at': current_time,
         'content': {
@@ -347,7 +361,9 @@ def generate_bot_response(user_id: str, chat_id: str, user_query: str) -> Dict[s
             'visualization': {
                 'has_visualization': has_visualization
             }
-        }
+        },
+        'error': error,
+        'error_message': error_message
     }
     
     # Only add gcs_storage_path if attachment exists
@@ -374,7 +390,7 @@ def update_chat_history(chat_ref, chat_data: Dict[str, Any], new_messages: List[
 
 # ==================== File Access Operations ====================
 
-def get_attachment_url(db, bucket, message_id: int, user_id: str) -> Tuple[str, int]:
+def get_attachment_url(db, bucket, message_id: str, user_id: str) -> Tuple[str, int]:
     """
     Generate signed URL for attachment download
     
@@ -409,7 +425,7 @@ def get_attachment_url(db, bucket, message_id: int, user_id: str) -> Tuple[str, 
         )
 
 
-def get_visualization_url(db, bucket, message_id: int, user_id: str) -> Tuple[str, int]:
+def get_visualization_url(db, bucket, message_id: str, user_id: str) -> Tuple[str, int]:
     """
     Generate signed URL for visualization (iframe)
     
@@ -444,7 +460,7 @@ def get_visualization_url(db, bucket, message_id: int, user_id: str) -> Tuple[st
         )
 
 
-def find_file_path(db, user_id: str, message_id: int, file_type: str) -> Optional[str]:
+def find_file_path(db, user_id: str, message_id: str, file_type: str) -> Optional[str]:
     """
     Find file path for a message attachment or visualization
     
@@ -517,6 +533,8 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
     if bucket is None:
         raise HTTPException(status_code=503, detail="Storage not initialized")
     
+    make_public = os.getenv('GCS_MAKE_PUBLIC', 'true').lower() == 'true'
+    
     # Check if file is Parquet
     if blob_path.endswith('.parquet'):
         try:
@@ -543,12 +561,16 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
             csv_blob.upload_from_string(csv_data, content_type='text/csv')
             
             # Generate signed URL for CSV
-            url = csv_blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expiration_seconds),
-                method="GET"
-            )
-            return url
+            if make_public:
+                return f"https://storage.googleapis.com/{bucket.name}/{csv_path}"
+            else:
+                url = csv_blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(seconds=expiration_seconds),
+                    method="GET"
+                )
+                return url
+                
             
         except ImportError:
             raise HTTPException(
@@ -567,9 +589,13 @@ def generate_signed_url(bucket, blob_path: str, expiration_seconds: int = 300) -
     if not blob.exists():
         raise HTTPException(status_code=404, detail="File not found in storage")
     
-    url = blob.generate_signed_url(
-        version="v4",
-        expiration=timedelta(seconds=expiration_seconds),
-        method="GET"
-    )
-    return url
+    if make_public:
+        # For uniform bucket-level access, just return the public URL
+        return f"https://storage.googleapis.com/{bucket.name}/{blob_path}"
+    else:
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(seconds=expiration_seconds),
+            method="GET"
+        )
+        return url
