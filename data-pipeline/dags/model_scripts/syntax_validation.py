@@ -277,7 +277,7 @@ def choose_best_model(project_id, region, run_name, **kwargs):
     
     if is_new_model_better:
         print("✅ New model is better - proceeding to deployment")
-        return "ensure_vertex_endpoint"
+        return "deploy_model_to_endpoint"
     else:
         print("⏭️ Old model is better - skipping deployment")
         return "skip_deployment"

@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - dev
-      # - frontend-setup
     paths:
       - "frontend/**"
   workflow_dispatch:

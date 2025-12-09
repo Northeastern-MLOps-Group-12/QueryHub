@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter
 from fastapi.responses import JSONResponse
 from connectors.connector import Connector
+from databases.cloudsql.crud import get_records_by_user_id
+from databases.cloudsql.database import get_db
 from .models.connector_request import ConnectorRequest 
 from agents.load_data_to_vector.graph import build_graph_to_load
 from agents.update_data_in_vector.graph import build_graph_to_update
@@ -12,6 +14,7 @@ import os
 import json
 from connectors.engines.postgres.postgres_connector import PostgresConnector
 from backend.utils.vectorstore_gcs import delete_vectorstore_from_gcs
+from .utils.vectorstore_gcs import vectorstore_exists_in_gcs, download_vectorstore_from_gcs
 
 # Connector API service entrypoint: exposes endpoints to create/test connectors.
 # - ConnectorRequest: Pydantic model describing the incoming payload (engine, provider, config).
@@ -76,22 +79,61 @@ def connect(request: ConnectorRequest):
 def get_all_connections(user_id: str):
     """
     Get all vector store collections for a specific user with structured data.
+    Fetches from GCS if not available locally (Cloud Run scenario).
     """
     try:
         vector_stores_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "vectorstore", "VectorStores")
         
+        # Ensure directory exists
+        os.makedirs(vector_stores_dir, exist_ok=True)
+        
         all_connections = {}
         
+        # Get all database connections for this user from the database
+        db = next(get_db())
+        creds = get_records_by_user_id(db, int(user_id))
+        db.close()
         
-        if os.path.exists(vector_stores_dir):
-            for folder in os.listdir(vector_stores_dir):
-                if folder.startswith("chroma_") and folder.endswith(f"_{user_id}"):
-                    db_name = folder.replace("chroma_", "").replace(f"_{user_id}", "")
-                    vector_store = ChromaVectorStore(user_id=user_id, db_name=db_name, embedding_model=EMBEDDING_MODEL, model=MODEL)
-                    raw_data = vector_store.get_all_vector_stores()
-                    
-                    # Structure the data
-                    all_connections[db_name] = structure_vector_store_data(raw_data)
+        # Process each database connection
+        for cred in creds:
+            db_name = cred.db_name
+            
+            # Check if vector store exists locally
+            local_vectorstore_path = os.path.join(vector_stores_dir, f"chroma_{db_name}_{user_id}")
+            local_exists = os.path.exists(local_vectorstore_path)
+            
+            # If not local, check GCS and download if available
+            if not local_exists:
+                print(f"📥 Vector store not found locally for {db_name}, checking GCS...")
+                if vectorstore_exists_in_gcs(user_id=user_id, db_name=db_name):
+                    print(f"✅ Found in GCS, downloading for {db_name}...")
+                    download_success = download_vectorstore_from_gcs(
+                        user_id=user_id,
+                        db_name=db_name,
+                        local_vectorstore_path=local_vectorstore_path
+                    )
+                    if not download_success:
+                        print(f"⚠️ Failed to download vector store for {db_name}, skipping...")
+                        continue
+                else:
+                    print(f"⚠️ Vector store not found in GCS for {db_name}, skipping...")
+                    continue
+            
+            # Now read the vector store (either local or just downloaded)
+            try:
+                vector_store = ChromaVectorStore(
+                    user_id=user_id, 
+                    db_name=db_name, 
+                    embedding_model=EMBEDDING_MODEL, 
+                    model=MODEL
+                )
+                raw_data = vector_store.get_all_vector_stores()
+                
+                # Structure the data
+                all_connections[db_name] = structure_vector_store_data(raw_data)
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to read vector store for {db_name}: {e}")
+                continue
         
         return {"success": True, "user_id": user_id, "connections": all_connections}
     

@@ -152,6 +152,9 @@ def register_model_in_vertex_ai(project_id, region, model_artifact_path, serving
         display_name=f"queryhub-model-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
         artifact_uri=model_artifact_path,
         serving_container_image_uri=serving_container_image_uri,
+        serving_container_predict_route="/predict",
+        serving_container_health_route="/health",
+        serving_container_ports=[9090],
     )
     print(f"✅ Model uploaded to Vertex AI Model Registry: {model.resource_name}")
 

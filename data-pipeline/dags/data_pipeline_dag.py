@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from datetime import datetime, timedelta
 from utils.EmailContentGenerator import notify_task_failure
 from utils.SQLValidator import _validate_single_sql
@@ -9,12 +9,8 @@ import os
 import pandas as pd
 from google.cloud import storage
 import io
-# from airflow.sdk.variable import Variable
 from airflow.models import Variable
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-# from airflow.api.common.trigger_dag import trigger_dag
-# from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 # ============================================================================
@@ -2314,7 +2310,7 @@ compare = PythonOperator(
     dag=dag
 )
 
-check_data_drift = PythonOperator(
+check_drift_branch = BranchPythonOperator(
     task_id='check_data_drift',
     python_callable=check_data_drift,
     dag=dag
@@ -2323,7 +2319,8 @@ check_data_drift = PythonOperator(
 t6d = PythonOperator(
     task_id='upload_to_gcp',
     python_callable=upload_to_gcp,
-    dag=dag
+    dag=dag,
+    trigger_rule='none_failed_min_one_success',
 )
 
 trigger_training = TriggerDagRunOperator(
@@ -2333,17 +2330,33 @@ trigger_training = TriggerDagRunOperator(
         "gcs_folder": "{{ ti.xcom_pull(task_ids='upload_to_gcp', key='gcs_folder') }}"
     },
     wait_for_completion=False,
+    trigger_rule='none_failed_min_one_success',
 )
+
 skip_upload = PythonOperator(
     task_id='skip_upload',
     python_callable=skip_upload,
+    trigger_rule='none_failed_min_one_success',
     dag=dag
 )
 
 t7 = PythonOperator(
     task_id='send_success_notification',
     python_callable=send_pipeline_success_notification,
+    trigger_rule='none_failed_min_one_success',
     dag=dag
 )
 
-t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> compare >> check_data_drift >> t6d >> trigger_training >> skip_upload >> t7
+# t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> compare >> check_data_drift >> t6d >> trigger_training >> skip_upload >> t7
+
+# Update your task dependencies:
+t0_tests >> t1 >> t2 >> t3 >> t3a >> t4 >> t5 >> t6 >> t6a >> t6b >> t6c >> compare >> check_drift_branch
+
+# Branch paths
+check_drift_branch >> [t6d, skip_upload]
+
+# Continue from upload path
+t6d >> trigger_training >> t7
+
+# Continue from skip path  
+skip_upload >> t7

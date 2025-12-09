@@ -15,7 +15,7 @@ from model_scripts.model_eval_job_launcher import launch_evaluation_job
 from model_scripts.syntax_validation import run_syntax_validation_task, choose_best_model
 from utils.test_utils import run_unit_tests
 from utils.EmailContentGenerator import notify_task_failure, notify_pipeline_success
-from model_scripts.model_deployment import ensure_vertex_endpoint, deploy_model_to_vertex_endpoint
+from model_scripts.model_deployment import deploy_model_to_endpoint
 
 # Get alert email
 ALERT_EMAIL = os.getenv('ALERT_EMAIL', Variable.get("alert_email"))
@@ -83,8 +83,6 @@ def create_model_training_dag():
             op_kwargs={
                 "project_id": Variable.get("gcp_project"),
                 "region": Variable.get("gcp_region"),
-                # "gcs_train_data": Variable.get("gcp_train_data_path"),
-                # "gcs_val_data": Variable.get("gcp_val_data_path"),
                 "gcp_processed_data_path": Variable.get("gcp_processed_data_path"),
                 "container_image_uri": Variable.get("vertex_ai_training_image_uri"),
                 "machine_type": Variable.get("vertex_ai_train_machine_type"),
@@ -105,7 +103,7 @@ def create_model_training_dag():
                 "project_id": Variable.get("gcp_project"),
                 "region": Variable.get("gcp_region"),
                 "model_artifact_path": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='trained_model_gcs') }}",
-                "serving_container_image_uri": Variable.get("serving_container_image_uri"),
+                "serving_container_image_uri": Variable.get("queryhub_serve_uri"),
             }
         )
 
@@ -170,33 +168,18 @@ def create_model_training_dag():
             trigger_rule='none_failed_min_one_success'
         )
 
-        # Task 8: Ensure Vertex Endpoint exists (create if needed)
-        ensure_endpoint_task = PythonOperator(
-            task_id="ensure_vertex_endpoint",
-            python_callable=ensure_vertex_endpoint,
-            op_kwargs={
-                "project_id": Variable.get("gcp_project"),
-                "region": Variable.get("gcp_region"),
-                "endpoint_display_name": "queryhub-endpoint",
-                "run_name": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') }}",
-            },
-        )
-
-        # Task 9: Deploy model from Registry to Vertex Endpoint
-        deploy_model_task = PythonOperator(
-            task_id="deploy_model_to_vertex_endpoint",
-            python_callable=deploy_model_to_vertex_endpoint,
+        # Task 8: Deployment
+        deploy_model = PythonOperator(
+            task_id="deploy_model_to_endpoint",
+            python_callable=deploy_model_to_endpoint,
             op_kwargs={
                 "project_id": Variable.get("gcp_project"),
                 "region": Variable.get("gcp_region"),
                 "run_name": "{{ ti.xcom_pull(task_ids='train_on_vertex_ai', key='experiment_run_name') }}",
-                "endpoint_name": "{{ ti.xcom_pull(task_ids='ensure_vertex_endpoint') }}",
                 "model_resource_name": "{{ ti.xcom_pull(task_ids='upload_model_to_vertex_ai', key='registered_model_name') }}",
                 "machine_type": Variable.get("vertex_ai_deploy_machine_type", default_var="n1-standard-4"),
-                "min_replica_count": int(Variable.get("vertex_ai_deploy_min_replicas", default_var=1)),
-                "max_replica_count": int(Variable.get("vertex_ai_deploy_max_replicas", default_var=2)),
-                "traffic_percentage": int(Variable.get("vertex_ai_deploy_traffic_percentage", 100)),
             },
+            trigger_rule='none_failed_min_one_success',
         )
 
         # Training completion nodes
@@ -212,14 +195,14 @@ def create_model_training_dag():
             trigger_rule='one_failed'
         )
 
-        # DAG flow
+        # DAG flow without branching
         start_pipeline >> run_model_unit_tests >> fetch_model_task >> train_model_task >> upload_model_task >> evaluate_model >> bias_detection_task >> syntax_validation >> model_check
 
         # Branching based on model check
-        model_check >> [ensure_endpoint_task, skip_deployment]
-        
+        model_check >> [deploy_model, skip_deployment]
+
         # Deploy path
-        ensure_endpoint_task >> deploy_model_task >> training_completed
+        deploy_model >> training_completed
         
         # Skip path
         skip_deployment >> training_completed
