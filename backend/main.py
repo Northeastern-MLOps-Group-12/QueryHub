@@ -1,7 +1,7 @@
 import os
 import time
 import asyncio
-from backend import user_api, connectors_api, chat_api, utils
+from backend import user_api, connectors_api, chat_api
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -9,10 +9,6 @@ from databases.cloudsql.database import engine, Base
 from agents.nl_to_data_viz.graph import initialize_agent
 import warnings
 from backend.utils import agent_utils
-warnings.filterwarnings("ignore")
-
-
-# Prometheus imports
 from prometheus_client import make_asgi_app
 from prometheus_fastapi_instrumentator import Instrumentator
 from backend.monitoring import (
@@ -272,14 +268,3 @@ async def metrics_info():
             "grafana": "http://localhost:3001"
         }
     }
-
-
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(
-#         "backend.main:app",
-#         host="0.0.0.0",
-#         port=8000,
-#         reload=True,
-#         log_level="info"
-#     )

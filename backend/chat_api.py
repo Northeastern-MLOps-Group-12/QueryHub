@@ -1,26 +1,6 @@
-"""
-Chat API - Query Processing Endpoint - COMPLETE
-Handles user queries with comprehensive monitoring
-"""
-
 from fastapi import APIRouter, HTTPException, Depends
-from .models.chat_request import ChatRequest
-from pydantic import BaseModel
-from typing import Optional
 import os
-from fastapi.responses import JSONResponse
-from connectors.connector import Connector
-from .models.connector_request import ConnectorRequest 
-from agents.load_data_to_vector.graph import build_graph_to_load
-from agents.update_data_in_vector.graph import build_graph_to_update
-from agents.load_data_to_vector.state import AgentState
-from fastapi.middleware.cors import CORSMiddleware
-from vectorstore.chroma_vector_store import ChromaVectorStore
-from backend.utils.connectors_api_utils import structure_vector_store_data
-import json
-from connectors.engines.postgres.postgres_connector import PostgresConnector
 from google.cloud import firestore
-from google.oauth2 import service_account
 from .user_api import get_current_user
 from databases.cloudsql.models.user import User
 from .models.chat_model import (
@@ -269,26 +249,3 @@ async def get_visualization_url(
     user_id = str(current_user.user_id)
     url, expires = chat_utils.get_visualization_url(firestore_db, bucket, message_id, user_id)
     return SignedUrlResponse(url=url, expires_in_seconds=expires)
-
-
-@router.delete("/chats/{chat_id}")
-async def delete_chat(
-    chat_id: str,
-    current_user: User = Depends(get_current_user),
-    # user_id,
-    firestore_db = Depends(check_firestore)
-):
-    """
-    DELETE /api/chats/{chat_id}
-    Deletes chat
-    
-    Response:
-    {
-        "message": "Chat deleted successfully",
-        "chat_id": "64n6ktonTRpHZZjy4C7Y"
-    }
-    """
-    
-    user_id = str(current_user.user_id)
-    return chat_utils.delete_chat(firestore_db, chat_id, user_id)
- 
