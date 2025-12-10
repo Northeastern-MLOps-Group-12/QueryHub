@@ -489,7 +489,7 @@ You should see Airflow webserver, scheduler, and worker containers running.
 
 ### Deployment Architecture
 
-![Cloud Run Deployment](https://lucid.app/publicSegments/view/95fe0342-ac1b-4005-b9b1-e1c2c9c49907/image.png)
+![Overall Architecture](https://lucid.app/publicSegments/view/3bb3a15f-5945-44b9-8498-473e13a5fc95/image.png)
 
 ---
 
