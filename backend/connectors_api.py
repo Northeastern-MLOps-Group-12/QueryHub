@@ -1,5 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, APIRouter
 from connectors.connector import Connector
 from databases.cloudsql.crud import get_records_by_user_id
 from databases.cloudsql.database import get_db
@@ -7,7 +6,6 @@ from .models.connector_request import ConnectorRequest
 from agents.load_data_to_vector.graph import build_graph_to_load
 from agents.update_data_in_vector.graph import build_graph_to_update
 from agents.load_data_to_vector.state import AgentState
-from fastapi.middleware.cors import CORSMiddleware
 from vectorstore.chroma_vector_store import ChromaVectorStore
 from backend.utils.connectors_api_utils import structure_vector_store_data
 import os

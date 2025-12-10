@@ -1,8 +1,7 @@
-import axios from "axios";
 import api from "./api";
 
 // Enable sending cookies with requests
-axios.defaults.withCredentials = true;
+api.defaults.withCredentials = true;
 
 // Authentication credentials type definition
 export interface AuthCredentials {
