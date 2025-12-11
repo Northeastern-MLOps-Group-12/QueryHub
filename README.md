@@ -482,17 +482,13 @@ You should see Airflow webserver, scheduler, and worker containers running.
 
 ## 🏗️ Architecture
 
-### Backend Flowchart
+### Product Flow
 
-![Backend Architecture](https://lucid.app/publicSegments/view/967cb8f0-2b53-499e-94b2-ee26074eb6f5/image.png)
-
-### Frontend Flowchart
-
-![Frontend Flow](https://lucid.app/publicSegments/view/91d4e32f-6dbd-4131-9993-55b6a51896e3/image.png)
+![Product Flow](https://lucid.app/publicSegments/view/bb46e352-5c95-4734-9fb7-e43e8c6b449f/image.png)
 
 ### Deployment Architecture
 
-![Overall Architecture](https://lucid.app/publicSegments/view/3bb3a15f-5945-44b9-8498-473e13a5fc95/image.png)
+![Overall Architecture](https://lucid.app/publicSegments/view/30565903-084a-492c-9687-e1bca557e962/image.png)
 
 ---
 
