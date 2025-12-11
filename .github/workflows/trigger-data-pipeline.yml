@@ -2,7 +2,7 @@ name: Trigger Data Pipeline DAG
 
 on:
   schedule:
-    - cron: '0 15 * * *'  
+    - cron: '0 15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,24 +20,66 @@ jobs:
       - name: Request Airflow Bearer Token
         id: get_token
         run: |
-          TOKEN_RESPONSE=$(curl -s -X POST "${{ secrets.AIRFLOW_VM_URL }}/auth/token" \
+          echo "Requesting token from Airflow..."
+          TOKEN_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "${{ secrets.AIRFLOW_VM_URL }}/auth/token" \
             -H "Content-Type: application/json" \
             -d "{
                   \"username\": \"${{ secrets.AIRFLOW_USERNAME }}\",
                   \"password\": \"${{ secrets.AIRFLOW_PASSWORD }}\"
                 }")
-          echo "$TOKEN_RESPONSE" | jq
-          ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
-          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+          
+          # Extract HTTP code
+          HTTP_CODE=$(echo "$TOKEN_RESPONSE" | grep "HTTP_CODE:" | cut -d':' -f2)
+          RESPONSE_BODY=$(echo "$TOKEN_RESPONSE" | sed '/HTTP_CODE:/d')
+          
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "Response Body:"
+          echo "$RESPONSE_BODY"
+          
+          # Check if request was successful
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Failed to get token. HTTP Status: $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Validate JSON and extract token
+          if echo "$RESPONSE_BODY" | jq empty 2>/dev/null; then
+            ACCESS_TOKEN=$(echo "$RESPONSE_BODY" | jq -r '.access_token')
+            if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+              echo "Error: access_token not found in response"
+              exit 1
+            fi
+            echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+            echo "Token retrieved successfully"
+          else
+            echo "Error: Response is not valid JSON"
+            exit 1
+          fi
 
       - name: Trigger Data Pipeline DAG
         run: |
           CURRENT_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          curl -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/data_pipeline_with_synthetic_v1_schema_validation/dagRuns" \
+          echo "Triggering DAG with run_id: manual__${CURRENT_UTC}"
+          
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "${{ secrets.AIRFLOW_VM_URL }}/api/v2/dags/data_pipeline_with_synthetic_v1_schema_validation/dagRuns" \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
                   \"dag_run_id\": \"manual__${CURRENT_UTC}\",
                   \"logical_date\": \"${CURRENT_UTC}\",
                   \"conf\": {}
-                }"
+                }")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d':' -f2)
+          RESPONSE_BODY=$(echo "$RESPONSE" | sed '/HTTP_CODE:/d')
+          
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "Response:"
+          echo "$RESPONSE_BODY"
+          
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "DAG triggered successfully!"
+          else
+            echo "Error: Failed to trigger DAG"
+            exit 1
+          fi

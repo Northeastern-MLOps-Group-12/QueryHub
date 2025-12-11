@@ -448,17 +448,20 @@ QueryHub uses GitHub Actions for continuous integration and deployment. The foll
 
 | Workflow | File | Description |
 |----------|------|-------------|
-| **Trigger Data Pipeline** | `trigger-data-pipeline.yml` | Triggers the data pipeline DAG daily at 10 AM EST |
-| **Deploy Backend** | `deploy-backend.yml` | Deploys the backend to Google Cloud Run |
-| **Deploy Monitoring** | `deploy-monitoring.yml` | Pushes monitoring code to VM and deploys Grafana/Prometheus dashboards |
-| **Deploy Frontend** | `frontend-deploy.yml` | Deploys the frontend to Google Cloud Run |
-| **Run Tests** | `run_tests.yml` | Executes unit tests on every push/PR |
+| **Airflow Deployment** | `airflow-cicd.yml` | Deploys Data and Model Training pipeline to VM |
+| **Verte AI Scripts** | `build-vertex-ai-image.yml` | Pushes Model Training and Evaluation Script to Artifact Registry |
+| **Deploy Backend** | `deploy-backend.yml` | Deploys the Cackend to Google Cloud Run |
+| **Deploy Monitoring** | `deploy-monitoring.yml` | Pushes Monitoring code to VM and deploys Grafana/Prometheus dashboards |
+| **Deploy Frontend** | `frontend-deploy.yml` | Deploys the Frontend to Google Cloud Run |
+| **Run Tests** | `run_tests.yml` | Executes unit tests on every Push and PR |
+| **Trigger Data Pipeline** | `trigger-data-pipeline.yml` | Triggers Data Pipeline DAG daily at 10 AM EST |
 
 ### Deployment Architecture
 
 - **Backend**: Deployed to Cloud Run (containerized FastAPI service)
 - **Frontend**: Deployed to Cloud Run (containerized React app)
 - **Data Pipeline**: Runs on a GCP VM with Docker (Airflow + DAGs)
+- **Model Training**: Runs on Vertex AI
 - **Monitoring**: Grafana and Prometheus deployed on a dedicated VM
 
 ### Verifying Deployment
@@ -479,17 +482,13 @@ You should see Airflow webserver, scheduler, and worker containers running.
 
 ## 🏗️ Architecture
 
-### Backend Flowchart
+### Product Flow
 
-![Backend Architecture](https://lucid.app/publicSegments/view/967cb8f0-2b53-499e-94b2-ee26074eb6f5/image.png)
-
-### Frontend Flowchart
-
-![Frontend Flow](https://lucid.app/publicSegments/view/91d4e32f-6dbd-4131-9993-55b6a51896e3/image.png)
+![Product Flow](https://lucid.app/publicSegments/view/bb46e352-5c95-4734-9fb7-e43e8c6b449f/image.png)
 
 ### Deployment Architecture
 
-![Overall Architecture](https://lucid.app/publicSegments/view/3bb3a15f-5945-44b9-8498-473e13a5fc95/image.png)
+![Overall Architecture](https://lucid.app/publicSegments/view/30565903-084a-492c-9687-e1bca557e962/image.png)
 
 ---
 

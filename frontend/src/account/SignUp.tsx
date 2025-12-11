@@ -8,6 +8,10 @@ export default function SignUp() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  
+  // 1. New loading state
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -35,6 +39,10 @@ export default function SignUp() {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 2. Start loading
+    setLoading(true);
+    setError("");
 
     try {
       const response = await register(formData);
@@ -44,6 +52,9 @@ export default function SignUp() {
         });
       }
     } catch (error: any) {
+      // 3. Stop loading on error
+      setLoading(false);
+
       if (error.response) {
         if (
           error.response.status === 400 &&
@@ -128,6 +139,7 @@ export default function SignUp() {
                         className="form-control border-start-0 ps-2"
                         placeholder="Enter your first name"
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -147,6 +159,7 @@ export default function SignUp() {
                         className="form-control border-start-0 ps-2"
                         placeholder="Enter your last name"
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -169,6 +182,7 @@ export default function SignUp() {
                         placeholder="Enter your email"
                         required
                         pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -191,10 +205,11 @@ export default function SignUp() {
                         placeholder="Enter your password"
                         required
                         pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}"
+                        disabled={loading}
                       />
                       <span
                         className="input-group-text bg-light border-start-0 cursor-pointer"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => !loading && setShowPassword(!showPassword)}
                       >
                         {showPassword ? (
                           <FiEyeOff className="text-muted" />
@@ -218,19 +233,31 @@ export default function SignUp() {
                     )}
                   </div>
 
-                  {/* Submit button and Sign In link */}
+                  {/* 4. Submit button with Spinner */}
                   <button
                     type="submit"
-                    className="btn btn-primary w-100 py-2 mb-4 fw-semibold"
+                    className="btn btn-primary w-100 py-2 mb-4 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                    disabled={loading}
                   >
-                    Sign Up
+                    {loading ? (
+                      <>
+                        <span
+                          className="spinner-border spinner-border-sm"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
+                        Signing Up...
+                      </>
+                    ) : (
+                      "Sign Up"
+                    )}
                   </button>
 
                   <p className="text-center mb-0">
                     Already have an account?{" "}
                     <a
                       href="/account/signin"
-                      className="text-primary text-decoration-none fw-semibold"
+                      className={`text-primary text-decoration-none fw-semibold ${loading ? 'disabled pe-none' : ''}`}
                     >
                       Sign In
                     </a>

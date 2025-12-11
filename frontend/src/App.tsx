@@ -18,7 +18,15 @@ import Database from "./database";
 // Main Application Component
 function App() {
   const { loading } = useAuth();
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" style={{ width: "3rem", height: "3rem" }} role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="d-flex flex-column vh-100">

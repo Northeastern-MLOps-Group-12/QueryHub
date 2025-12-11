@@ -154,7 +154,7 @@ def register_model_in_vertex_ai(project_id, region, model_artifact_path, serving
         serving_container_image_uri=serving_container_image_uri,
         serving_container_predict_route="/predict",
         serving_container_health_route="/health",
-        serving_container_ports=[9090],
+        serving_container_ports=[8080],
     )
     print(f"✅ Model uploaded to Vertex AI Model Registry: {model.resource_name}")
 

@@ -11,6 +11,10 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  
+  // 1. New loading state
+  const [loading, setLoading] = useState(false); 
+  
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -20,8 +24,6 @@ export default function SignIn() {
       const timer = setTimeout(() => {
         setError("");
       }, 2000);
-
-      // Clean up the timer when the component unmounts or the error changes
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -29,6 +31,10 @@ export default function SignIn() {
   // Handle form submission for sign-in
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 2. Start loading
+    setLoading(true);
+    setError(""); // Clear previous errors on new attempt
 
     try {
       const response = await signIn({ email, password });
@@ -56,6 +62,9 @@ export default function SignIn() {
         }
       }
     } catch (error: any) {
+      // 3. Stop loading only on error (on success, navigation happens)
+      setLoading(false); 
+      
       if (error.response) {
         setError(error.response.data.detail || "An error occurred");
       } else if (error.request) {
@@ -119,6 +128,7 @@ export default function SignIn() {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading} /* Disable input while loading */
                       />
                     </div>
                   </div>
@@ -137,10 +147,11 @@ export default function SignIn() {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading} /* Disable input while loading */
                       />
                       <span
                         className="input-group-text bg-light border-start-0 cursor-pointer"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => !loading && setShowPassword(!showPassword)}
                       >
                         {showPassword ? (
                           <FiEyeOff className="text-muted" />
@@ -151,19 +162,31 @@ export default function SignIn() {
                     </div>
                   </div>
 
-                  {/* Submit button */}
+                  {/* 4. Updated Submit button with Spinner */}
                   <button
                     type="submit"
-                    className="btn btn-primary w-100 py-2 mb-4 fw-semibold"
+                    className="btn btn-primary w-100 py-2 mb-4 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                    disabled={loading}
                   >
-                    Sign In
+                    {loading ? (
+                      <>
+                        <span
+                          className="spinner-border spinner-border-sm"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
+                        Signing In...
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
                   </button>
 
                   <p className="text-center">
                     Don't have an account?{" "}
                     <a
                       href="/account/signup"
-                      className="text-primary text-decoration-none fw-semibold"
+                      className={`text-primary text-decoration-none fw-semibold ${loading ? 'disabled pe-none' : ''}`}
                     >
                       Sign Up
                     </a>
