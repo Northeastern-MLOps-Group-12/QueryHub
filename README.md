@@ -448,17 +448,20 @@ QueryHub uses GitHub Actions for continuous integration and deployment. The foll
 
 | Workflow | File | Description |
 |----------|------|-------------|
-| **Trigger Data Pipeline** | `trigger-data-pipeline.yml` | Triggers the data pipeline DAG daily at 10 AM EST |
-| **Deploy Backend** | `deploy-backend.yml` | Deploys the backend to Google Cloud Run |
-| **Deploy Monitoring** | `deploy-monitoring.yml` | Pushes monitoring code to VM and deploys Grafana/Prometheus dashboards |
-| **Deploy Frontend** | `frontend-deploy.yml` | Deploys the frontend to Google Cloud Run |
-| **Run Tests** | `run_tests.yml` | Executes unit tests on every push/PR |
+| **Airflow Deployment** | `airflow-cicd.yml` | Deploys Data and Model Training pipeline to VM |
+| **Verte AI Scripts** | `build-vertex-ai-image.yml` | Pushes Model Training and Evaluation Script to Artifact Registry |
+| **Deploy Backend** | `deploy-backend.yml` | Deploys the Cackend to Google Cloud Run |
+| **Deploy Monitoring** | `deploy-monitoring.yml` | Pushes Monitoring code to VM and deploys Grafana/Prometheus dashboards |
+| **Deploy Frontend** | `frontend-deploy.yml` | Deploys the Frontend to Google Cloud Run |
+| **Run Tests** | `run_tests.yml` | Executes unit tests on every Push and PR |
+| **Trigger Data Pipeline** | `trigger-data-pipeline.yml` | Triggers Data Pipeline DAG daily at 10 AM EST |
 
 ### Deployment Architecture
 
 - **Backend**: Deployed to Cloud Run (containerized FastAPI service)
 - **Frontend**: Deployed to Cloud Run (containerized React app)
 - **Data Pipeline**: Runs on a GCP VM with Docker (Airflow + DAGs)
+- **Model Training**: Runs on Vertex AI
 - **Monitoring**: Grafana and Prometheus deployed on a dedicated VM
 
 ### Verifying Deployment
