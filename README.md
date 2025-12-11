@@ -484,11 +484,11 @@ You should see Airflow webserver, scheduler, and worker containers running.
 
 ### Product Flow
 
-![Product Flow](https://lucid.app/publicSegments/view/bb46e352-5c95-4734-9fb7-e43e8c6b449f/image.png)
+![Product Flow](https://i.imgur.com/HvcBgnv.png)
 
 ### Deployment Architecture
 
-![Overall Architecture](https://lucid.app/publicSegments/view/30565903-084a-492c-9687-e1bca557e962/image.png)
+![Overall Architecture](https://imgur.com/MOkA1VR.png)
 
 ---
 
