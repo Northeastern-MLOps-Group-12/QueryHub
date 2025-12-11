@@ -265,7 +265,7 @@ def choose_best_model(project_id, region, run_name, **kwargs):
         # No existing endpoint/model - new model wins by default
         print(f"No existing deployed model found: {e}")
         print("New model will be deployed as the first model.")
-        return "ensure_vertex_endpoint"
+        return "deploy_model_to_endpoint"
     
     # Compare metrics - new model is better if F1 score is higher and exact_match not worse
     is_new_model_better = (new_f1_score > old_f1_score) and (new_exact_match >= old_exact_match)

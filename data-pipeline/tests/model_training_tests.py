@@ -91,8 +91,7 @@ class TestModelTrainingDAG:
             'syntax_validation', 
             'model_check',
             'skip_deployment',
-            'ensure_vertex_endpoint',
-            'deploy_model_to_vertex_endpoint',
+            'deploy_model_to_endpoint',
             'training_completed',
             'training_failed',
         ]
@@ -116,8 +115,7 @@ class TestModelTrainingDAG:
         syntax_validation = dag.get_task('syntax_validation')
         model_check = dag.get_task('model_check')
         skip_deployment = dag.get_task('skip_deployment')
-        ensure_endpoint = dag.get_task('ensure_vertex_endpoint')
-        deploy_model = dag.get_task('deploy_model_to_vertex_endpoint')
+        deploy_model = dag.get_task('deploy_model_to_endpoint')
         training_completed = dag.get_task('training_completed')
         training_failed = dag.get_task('training_failed')
         
@@ -140,14 +138,12 @@ class TestModelTrainingDAG:
             f"syntax_validation should flow to model_check and training_failed, got {syntax_validation.downstream_task_ids}"
         
         # Check branching from model_check
-        assert model_check.downstream_task_ids == {'ensure_vertex_endpoint', 'skip_deployment'}, \
-            f"model_check should branch to ensure_vertex_endpoint and skip_deployment, got {model_check.downstream_task_ids}"
+        assert model_check.downstream_task_ids == {'deploy_model_to_endpoint', 'skip_deployment'}, \
+            f"model_check should branch to deploy_model_to_endpoint and skip_deployment, got {model_check.downstream_task_ids}"
         
-        # Check deploy path
-        assert ensure_endpoint.downstream_task_ids == {'deploy_model_to_vertex_endpoint'}, \
-            f"ensure_vertex_endpoint should flow to deploy_model_to_vertex_endpoint, got {ensure_endpoint.downstream_task_ids}"
+        # Check deploy path (no ensure_endpoint task anymore)
         assert deploy_model.downstream_task_ids == {'training_completed'}, \
-            f"deploy_model_to_vertex_endpoint should flow to training_completed, got {deploy_model.downstream_task_ids}"
+            f"deploy_model_to_endpoint should flow to training_completed, got {deploy_model.downstream_task_ids}"
         
         # Check skip path
         assert skip_deployment.downstream_task_ids == {'training_completed'}, \
@@ -158,7 +154,6 @@ class TestModelTrainingDAG:
             f"training_completed should have no downstream tasks, got {training_completed.downstream_task_ids}"
         assert training_failed.downstream_task_ids == set(), \
             f"training_failed should have no downstream tasks, got {training_failed.downstream_task_ids}"
-    
 
     
     def test_task_configurations(self):
