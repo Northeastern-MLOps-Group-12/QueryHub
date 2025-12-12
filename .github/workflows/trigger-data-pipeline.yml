@@ -1,9 +1,6 @@
 name: Trigger Data Pipeline DAG
 
 on:
-  push:
-    branches:
-      - Updates
   schedule:
     - cron: '0 15 * * *'
   workflow_dispatch:
