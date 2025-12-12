@@ -37,7 +37,7 @@ jobs:
           echo "$RESPONSE_BODY"
           
           # Check if request was successful
-          if [ "$HTTP_CODE" != "200" ]; then
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
             echo "Error: Failed to get token. HTTP Status: $HTTP_CODE"
             exit 1
           fi
