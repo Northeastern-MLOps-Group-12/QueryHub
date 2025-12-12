@@ -488,7 +488,7 @@ You should see Airflow webserver, scheduler, and worker containers running.
 
 ### Deployment Architecture
 
-![Overall Architecture](https://imgur.com/MOkA1VR.png)
+![Overall Architecture](https://i.imgur.com/MOkA1VR.png)
 
 ---
 
